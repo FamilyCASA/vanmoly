@@ -36,7 +36,6 @@ def get_departments(current_user):
 
 @employee_bp.route('/departments', methods=['POST'])
 @jwt_required_v2
-@jwt_required_v2
 def create_department(current_user):
     """创建部门"""
     data = request.get_json()
@@ -85,7 +84,6 @@ def get_positions(current_user):
 
 
 @employee_bp.route('/positions', methods=['POST'])
-@jwt_required_v2
 @jwt_required_v2
 def create_position(current_user):
     """创建岗位"""
@@ -137,6 +135,9 @@ def get_employees(current_user):
         query = query.filter_by(department_id=department_id)
     if status:
         query = query.filter_by(status=status)
+    role = request.args.get('role')
+    if role:
+        query = query.filter_by(role=role)
 
     query = query.order_by(Employee.created_at.desc())
     pagination = query.paginate(page=page, per_page=page_size, error_out=False)
@@ -181,7 +182,6 @@ def get_employee(current_user, id):
 
 
 @employee_bp.route('', methods=['POST'])
-@jwt_required_v2
 @jwt_required_v2
 def create_employee(current_user):
     """创建员工"""

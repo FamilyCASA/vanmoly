@@ -321,7 +321,7 @@ const loadPages = async () => {
   loading.value = true
   try {
     const res = await request.get('/frontend/pages')
-    pages.value = res.data || []
+    pages.value = res || []
   } catch (error) {
     ElMessage.error('加载页面配置失败')
   } finally {
@@ -332,7 +332,7 @@ const loadPages = async () => {
 const loadThemes = async () => {
   try {
     const res = await request.get('/frontend/themes')
-    themes.value = res.data || []
+    themes.value = res || []
   } catch (error) {
     ElMessage.error('加载主题失败')
   }
@@ -341,10 +341,10 @@ const loadThemes = async () => {
 const loadNavigations = async () => {
   try {
     const headerRes = await request.get('/frontend/navigation/header')
-    navigations.header = headerRes.data
+    navigations.header = headerRes
     
     const footerRes = await request.get('/frontend/navigation/footer')
-    navigations.footer = footerRes.data
+    navigations.footer = footerRes
   } catch (error) {
     console.error('加载导航失败', error)
   }
@@ -353,7 +353,7 @@ const loadNavigations = async () => {
 const loadComponents = async () => {
   try {
     const res = await request.get('/frontend/components')
-    components.value = res.data || []
+    components.value = res || []
   } catch (error) {
     console.error('加载组件库失败', error)
   }
@@ -362,7 +362,7 @@ const loadComponents = async () => {
 const loadResources = async () => {
   try {
     const res = await request.get('/frontend/resources')
-    resources.value = res.data || []
+    resources.value = res || []
   } catch (error) {
     console.error('加载资源失败', error)
   }

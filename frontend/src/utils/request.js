@@ -48,7 +48,8 @@ request.interceptors.response.use(
     
     // 如果响应格式是 { code, message, data }
     if (res.code !== undefined) {
-      if (res.code !== 200) {
+      // 接受所有 2xx 状态码（200-299）为成功
+      if (res.code < 200 || res.code >= 300) {
         ElMessage.error(res.message || '请求失败')
         return Promise.reject(new Error(res.message || '请求失败'))
       }

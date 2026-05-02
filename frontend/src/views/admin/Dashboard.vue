@@ -263,7 +263,7 @@ const initCharts = () => {
     trendChartInstance.setOption({
       tooltip: { trigger: 'axis' },
       legend: { data: ['新增客户', '合同金额', '报价数'] },
-      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      grid: { left: '3%', right: '4%', bottom: '3%', outerBounds: true },
       xAxis: {
         type: 'category',
         boundaryGap: false,

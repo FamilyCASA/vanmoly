@@ -9,8 +9,9 @@ from app.models.hr_v2 import (
     EmployeeSalary, PerformanceReview, EmployeePoints, PointsTransaction,
     CareerPath, TrainingRecord, EmployeeWelfare
 )
-from app.routes.auth_routes_v2 import jwt_required_v2
+from app.routes.auth_routes_v2 import jwt_required_v2, hash_password, DEFAULT_PASSWORD
 from datetime import datetime
+from app.models.auth_v2 import UserV2
 
 hr_v2_bp = Blueprint('hr_v2', __name__, url_prefix='/api/v3/hr')
 
@@ -127,6 +128,20 @@ def get_employees(current_user):
     result = []
     for emp in employees:
         emp_data = emp.to_dict()
+        # 加载关联登录账号
+        user_account = UserV2.query.filter_by(employee_id=emp.id).first()
+        if user_account:
+            emp_data['account'] = {
+                'user_id': user_account.id,
+                'username': user_account.username,
+                'role': user_account.role,
+                'status': user_account.status,
+                'must_change_password': user_account.must_change_password,
+                'last_login_at': user_account.last_login_at.strftime('%Y-%m-%d %H:%M:%S') if user_account.last_login_at else None,
+                'is_resigned': user_account.status == 'resigned',
+            }
+        else:
+            emp_data['account'] = None
         # 加载积分
         points = EmployeePoints.query.filter_by(employee_id=emp.id).first()
         emp_data['points'] = points.to_dict() if points else None
@@ -171,6 +186,14 @@ def create_employee(current_user):
         next_id = (last_emp.id + 1) if last_emp else 1
         employee_no = f"VM{next_id:04d}"
     
+    # Handle entry_date conversion
+    entry_date_val = data.get('entry_date')
+    if entry_date_val and isinstance(entry_date_val, str):
+        try:
+            entry_date_val = datetime.strptime(entry_date_val[:10], '%Y-%m-%d').date()
+        except ValueError:
+            entry_date_val = None
+
     emp = Employee(
         employee_no=employee_no,
         name=data['name'],
@@ -179,25 +202,29 @@ def create_employee(current_user):
         email=data.get('email'),
         department_id=data.get('department_id'),
         position_id=data.get('position_id'),
-        job_level=data.get('job_level', 1),
-        entry_date=data.get('entry_date'),
-        is_key_talent=data.get('is_key_talent', False),
-        talent_level=data.get('talent_level', 'C')
+        job_level=data.get('job_level', '1'),
+        entry_date=entry_date_val,
+        role=data.get('role', 'employee'),
+        status=data.get('status', 'active')
     )
-    db.session.add(emp)
-    db.session.flush()
-    
-    # 创建积分账户
-    points_account = EmployeePoints(employee_id=emp.id)
-    db.session.add(points_account)
-    
-    db.session.commit()
-    
-    return jsonify({
-        'code': 200,
-        'data': emp.to_dict(),
-        'message': '员工创建成功'
-    })
+    try:
+        db.session.add(emp)
+        db.session.flush()
+        
+        # 创建积分账户
+        points_account = EmployeePoints(employee_id=emp.id)
+        db.session.add(points_account)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'code': 200,
+            'data': emp.to_dict(),
+            'message': '员工创建成功'
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'data': None, 'message': str(e)}), 500
 
 
 @hr_v2_bp.route('/employees/<int:id>', methods=['PUT'])
@@ -208,13 +235,22 @@ def update_employee(current_user, id):
     data = request.get_json()
     
     emp.name = data.get('name', emp.name)
+    emp.gender = data.get('gender', emp.gender)
     emp.phone = data.get('phone', emp.phone)
     emp.email = data.get('email', emp.email)
     emp.department_id = data.get('department_id', emp.department_id)
     emp.position_id = data.get('position_id', emp.position_id)
     emp.job_level = data.get('job_level', emp.job_level)
-    emp.is_key_talent = data.get('is_key_talent', emp.is_key_talent)
-    emp.talent_level = data.get('talent_level', emp.talent_level)
+    emp.role = data.get('role', emp.role)
+    emp.status = data.get('status', emp.status)
+    # entry_date 处理
+    entry_date_val = data.get('entry_date')
+    if entry_date_val and isinstance(entry_date_val, str):
+        try:
+            emp.entry_date = datetime.strptime(entry_date_val[:10], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+    # is_key_talent / talent_level 字段已从 Employee 模型移除，跳过
     
     db.session.commit()
     
@@ -407,4 +443,164 @@ def get_hr_dashboard(current_user):
             'probation_count': probation_count
         },
         'message': 'success'
+    })
+
+
+# ========== 员工账号管理 ==========
+
+@hr_v2_bp.route('/employees/<int:id>/account', methods=['POST'])
+@jwt_required_v2
+def assign_employee_account(current_user, id):
+    """为员工赋予登录账号（关联users_v2）"""
+    emp = Employee.query.get_or_404(id)
+    data = request.get_json()
+
+    login_name = data.get('login_name', '').strip()
+    login_type = data.get('login_type', 'username')  # username or phone
+    role = data.get('role', 'staff')  # staff / manager / admin
+
+    if not login_name:
+        return jsonify({'code': 400, 'message': '登录名不能为空'}), 400
+
+    # 检查是否已有账号
+    existing_user = UserV2.query.filter_by(employee_id=id).first()
+    if existing_user:
+        return jsonify({'code': 400, 'message': '该员工已有登录账号', 'data': existing_user.to_dict()}), 400
+
+    # 检查登录名是否已被占用
+    if login_type == 'phone':
+        dup = UserV2.query.filter_by(phone=login_name).first()
+    else:
+        dup = UserV2.query.filter_by(username=login_name).first()
+    if dup:
+        return jsonify({'code': 400, 'message': '该登录名已被占用'}), 400
+
+    # 创建 users_v2 账号
+    phone = login_name if login_type == 'phone' else (emp.phone or login_name)
+    username = login_name if login_type == 'username' else ('emp_' + str(id))
+
+    new_user = UserV2(
+        username=username,
+        nickname=emp.name or username,
+        phone=phone,
+        password_hash=hash_password(DEFAULT_PASSWORD),
+        must_change_password=True,
+        role=role,
+        employee_id=id,
+        department_id=emp.department_id,
+        store_id=emp.store_id,
+        status='active'
+    )
+    db.session.add(new_user)
+
+    # 同步更新 employee 表的 username 字段
+    emp.username = username
+    emp.role = role
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'data': {
+            'user_id': new_user.id,
+            'username': new_user.username,
+            'nickname': new_user.nickname,
+            'phone': new_user.phone,
+            'role': new_user.role,
+            'default_password': DEFAULT_PASSWORD,
+            'must_change_password': True
+        },
+        'message': '登录账号创建成功，默认密码: ' + DEFAULT_PASSWORD
+    })
+
+
+@hr_v2_bp.route('/employees/<int:id>/reset-password', methods=['POST'])
+@jwt_required_v2
+def reset_employee_password(current_user, id):
+    """重置员工密码为默认密码"""
+    emp = Employee.query.get_or_404(id)
+
+    # 查找关联的 users_v2 账号
+    user = UserV2.query.filter_by(employee_id=id).first()
+    if not user:
+        return jsonify({'code': 404, 'message': '该员工未绑定登录账号'}), 404
+
+    # 重置密码
+    user.password_hash = hash_password(DEFAULT_PASSWORD)
+    user.must_change_password = True
+    user.password_changed_at = None
+    user.login_fail_count = 0
+    user.locked_until = None
+    if user.status == 'locked':
+        user.status = 'active'
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '密码已重置为默认密码: ' + DEFAULT_PASSWORD,
+        'data': {'default_password': DEFAULT_PASSWORD}
+    })
+
+
+@hr_v2_bp.route('/employees/<int:id>/revoke-account', methods=['POST'])
+@jwt_required_v2
+def revoke_employee_account(current_user, id):
+    """收回员工账号（离职后禁止登录）"""
+    emp = Employee.query.get_or_404(id)
+
+    user = UserV2.query.filter_by(employee_id=id).first()
+    if not user:
+        return jsonify({'code': 404, 'message': '该员工未绑定登录账号'}), 404
+
+    # 设置为 resigned 状态
+    user.status = 'resigned'
+    user.resigned_at = datetime.now()
+    user.resigned_reason = '员工离职，账号收回'
+    user.resigned_by = current_user.get('id')
+
+    # 同步更新员工状态
+    emp.status = 'leave'
+    emp.leave_date = datetime.now()
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '账号已收回，该员工无法再登录系统'
+    })
+
+
+@hr_v2_bp.route('/employees/<int:id>/restore-account', methods=['POST'])
+@jwt_required_v2
+def restore_employee_account(current_user, id):
+    """恢复员工账号（重新激活）"""
+    emp = Employee.query.get_or_404(id)
+
+    user = UserV2.query.filter_by(employee_id=id).first()
+    if not user:
+        return jsonify({'code': 404, 'message': '该员工未绑定登录账号'}), 404
+
+    if user.status != 'resigned':
+        return jsonify({'code': 400, 'message': '该账号未处于收回状态，无需恢复'}), 400
+
+    # 恢复账号
+    user.status = 'active'
+    user.resigned_at = None
+    user.resigned_reason = None
+    user.resigned_by = None
+    user.login_fail_count = 0
+    user.locked_until = None
+    user.must_change_password = True
+    user.password_hash = hash_password(DEFAULT_PASSWORD)
+
+    # 同步恢复员工状态
+    emp.status = 'active'
+    emp.leave_date = None
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '账号已恢复，默认密码: ' + DEFAULT_PASSWORD
     })

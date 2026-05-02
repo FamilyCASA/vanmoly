@@ -175,10 +175,10 @@
                 style="width: 100%"
               >
                 <el-option
-                  v-for="user in managers"
-                  :key="user.id"
-                  :label="user.nickname"
-                  :value="user.id"
+                  v-for="emp in managers"
+                  :key="emp.id"
+                  :label="emp.name + (emp.department_name ? ' - ' + emp.department_name : '')"
+                  :value="emp.id"
                 />
               </el-select>
             </el-form-item>
@@ -350,12 +350,16 @@ const loadStores = async () => {
 
 const loadManagers = async () => {
   try {
-    const res = await request.get('/users', { params: { role: 'manager' } })
-    if (res.list !== undefined) {
-      managers.value = res.list || []
+    // 加载所有在职员工供选择店长（不限role，因为店长可能在各种岗位）
+    const res = await request.get('/employees', { params: { page_size: 200, status: 'active' } })
+    if (res.items !== undefined) {
+      managers.value = res.items || []
+    } else {
+      ElMessage.error(res.message || '加载员工列表失败')
     }
   } catch (error) {
-    console.error('加载店长列表失败:', error)
+    console.error('加载员工列表失败:', error)
+    ElMessage.error('加载员工列表失败')
   }
 }
 

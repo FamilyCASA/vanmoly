@@ -1276,7 +1276,7 @@ const handleMarkContract = async () => {
 const getStatusType = (status) => {
   const map = {
     '待分配': 'info',
-    '已分配': '',
+    '已分配': 'info',
     '跟进中': 'primary',
     '已到店': 'success',
     '已量房': 'success',
@@ -1287,17 +1287,17 @@ const getStatusType = (status) => {
     '无效': 'info',
     '公海': 'info'
   }
-  return map[status] || ''
+  return map[status] || 'info'
 }
 
 const getIntentionType = (level) => {
-  const map = { '高': 'danger', '中': 'warning', '低': 'info', '无效': '' }
-  return map[level] || ''
+  const map = { '高': 'danger', '中': 'warning', '低': 'info', '无效': 'info' }
+  return map[level] || 'info'
 }
 
 const getLevelType = (level) => {
-  const map = { '线索': '', '客户': 'primary', 'VIP': 'warning', 'SVIP': 'danger' }
-  return map[level] || ''
+  const map = { '线索': 'info', '客户': 'primary', 'VIP': 'warning', 'SVIP': 'danger' }
+  return map[level] || 'info'
 }
 
 const formatTime = (timeStr) => {

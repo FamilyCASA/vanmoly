@@ -161,6 +161,21 @@
           </template>
         </el-table-column>
         
+        <el-table-column label="登录账号" width="130">
+          <template #default="{ row }">
+            <template v-if="row.account">
+              <div class="account-info">
+                <span class="account-name">{{ row.account.username }}</span>
+                <el-tag v-if="row.account.is_resigned" type="danger" size="small" effect="dark">已收回</el-tag>
+                <el-tag v-else-if="row.account.must_change_password" type="warning" size="small">待改密</el-tag>
+                <el-tag v-else type="success" size="small">正常</el-tag>
+              </div>
+              <div class="account-role" v-if="row.account.role">{{ roleLabels[row.account.role] || row.account.role }}</div>
+            </template>
+            <span v-else class="no-account">未分配</span>
+          </template>
+        </el-table-column>
+        
         <el-table-column label="关怀提醒" width="150">
           <template #default="{ row }">
             <div class="care-reminders">
@@ -177,9 +192,21 @@
           </template>
         </el-table-column>
         
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button type="primary" link @click.stop="openEmployeeDialog(row)">编辑</el-button>
+            <template v-if="!row.account">
+              <el-button type="success" link @click.stop="openAssignAccountDialog(row)">分配账号</el-button>
+            </template>
+            <template v-else>
+              <el-button type="warning" link @click.stop="resetPassword(row)">重置密码</el-button>
+              <template v-if="row.account.is_resigned">
+                <el-button type="success" link @click.stop="restoreAccount(row)">恢复账号</el-button>
+              </template>
+              <template v-else>
+                <el-button type="danger" link @click.stop="revokeAccount(row)">收回账号</el-button>
+              </template>
+            </template>
             <el-dropdown @command="(cmd) => handleMoreAction(cmd, row)">
               <el-button type="primary" link>更多<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
               <template #dropdown>
@@ -293,6 +320,57 @@
       </template>
     </el-dialog>
 
+    <!-- 分配账号对话框 -->
+    <el-dialog v-model="accountDialog.visible" title="分配登录账号" width="500px">
+      <div v-if="accountDialog.employee" class="account-assign-info">
+        <el-avatar :size="40" :src="accountDialog.employee.avatar || '/default-avatar.png'" />
+        <div>
+          <div class="name">{{ accountDialog.employee.name }}</div>
+          <div class="meta">{{ accountDialog.employee.employee_no }} · {{ accountDialog.employee.phone }}</div>
+        </div>
+      </div>
+      <el-form :model="accountDialog.form" label-width="100px" style="margin-top: 20px">
+        <el-form-item label="登录方式" required>
+          <el-radio-group v-model="accountDialog.form.login_type">
+            <el-radio value="username">账号登录</el-radio>
+            <el-radio value="phone">手机号登录</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="登录名" required>
+          <el-input 
+            v-model="accountDialog.form.login_name" 
+            :placeholder="accountDialog.form.login_type === 'phone' ? '输入手机号' : '输入登录账号名'"
+          />
+          <div v-if="accountDialog.form.login_type === 'phone'" class="form-tip">
+            使用手机号登录，输入后将作为账号和手机号
+          </div>
+          <div v-else class="form-tip">
+            建议使用姓名拼音或工号作为登录名
+          </div>
+        </el-form-item>
+        <el-form-item label="角色权限" required>
+          <el-select v-model="accountDialog.form.role" style="width: 100%">
+            <el-option label="普通员工" value="staff" />
+            <el-option label="店长/经理" value="manager" />
+            <el-option label="管理员" value="admin" />
+          </el-select>
+        </el-form-item>
+        <el-alert 
+          type="info" 
+          :closable="false"
+          style="margin-top: 10px"
+        >
+          <template #title>
+            初始密码：<strong>van654321</strong>，首次登录需修改密码
+          </template>
+        </el-alert>
+      </el-form>
+      <template #footer>
+        <el-button @click="accountDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="assignAccount" :loading="accountDialog.saving">确认分配</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 薪酬管理对话框 -->
     <el-dialog v-model="salaryDialog.visible" title="薪酬管理" width="900px">
       <div v-if="salaryDialog.employee" class="salary-header">
@@ -344,9 +422,19 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { 
   Plus, Present, Trophy, Calendar, Star, Medal, 
-  Wallet, TrendCharts, UserFilled, ArrowDown 
+  Wallet, TrendCharts, UserFilled, ArrowDown,
+  Key, Lock, Unlock, User
 } from '@element-plus/icons-vue'
 import request from '@/api/request'
+
+// 角色标签映射
+const roleLabels = {
+  super_admin: '超级管理员',
+  admin: '管理员',
+  manager: '店长/经理',
+  staff: '普通员工',
+  employee: '普通员工'
+}
 
 // 关怀卡片数据
 const careCards = ref([
@@ -396,6 +484,17 @@ const salaryDialog = reactive({
   visible: false,
   employee: null,
   records: []
+})
+
+const accountDialog = reactive({
+  visible: false,
+  employee: null,
+  saving: false,
+  form: {
+    login_type: 'username',
+    login_name: '',
+    role: 'staff'
+  }
 })
 
 // 加载员工列表
@@ -578,6 +677,92 @@ const handleQuickAction = (action) => {
   }
 }
 
+// 分配账号
+const openAssignAccountDialog = (row) => {
+  accountDialog.employee = row
+  accountDialog.form = {
+    login_type: 'username',
+    login_name: '',
+    role: 'staff'
+  }
+  accountDialog.visible = true
+}
+
+const assignAccount = async () => {
+  if (!accountDialog.form.login_name.trim()) {
+    ElMessage.warning('请输入登录名')
+    return
+  }
+  accountDialog.saving = true
+  try {
+    const res = await request.post(`/hr/employees/${accountDialog.employee.id}/account`, {
+      login_type: accountDialog.form.login_type,
+      login_name: accountDialog.form.login_name.trim(),
+      role: accountDialog.form.role
+    })
+    ElMessage.success(res.message || '账号分配成功')
+    accountDialog.visible = false
+    loadEmployees()
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.message || '分配失败')
+  } finally {
+    accountDialog.saving = false
+  }
+}
+
+// 重置密码
+const resetPassword = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认重置员工 ${row.name} 的登录密码？密码将恢复为默认密码。`,
+      '重置密码',
+      { type: 'warning', confirmButtonText: '确认重置', cancelButtonText: '取消' }
+    )
+    const res = await request.post(`/hr/employees/${row.id}/reset-password`)
+    ElMessage.success(res.message || '密码已重置')
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('重置失败')
+    }
+  }
+}
+
+// 收回账号
+const revokeAccount = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认收回员工 ${row.name} 的登录账号？收回后该员工将无法登录系统。`,
+      '收回账号',
+      { type: 'warning', confirmButtonText: '确认收回', cancelButtonText: '取消' }
+    )
+    const res = await request.post(`/hr/employees/${row.id}/revoke-account`)
+    ElMessage.success(res.message || '账号已收回')
+    loadEmployees()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 恢复账号
+const restoreAccount = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `确认恢复员工 ${row.name} 的登录账号？恢复后密码将重置为默认密码。`,
+      '恢复账号',
+      { type: 'info', confirmButtonText: '确认恢复', cancelButtonText: '取消' }
+    )
+    const res = await request.post(`/hr/employees/${row.id}/restore-account`)
+    ElMessage.success(res.message || '账号已恢复')
+    loadEmployees()
+  } catch (e) {
+    if (e !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
 const resetFilters = () => {
   filters.keyword = ''
   filters.department_id = null
@@ -735,6 +920,55 @@ onMounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.employee-info .employee-no,
+.position-name,
+.email-text,
+.work-years {
+  font-size: 12px;
+  color: #909399;
+}
+
+/* 登录账号列 */
+.account-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.account-name {
+  font-weight: 500;
+}
+.account-role {
+  font-size: 12px;
+  color: #909399;
+}
+.no-account {
+  color: #c0c4cc;
+  font-size: 13px;
+}
+
+/* 分配账号对话框 */
+.account-assign-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+.account-assign-info .name {
+  font-weight: 600;
+  font-size: 15px;
+}
+.account-assign-info .meta {
+  font-size: 12px;
+  color: #909399;
+}
+.form-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 4px;
 }
 
 .employee-meta {

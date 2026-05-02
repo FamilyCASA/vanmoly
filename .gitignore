@@ -1,17 +1,53 @@
+# Python
 __pycache__/
-tmp/
 *.pyc
 *.pyo
 *.log
 *.swp
 *.bak
 *.tmp
+
+# Database
 *.db-journal
 *.db-shm
 *.db-wal
+*.db
+instance/
+!instance/.gitkeep
+
+# Node / Frontend
+node_modules/
+.vite/
+dist/
+
+# IDE
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Lock / Runtime
 *.pid
 *.sock
 *.lock
+
+# Uploads (local only, regenerate)
+backend/upload/
+
+# Project temp
+tmp/
+backups/
+cases image/
+
+# Misc dumps & archives
 *.index
 *.data
 *.dump
@@ -23,6 +59,3 @@ tmp/
 *.dump.tar
 *.dump.tar.gz
 *.dump.tar.bz2
-
-backups/
-cases image/

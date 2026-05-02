@@ -126,8 +126,8 @@ class Employee(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    def to_dict(self):
-        return {
+    def to_dict(self, include_private=False):
+        data = {
             'id': self.id,
             'tenant_id': self.tenant_id,
             'name': self.name,
@@ -144,7 +144,22 @@ class Employee(db.Model):
             'avatar': self.avatar,
             'title': self.title,
             'bio': self.bio,
+            'username': self.username,
+            'department_name': self.department.name if self.department else None,
+            'position_name': self.position.name if self.position else None,
         }
+        if include_private:
+            data.update({
+                'id_card': self.id_card,
+                'birthday': self.birthday.isoformat() if self.birthday else None,
+                'base_salary': float(self.base_salary) if self.base_salary else 0,
+                'address': self.address,
+                'emergency_contact': self.emergency_contact,
+                'emergency_phone': self.emergency_phone,
+                'remark': self.remark,
+                'store_id': self.store_id,
+            })
+        return data
 
 
 class EmployeeContract(db.Model):

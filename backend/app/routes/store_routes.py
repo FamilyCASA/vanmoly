@@ -7,6 +7,7 @@
 
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
+from sqlalchemy import text
 import os
 import shutil
 
@@ -15,6 +16,18 @@ from app.models.auth_v2 import Store, UserV2
 from app.routes.auth_routes_v2 import jwt_required_v2
 
 store_bp = Blueprint('store', __name__)
+
+
+def parse_date(val):
+    """Parse date string (ISO format) to Python date object"""
+    if not val:
+        return None
+    if isinstance(val, str):
+        try:
+            return datetime.strptime(val[:10], '%Y-%m-%d').date()
+        except ValueError:
+            return None
+    return val
 
 
 def api_response(code=200, message='success', data=None):
@@ -135,7 +148,7 @@ def create_store(current_user):
             province=data.get('province', ''),
             city=data.get('city', ''),
             district=data.get('district', ''),
-            opening_date=data.get('opening_date'),
+            opening_date=parse_date(data.get('opening_date')),
             business_hours=data.get('business_hours', ''),
             description=data.get('description', '')
         )
@@ -231,7 +244,7 @@ def update_store(current_user, store_id):
         if 'district' in data:
             store.district = data['district']
         if 'opening_date' in data:
-            store.opening_date = data['opening_date']
+            store.opening_date = parse_date(data['opening_date'])
         if 'business_hours' in data:
             store.business_hours = data['business_hours']
         if 'description' in data:
@@ -352,7 +365,7 @@ def init_store_database(db_path, store_id):
     # 创建基础表
     with engine.connect() as conn:
         # 创建基础表结构
-        conn.execute('''
+        conn.execute(text('''
             CREATE TABLE IF NOT EXISTS customers (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id VARCHAR(32) NOT NULL,
@@ -366,9 +379,9 @@ def init_store_database(db_path, store_id):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         
-        conn.execute('''
+        conn.execute(text('''
             CREATE TABLE IF NOT EXISTS leads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id VARCHAR(32) NOT NULL,
@@ -381,9 +394,9 @@ def init_store_database(db_path, store_id):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         
-        conn.execute('''
+        conn.execute(text('''
             CREATE TABLE IF NOT EXISTS cases (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id VARCHAR(32) NOT NULL,
@@ -397,9 +410,9 @@ def init_store_database(db_path, store_id):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         
-        conn.execute('''
+        conn.execute(text('''
             CREATE TABLE IF NOT EXISTS quotes (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id VARCHAR(32) NOT NULL,
@@ -410,9 +423,9 @@ def init_store_database(db_path, store_id):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         
-        conn.execute('''
+        conn.execute(text('''
             CREATE TABLE IF NOT EXISTS contracts (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 tenant_id VARCHAR(32) NOT NULL,
@@ -424,14 +437,14 @@ def init_store_database(db_path, store_id):
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
-        ''')
+        '''))
         
         # 创建索引
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_leads_tenant ON leads(tenant_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_cases_tenant ON cases(tenant_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_quotes_tenant ON quotes(tenant_id)')
-        conn.execute('CREATE INDEX IF NOT EXISTS idx_contracts_tenant ON contracts(tenant_id)')
+        conn.execute(text('CREATE INDEX IF NOT EXISTS idx_customers_tenant ON customers(tenant_id)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS idx_leads_tenant ON leads(tenant_id)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS idx_cases_tenant ON cases(tenant_id)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS idx_quotes_tenant ON quotes(tenant_id)'))
+        conn.execute(text('CREATE INDEX IF NOT EXISTS idx_contracts_tenant ON contracts(tenant_id)'))
         
         conn.commit()
     
