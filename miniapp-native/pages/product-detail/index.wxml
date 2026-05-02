@@ -1,0 +1,167 @@
+<view class="product-detail-page">
+  <!-- 顶部导航栏 -->
+  <view class="nav-bar {{showNavBar ? 'visible' : ''}}">
+    <view class="nav-left" bindtap="goBack">
+      <text class="back-icon">←</text>
+    </view>
+    <text class="nav-title">{{product.name || '产品详情'}}</text>
+    <view class="nav-right">
+      <text class="nav-icon" bindtap="handleShare">⎋</text>
+    </view>
+  </view>
+
+  <!-- 加载状态 -->
+  <view wx:if="{{loading}}" class="loading-screen">
+    <view class="skeleton">
+      <view class="skeleton-image"></view>
+      <view class="skeleton-line" style="width: 60%;"></view>
+      <view class="skeleton-line" style="width: 40%;"></view>
+    </view>
+  </view>
+
+  <!-- 产品内容 -->
+  <block wx:if="{{!loading && product}}">
+    <!-- 图片轮播 -->
+    <view class="image-gallery">
+      <swiper class="gallery-swiper" indicator-dots autoplay interval="4000" circular bindchange="onImageChange">
+        <swiper-item wx:for="{{images}}" wx:key="index">
+          <image src="{{item}}" mode="aspectFill" bindtap="previewImage" data-index="{{index}}"/>
+        </swiper-item>
+      </swiper>
+      <view class="image-counter">{{currentImageIndex + 1}}/{{images.length}}</view>
+    </view>
+
+    <!-- 产品信息 -->
+    <view class="product-info-section">
+      <view class="price-row">
+        <text class="sale-price">¥{{product.sale_price}}</text>
+        <text wx:if="{{product.market_price > product.sale_price}}" class="market-price">¥{{product.market_price}}</text>
+        <text wx:if="{{product.market_price > product.sale_price}}" class="discount-tag">
+          {{Math.round((1 - product.sale_price / product.market_price) * 100)}}% OFF
+        </text>
+      </view>
+      
+      <text class="product-name">{{product.name}}</text>
+      <text class="product-brand">{{product.brand || '梵木里'}}</text>
+      
+      <view class="product-tags" wx:if="{{product.tags && product.tags.length > 0}}">
+        <text class="tag" wx:for="{{product.tags}}" wx:key="*this">{{item}}</text>
+      </view>
+
+      <view class="product-meta">
+        <view class="meta-item">
+          <text class="meta-label">型号</text>
+          <text class="meta-value">{{product.sku_code || '-'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">规格</text>
+          <text class="meta-value">{{product.specifications || '-'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">单位</text>
+          <text class="meta-value">{{product.unit || '件'}}</text>
+        </view>
+        <view class="meta-item">
+          <text class="meta-label">产地</text>
+          <text class="meta-value">{{product.origin || '-'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 规格选择 -->
+    <view class="variant-section" wx:if="{{variants.length > 0}}">
+      <text class="section-title">选择规格</text>
+      <view class="variant-list">
+        <view 
+          wx:for="{{variants}}" 
+          wx:key="id"
+          class="variant-item {{selectedVariant && selectedVariant.id === item.id ? 'selected' : ''}} {{item.stock <= 0 ? 'disabled' : ''}}"
+          bindtap="selectVariant"
+          data-variant="{{item}}"
+        >
+          <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill"/>
+          <view class="variant-info">
+            <text class="variant-name">{{item.name}}</text>
+            <text class="variant-price">¥{{item.sale_price}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 产品详情 -->
+    <view class="detail-section" wx:if="{{product.detail_content}}">
+      <text class="section-title">产品详情</text>
+      <rich-text nodes="{{product.detail_content}}"></rich-text>
+    </view>
+
+    <!-- 相关推荐 -->
+    <view class="recommend-section" wx:if="{{recommendations.length > 0}}">
+      <text class="section-title">相关推荐</text>
+      <scroll-view class="recommend-scroll" scroll-x>
+        <view 
+          wx:for="{{recommendations}}" 
+          wx:key="id"
+          class="recommend-item"
+          bindtap="goToProduct"
+          data-id="{{item.id}}"
+        >
+          <image src="{{item.main_image || '/images/placeholder.png'}}" mode="aspectFill"/>
+          <text class="recommend-name">{{item.name}}</text>
+          <text class="recommend-price">¥{{item.sale_price}}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-spacer"></view>
+  </block>
+
+  <!-- 底部操作栏 -->
+  <view class="action-bar" wx:if="{{!loading && product}}">
+    <view class="action-left">
+      <view class="action-icon" bindtap="goToSelection">
+        <text class="icon">🛒</text>
+        <text class="label">选品清单</text>
+        <text wx:if="{{selectionCount > 0}}" class="badge">{{selectionCount}}</text>
+      </view>
+      <view class="action-icon" bindtap="contactService">
+        <text class="icon">💬</text>
+        <text class="label">咨询</text>
+      </view>
+    </view>
+    <view class="action-right">
+      <view class="quantity-control">
+        <text class="qty-btn {{quantity <= 1 ? 'disabled' : ''}}" bindtap="decreaseQty">-</text>
+        <text class="qty-value">{{quantity}}</text>
+        <text class="qty-btn" bindtap="increaseQty">+</text>
+      </view>
+      <button class="btn-add {{isAdding ? 'adding' : ''}}" bindtap="addToSelection">
+        {{isAdding ? '已添加 ✓' : '加入选品清单'}}
+      </button>
+    </view>
+  </view>
+
+  <!-- 分享弹窗 -->
+  <view class="share-modal {{showShareModal ? 'show' : ''}}" bindtap="hideShareModal">
+    <view class="share-content" catchtap="preventBubble">
+      <view class="share-header">
+        <text class="share-title">分享产品</text>
+        <text class="share-close" bindtap="hideShareModal">×</text>
+      </view>
+      <view class="share-options">
+        <button class="share-option" open-type="share">
+          <text class="share-icon">💬</text>
+          <text>分享给好友</text>
+        </button>
+        <button class="share-option" bindtap="copyLink">
+          <text class="share-icon">🔗</text>
+          <text>复制链接</text>
+        </button>
+        <button class="share-option" bindtap="generatePoster">
+          <text class="share-icon">🖼️</text>
+          <text>生成海报</text>
+        </button>
+      </view>
+    </view>
+  </view>
+</view>

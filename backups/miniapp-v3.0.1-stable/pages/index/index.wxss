@@ -1,0 +1,66 @@
+.container {
+  padding: 20rpx;
+  background: linear-gradient(135deg, #f5f5f5 0%, #e8e8e8 100%);
+  min-height: 100vh;
+}
+
+.header {
+  text-align: center;
+  padding: 60rpx 0;
+  background: linear-gradient(135deg, #8B5A2B 0%, #A0522D 100%);
+  border-radius: 20rpx;
+  margin-bottom: 40rpx;
+}
+
+.title {
+  display: block;
+  font-size: 48rpx;
+  font-weight: bold;
+  color: #ffffff;
+}
+
+.subtitle {
+  display: block;
+  font-size: 28rpx;
+  color: rgba(255, 255, 255, 0.8);
+  margin-top: 10rpx;
+}
+
+.menu-grid {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+}
+
+.menu-item {
+  width: 48%;
+  background: #ffffff;
+  border-radius: 16rpx;
+  padding: 40rpx;
+  margin-bottom: 20rpx;
+  text-align: center;
+  box-shadow: 0 4rpx 12rpx rgba(0, 0, 0, 0.1);
+}
+
+.menu-item .icon {
+  font-size: 60rpx;
+  margin-bottom: 16rpx;
+}
+
+.menu-item text {
+  font-size: 28rpx;
+  color: #333;
+}
+
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #ffffff;
+  padding: 20rpx;
+  text-align: center;
+  font-size: 24rpx;
+  color: #666;
+  border-top: 1rpx solid #eee;
+}

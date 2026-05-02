@@ -1,0 +1,1075 @@
+# -*- coding: utf-8 -*-
+"""
+妗堜緥绠悊妯潡璺敱 V3.1
+API绔偣: /api/v3/cases
+"""
+
+from flask import Blueprint, request, jsonify, g
+from datetime import datetime
+from sqlalchemy import and_, or_, desc, func
+
+from app import db
+from app.models import (
+    CaseStudy, CaseMedia, CaseTimeline, CaseFile,
+    CaseSubscription, CaseLead, CaseTemplate,
+    CaseNotification, CaseOperationLog
+)
+from app.routes.auth_routes_v2 import jwt_required_v2
+from flask import request as flask_request
+
+case_bp = Blueprint('case', __name__)
+
+
+def api_response(code=200, message='success', data=None):
+    """缁熶竴API鍝嶅簲鏍煎紡"""
+    return jsonify({
+        'code': code,
+        'message': message,
+        'data': data,
+        'timestamp': int(datetime.utcnow().timestamp())
+    }), code
+
+
+def log_operation(case_id, operation, content):
+    """记录操作日志"""
+    try:
+        user = getattr(flask_request, 'current_user', None)
+        log = CaseOperationLog(
+            case_id=case_id,
+            operator_id=user.id if user else None,
+            operator_name=user.nickname if user else 'system',
+            operation=operation,
+            content=content,
+            ip_address=request.remote_addr
+        )
+        db.session.add(log)
+        db.session.commit()
+    except:
+        pass
+
+
+# ==================== 妗堜緥鍒楄涓庤鎯?====================
+
+@case_bp.route('/cases', methods=['GET'])
+@jwt_required_v2
+def get_cases():
+    """获取妗堜緥鍒楄"""
+    try:
+        # 鍒嗛鍙傛暟
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        
+        # 绛涢夊弬鏁?        status = request.args.get('status')
+        style = request.args.get('style')
+        house_type = request.args.get('house_type')
+        package_type = request.args.get('package_type')
+        building_id = request.args.get('building_id', type=int)
+        responsible_id = request.args.get('responsible_id', type=int)
+        keyword = request.args.get('keyword')
+        is_public = request.args.get('is_public', type=bool)
+        is_featured = request.args.get('is_featured', type=bool)
+        
+        # 浠锋牸鍖洪棿
+        price_min = request.args.get('price_min', type=float)
+        price_max = request.args.get('price_max', type=float)
+        
+        # 闈鍖洪棿
+        area_min = request.args.get('area_min', type=float)
+        area_max = request.args.get('area_max', type=float)
+        
+        # 鏃堕棿鑼冨洿
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        
+        # 鎺掑簭
+        sort_by = request.args.get('sort_by', 'updated_at')
+        sort_order = request.args.get('sort_order', 'desc')
+        
+        # 鏋勫缓鏌
+        query = CaseStudy.query.filter(CaseStudy.deleted_at.is_(None))
+        
+        if status:
+            query = query.filter(CaseStudy.status == status)
+        if style:
+            query = query.filter(CaseStudy.style == style)
+        if house_type:
+            query = query.filter(CaseStudy.house_type == house_type)
+        if package_type:
+            query = query.filter(CaseStudy.package_type == package_type)
+        if building_id:
+            query = query.filter(CaseStudy.building_id == building_id)
+        if responsible_id:
+            query = query.filter(CaseStudy.responsible_id == responsible_id)
+        if is_public is not None:
+            query = query.filter(CaseStudy.is_public == is_public)
+        if is_featured is not None:
+            query = query.filter(CaseStudy.is_featured == is_featured)
+        if price_min is not None:
+            query = query.filter(CaseStudy.total_price >= price_min)
+        if price_max is not None:
+            query = query.filter(CaseStudy.total_price <= price_max)
+        if area_min is not None:
+            query = query.filter(CaseStudy.area >= area_min)
+        if area_max is not None:
+            query = query.filter(CaseStudy.area <= area_max)
+        if date_from:
+            query = query.filter(CaseStudy.created_at >= date_from)
+        if date_to:
+            query = query.filter(CaseStudy.created_at <= date_to)
+        if keyword:
+            query = query.filter(or_(
+                CaseStudy.title.contains(keyword),
+                CaseStudy.location.contains(keyword),
+                CaseStudy.case_no.contains(keyword)
+            ))
+        
+        # 鎺掑簭
+        sort_column = getattr(CaseStudy, sort_by, CaseStudy.updated_at)
+        if sort_order == 'desc':
+            query = query.order_by(desc(sort_column))
+        else:
+            query = query.order_by(sort_column)
+        
+        # 鍒嗛
+        pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+        
+        return api_response(data={
+            'items': [item.to_dict() for item in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size,
+            'pages': pagination.pages
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>', methods=['GET'])
+@jwt_required_v2
+def get_case(id):
+    """获取案例详情"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        return api_response(data=case.to_dict(include_relations=True))
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases', methods=['POST'])
+@jwt_required_v2
+def create_case():
+    """创建妗堜緥"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        
+        # 鐢熸垚妗堜緥缂栧彿
+        case_no = f"CS{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        case = CaseStudy(
+            case_no=case_no,
+            title=data.get('title'),
+            type=data.get('type', '瀹炴櫙'),
+            style=data.get('style'),
+            space_type=data.get('space_type'),
+            budget_range=data.get('budget_range'),
+            area=data.get('area'),
+            house_type=data.get('house_type'),
+            location=data.get('location'),
+            building_id=data.get('building_id'),
+            address=data.get('address'),
+            customer_name=data.get('customer_name'),
+            customer_id=data.get('customer_id'),
+            cover_image=data.get('cover_image'),
+            vr_link=data.get('vr_link'),
+            description=data.get('description'),
+            design_concept=data.get('design_concept'),
+            whole_house_plan=data.get('whole_house_plan'),
+            customer_requirements=data.get('customer_requirements'),
+            design_highlights=data.get('design_highlights'),
+            customer_value=data.get('customer_value'),
+            tags=data.get('tags'),
+            total_price=data.get('total_price'),
+            deal_budget=data.get('deal_budget'),
+            package_type=data.get('package_type'),
+            price_detail=data.get('price_detail'),
+            material_list=data.get('material_list'),
+            construction_phase=data.get('construction_phase'),
+            owner_authorized=data.get('owner_authorized', False),
+            is_public=data.get('is_public', True),
+            responsible_id=data.get('responsible_id'),
+            status='鑽夌',
+            created_by=user.get('id') if user else None
+        )
+        
+        db.session.add(case)
+        db.session.commit()
+        
+        # 璁板綍鏃織
+        log_operation(case.id, 'create', f'创建妗堜緥: {case.title}')
+        
+        return api_response(data=case.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>', methods=['PUT'])
+@jwt_required_v2
+def update_case(id):
+    """更新案例"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        data = request.get_json()
+        
+        # 鏇存柊瀛楁
+        fields = [
+            'title', 'type', 'style', 'space_type', 'budget_range', 'area', 'house_type',
+            'location', 'building_id', 'address', 'customer_name', 'customer_id',
+            'cover_image', 'vr_link', 'description', 'design_concept', 'whole_house_plan',
+            'customer_requirements', 'design_highlights', 'customer_value', 'tags',
+            'total_price', 'deal_budget', 'package_type', 'price_detail', 'material_list',
+            'construction_phase', 'owner_authorized', 'is_public', 'is_featured',
+            'responsible_id', 'enable_subscription', 'enable_notify'
+        ]
+        
+        for field in fields:
+            if field in data:
+                setattr(case, field, data[field])
+        
+        db.session.commit()
+        
+        # 璁板綍鏃織
+        log_operation(case.id, 'update', f'鏇存柊妗堜緥: {case.title}')
+        
+        return api_response(data=case.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_case(id):
+    """删除妗堜緥锛堣蒋删除锛?""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        case.soft_delete()
+        
+        # 璁板綍鏃織
+        log_operation(case.id, 'delete', f'删除妗堜緥: {case.title}')
+        
+        return api_response(message='删除成功')
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 批量操作 ====================
+
+@case_bp.route('/cases/batch', methods=['POST'])
+@jwt_required_v2
+def batch_operation():
+    """批量操作"""
+    try:
+        data = request.get_json()
+        ids = data.get('ids', [])
+        action = data.get('action')  # publish/unpublish/delete/sync_xiaohongshu/sync_mp
+        
+        if not ids:
+            return api_response(code=400, message='请选择案例')
+        
+        cases = CaseStudy.query.filter(CaseStudy.id.in_(ids)).filter(CaseStudy.deleted_at.is_(None)).all()
+        
+        for case in cases:
+            if action == 'publish':
+                case.status = '已发布
+                case.publish_time = datetime.utcnow()
+            elif action == 'unpublish':
+                case.status = '宸蹭笅鏋?
+            elif action == 'delete':
+                case.soft_delete()
+            elif action == 'sync_xiaohongshu':
+                case.sync_xiaohongshu = True
+            elif action == 'sync_mp':
+                case.sync_mp = True
+        
+        db.session.commit()
+        
+        # 璁板綍鏃織
+        log_operation(None, 'batch', f'批量操作: {action}, 妗堜緥鏁? {len(cases)}')
+        
+        return api_response(message=f'鎵归噺{action}成功锛屽叡{len(cases)}涓渚?)
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 鍙戝竷绠悊 ====================
+
+@case_bp.route('/cases/<int:id>/publish', methods=['POST'])
+@jwt_required_v2
+def publish_case(id):
+    """绔嬪嵆鍙戝竷"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        case.status = '已发布
+        case.publish_time = datetime.utcnow()
+        db.session.commit()
+        
+        log_operation(case.id, 'publish', f'鍙戝竷妗堜緥: {case.title}')
+        
+        return api_response(message='鍙戝竷成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/schedule', methods=['POST'])
+@jwt_required_v2
+def schedule_case(id):
+    """瀹氭椂鍙戝竷"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        data = request.get_json()
+        scheduled_time = data.get('scheduled_time')
+        
+        case.scheduled_time = scheduled_time
+        db.session.commit()
+        
+        log_operation(case.id, 'schedule', f'瀹氭椂鍙戝竷妗堜緥: {case.title}, 鏃堕棿: {scheduled_time}')
+        
+        return api_response(message='瀹氭椂鍙戝竷璁剧疆成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/unpublish', methods=['POST'])
+@jwt_required_v2
+def unpublish_case(id):
+    """涓嬫灦"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        case.status = '宸蹭笅鏋?
+        db.session.commit()
+        
+        log_operation(case.id, 'unpublish', f'涓嬫灦妗堜緥: {case.title}')
+        
+        return api_response(message='涓嬫灦成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 鏃堕棿杞寸鐞?====================
+
+@case_bp.route('/cases/<int:id>/timeline', methods=['GET'])
+@jwt_required_v2
+def get_timeline(id):
+    """获取妗堜緥鏃堕棿杞?""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        timeline = CaseTimeline.query.filter_by(case_id=id).order_by(CaseTimeline.node_time).all()
+        return api_response(data=[t.to_dict() for t in timeline])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/timeline', methods=['POST'])
+@jwt_required_v2
+def add_timeline_node(id):
+    """添加鏃堕棿鑺傜偣"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        data = request.get_json()
+        
+        node = CaseTimeline(
+            case_id=id,
+            node_time=data.get('node_time'),
+            title=data.get('title'),
+            content=data.get('content'),
+            media_urls=data.get('media_urls'),
+            sort_order=data.get('sort_order', 0)
+        )
+        
+        db.session.add(node)
+        db.session.commit()
+        
+        return api_response(data=node.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/timeline/<int:node_id>', methods=['PUT'])
+@jwt_required_v2
+def update_timeline_node(node_id):
+    """鏇存柊鏃堕棿鑺傜偣"""
+    try:
+        node = CaseTimeline.query.get(node_id)
+        if not node:
+            return api_response(code=404, message='鑺傜偣涓嶅瓨鍦?')
+        
+        data = request.get_json()
+        
+        if 'node_time' in data:
+            node.node_time = data['node_time']
+        if 'title' in data:
+            node.title = data['title']
+        if 'content' in data:
+            node.content = data['content']
+        if 'media_urls' in data:
+            node.media_urls = data['media_urls']
+        if 'sort_order' in data:
+            node.sort_order = data['sort_order']
+        
+        db.session.commit()
+        
+        return api_response(data=node.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/timeline/<int:node_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_timeline_node(node_id):
+    """删除鏃堕棿鑺傜偣"""
+    try:
+        node = CaseTimeline.query.get(node_id)
+        if not node:
+            return api_response(code=404, message='鑺傜偣涓嶅瓨鍦?')
+        
+        db.session.delete(node)
+        db.session.commit()
+        
+        return api_response(message='删除成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 鏂囦欢绠悊 ====================
+
+@case_bp.route('/cases/<int:id>/files', methods=['GET'])
+@jwt_required_v2
+def get_files(id):
+    """获取妗堜緥鏂囦欢"""
+    try:
+        files = CaseFile.query.filter_by(case_id=id).all()
+        return api_response(data=[f.to_dict() for f in files])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/files', methods=['POST'])
+@jwt_required_v2
+def add_file(id):
+    """添加鏂囦欢"""
+    try:
+        data = request.get_json()
+        
+        file = CaseFile(
+            case_id=id,
+            file_type=data.get('file_type'),
+            file_name=data.get('file_name'),
+            file_url=data.get('file_url'),
+            has_watermark=data.get('has_watermark', False)
+        )
+        
+        db.session.add(file)
+        db.session.commit()
+        
+        return api_response(data=file.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/files/<int:file_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_file(file_id):
+    """删除鏂囦欢"""
+    try:
+        file = CaseFile.query.get(file_id)
+        if not file:
+            return api_response(code=404, message='鏂囦欢涓嶅瓨鍦?')
+        
+        db.session.delete(file)
+        db.session.commit()
+        
+        return api_response(message='删除成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/files/<int:file_id>/download', methods=['GET'])
+@jwt_required_v2
+def download_file(file_id):
+    """涓嬭浇鏂囦欢"""
+    try:
+        file = CaseFile.query.get(file_id)
+        if not file:
+            return api_response(code=404, message='鏂囦欢涓嶅瓨鍦?')
+        
+        # 增加涓嬭浇璁暟
+        file.download_count += 1
+        db.session.commit()
+        
+        return api_response(data={'download_url': file.file_url, 'file_name': file.file_name})
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 瀹祫绠悊 ====================
+
+@case_bp.route('/cases/<int:id>/leads', methods=['GET'])
+@jwt_required_v2
+def get_case_leads(id):
+    """获取妗堜緥鐣欒祫"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        status = request.args.get('status')
+        
+        query = CaseLead.query.filter_by(case_id=id)
+        if status:
+            query = query.filter_by(status=status)
+        
+        pagination = query.order_by(desc(CaseLead.created_at)).paginate(
+            page=page, per_page=page_size, error_out=False
+        )
+        
+        return api_response(data={
+            'items': [item.to_dict() for item in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-leads', methods=['GET'])
+@jwt_required_v2
+def get_all_leads():
+    """获取鍏儴鐣欒祫"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 20, type=int)
+        case_id = request.args.get('case_id', type=int)
+        status = request.args.get('status')
+        source = request.args.get('source')
+        date_from = request.args.get('date_from')
+        date_to = request.args.get('date_to')
+        
+        query = CaseLead.query
+        
+        if case_id:
+            query = query.filter_by(case_id=case_id)
+        if status:
+            query = query.filter_by(status=status)
+        if source:
+            query = query.filter_by(source=source)
+        if date_from:
+            query = query.filter(CaseLead.created_at >= date_from)
+        if date_to:
+            query = query.filter(CaseLead.created_at <= date_to)
+        
+        pagination = query.order_by(desc(CaseLead.created_at)).paginate(
+            page=page, per_page=page_size, error_out=False
+        )
+        
+        return api_response(data={
+            'items': [item.to_dict() for item in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-leads/<int:lead_id>/contact', methods=['POST'])
+@jwt_required_v2
+def mark_lead_contacted(lead_id):
+    """鏍囪鐣欒祫宸茶仈绯?""
+    try:
+        lead = CaseLead.query.get(lead_id)
+        if not lead:
+            return api_response(code=404, message='鐣欒祫涓嶅瓨鍦?')
+        
+        lead.status = 'contacted'
+        lead.contacted_at = datetime.utcnow()
+        
+        data = request.get_json()
+        if data and 'remark' in data:
+            lead.remark = data['remark']
+        
+        db.session.commit()
+        
+        return api_response(data=lead.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-leads/<int:lead_id>/convert', methods=['POST'])
+@jwt_required_v2
+def mark_lead_converted(lead_id):
+    """标记留资已转化"""
+    try:
+        lead = CaseLead.query.get(lead_id)
+        if not lead:
+            return api_response(code=404, message='鐣欒祫涓嶅瓨鍦?')
+        
+        lead.status = 'converted'
+        lead.converted_at = datetime.utcnow()
+        
+        db.session.commit()
+        
+        return api_response(data=lead.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 模板搴?====================
+
+@case_bp.route('/case-templates', methods=['GET'])
+@jwt_required_v2
+def get_templates():
+    """获取模板鍒楄"""
+    try:
+        templates = CaseTemplate.query.order_by(desc(CaseTemplate.created_at)).all()
+        return api_response(data=[t.to_dict() for t in templates])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-templates', methods=['POST'])
+@jwt_required_v2
+def create_template():
+    """创建模板"""
+    try:
+        data = request.get_json()
+        user = get_current_user()
+        
+        template = CaseTemplate(
+            template_name=data.get('template_name'),
+            package_type=data.get('package_type'),
+            price_min=data.get('price_min'),
+            price_max=data.get('price_max'),
+            suitable_house_types=data.get('suitable_house_types'),
+            base_content=data.get('base_content'),
+            sample_images=data.get('sample_images'),
+            created_by=user.get('id') if user else None
+        )
+        
+        db.session.add(template)
+        db.session.commit()
+        
+        return api_response(data=template.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-templates/<int:id>', methods=['GET'])
+@jwt_required_v2
+def get_template(id):
+    """获取模板璇儏"""
+    try:
+        template = CaseTemplate.query.get(id)
+        if not template:
+            return api_response(code=404, message='模板涓嶅瓨鍦?')
+        
+        return api_response(data=template.to_dict())
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-templates/<int:id>', methods=['PUT'])
+@jwt_required_v2
+def update_template(id):
+    """鏇存柊模板"""
+    try:
+        template = CaseTemplate.query.get(id)
+        if not template:
+            return api_response(code=404, message='模板涓嶅瓨鍦?')
+        
+        data = request.get_json()
+        
+        fields = ['template_name', 'package_type', 'price_min', 'price_max',
+                  'suitable_house_types', 'base_content', 'sample_images']
+        
+        for field in fields:
+            if field in data:
+                setattr(template, field, data[field])
+        
+        db.session.commit()
+        
+        return api_response(data=template.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-templates/<int:id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_template(id):
+    """删除模板"""
+    try:
+        template = CaseTemplate.query.get(id)
+        if not template:
+            return api_response(code=404, message='模板涓嶅瓨鍦?')
+        
+        db.session.delete(template)
+        db.session.commit()
+        
+        return api_response(message='删除成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/case-templates/<int:id>/use', methods=['POST'])
+@jwt_required_v2
+def use_template(id):
+    """浣跨敤模板创建妗堜緥"""
+    try:
+        template = CaseTemplate.query.get(id)
+        if not template:
+            return api_response(code=404, message='模板涓嶅瓨鍦?')
+        
+        data = request.get_json()
+        user = get_current_user()
+        
+        # 瑙瀽模板鍩虹鍐呭
+        base_content = {}
+        if template.base_content:
+            import json
+            try:
+                base_content = json.loads(template.base_content)
+            except:
+                pass
+        
+        # 鐢熸垚妗堜緥缂栧彿
+        case_no = f"CS{datetime.now().strftime('%Y%m%d%H%M%S')}"
+        
+        case = CaseStudy(
+            case_no=case_no,
+            title=data.get('title', base_content.get('title', '鏂版渚?)),
+            type=data.get('type', base_content.get('type', '瀹炴櫙')),
+            style=data.get('style', base_content.get('style')),
+            house_type=data.get('house_type', base_content.get('house_type')),
+            package_type=template.package_type,
+            total_price=data.get('total_price'),
+            design_concept=base_content.get('design_concept'),
+            whole_house_plan=base_content.get('whole_house_plan'),
+            customer_requirements=base_content.get('customer_requirements'),
+            design_highlights=base_content.get('design_highlights'),
+            customer_value=base_content.get('customer_value'),
+            status='鑽夌',
+            created_by=user.get('id') if user else None
+        )
+        
+        db.session.add(case)
+        db.session.commit()
+        
+        log_operation(case.id, 'create_from_template', f'浣跨敤模板 {template.template_name} 创建妗堜緥')
+        
+        return api_response(data=case.to_dict())
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 鏁版嵁缁熻 ====================
+
+@case_bp.route('/cases/<int:id>/stats', methods=['GET'])
+@jwt_required_v2
+def get_case_stats(id):
+    """获取鍗曚釜妗堜緥缁熻"""
+    try:
+        case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        return api_response(data={
+            'view_count': case.view_count,
+            'like_count': case.like_count,
+            'subscription_count': case.subscription_count,
+            'lead_count': case.lead_count,
+            'consult_count': case.consult_count,
+            'download_count': case.download_count,
+            'share_count': case.share_count
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/stats/overview', methods=['GET'])
+@jwt_required_v2
+def get_stats_overview():
+    """获取鍏眬妗堜緥缁熻"""
+    try:
+        # 鍩虹缁熻
+        total_cases = CaseStudy.query.filter(CaseStudy.deleted_at.is_(None)).count()
+        published_cases = CaseStudy.query.filter_by(status='已发布').filter(CaseStudy.deleted_at.is_(None)).count()
+        draft_cases = CaseStudy.query.filter_by(status='鑽夌').filter(CaseStudy.deleted_at.is_(None)).count()
+        
+        # 鏁版嵁缁熻
+        total_views = db.session.query(func.sum(CaseStudy.view_count)).scalar() or 0
+        total_likes = db.session.query(func.sum(CaseStudy.like_count)).scalar() or 0
+        total_subscriptions = db.session.query(func.sum(CaseStudy.subscription_count)).scalar() or 0
+        total_leads = db.session.query(func.sum(CaseStudy.lead_count)).scalar() or 0
+        
+        # 鏈湀鏂板
+        month_start = datetime.now().replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        month_new_cases = CaseStudy.query.filter(
+            CaseStudy.created_at >= month_start,
+            CaseStudy.deleted_at.is_(None)
+        ).count()
+        
+        return api_response(data={
+            'total_cases': total_cases,
+            'published_cases': published_cases,
+            'draft_cases': draft_cases,
+            'total_views': int(total_views),
+            'total_likes': int(total_likes),
+            'total_subscriptions': int(total_subscriptions),
+            'total_leads': int(total_leads),
+            'month_new_cases': month_new_cases
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 鍓嶅彴 API锛堟棤闇鐧诲綍锛?====================
+
+@case_bp.route('/public/cases', methods=['GET'])
+def get_public_cases():
+    """获取鍏紑妗堜緥鍒楄"""
+    try:
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('page_size', 12, type=int)
+        style = request.args.get('style')
+        house_type = request.args.get('house_type')
+        package_type = request.args.get('package_type')
+        
+        query = CaseStudy.query.filter_by(status='已发布', is_public=True).filter(CaseStudy.deleted_at.is_(None))
+        
+        if style:
+            query = query.filter(CaseStudy.style == style)
+        if house_type:
+            query = query.filter(CaseStudy.house_type == house_type)
+        if package_type:
+            query = query.filter(CaseStudy.package_type == package_type)
+        
+        # 绮鹃変紭鍏?        query = query.order_by(desc(CaseStudy.is_featured), desc(CaseStudy.publish_time))
+        
+        pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+        
+        return api_response(data={
+            'items': [item.to_dict() for item in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/<int:id>', methods=['GET'])
+def get_public_case(id):
+    """获取鍏紑妗堜緥璇儏"""
+    try:
+        case = CaseStudy.query.filter_by(
+            id=id, status='已发布', is_public=True
+        ).filter(CaseStudy.deleted_at.is_(None)).first()
+        
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        # 增加嗅探閲?        case.increment_view()
+        
+        return api_response(data=case.to_dict(include_relations=True))
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/<int:id>/like', methods=['POST'])
+def like_case(id):
+    """鐐硅禐妗堜緥"""
+    try:
+        case = CaseStudy.query.filter_by(
+            id=id, status='已发布', is_public=True
+        ).filter(CaseStudy.deleted_at.is_(None)).first()
+        
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        case.increment_likes()
+        
+        return api_response(data={'like_count': case.like_count})
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/<int:id>/subscribe', methods=['POST'])
+def subscribe_case(id):
+    """璁槄妗堜緥"""
+    try:
+        case = CaseStudy.query.filter_by(
+            id=id, status='已发布', is_public=True
+        ).filter(CaseStudy.deleted_at.is_(None)).first()
+        
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        data = request.get_json() or {}
+        openid = data.get('openid')
+        
+        # 妫鏌槸鍚凡璁槄
+        existing = CaseSubscription.query.filter_by(
+            case_id=id, openid=openid
+        ).first()
+        
+        if existing:
+            return api_response(code=400, message='宸茶闃呰妗堜緥')
+        
+        # 创建璁槄
+        subscription = CaseSubscription(
+            case_id=id,
+            openid=openid,
+            notify_enabled=True
+        )
+        
+        db.session.add(subscription)
+        
+        # 增加璁槄鏁?        case.subscription_count += 1
+        
+        db.session.commit()
+        
+        return api_response(message='璁槄成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/<int:id>/lead', methods=['POST'])
+def create_case_lead(id):
+    """鎻愪氦鐣欒祫"""
+    try:
+        case = CaseStudy.query.filter_by(
+            id=id, status='已发布', is_public=True
+        ).filter(CaseStudy.deleted_at.is_(None)).first()
+        
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        
+        data = request.get_json()
+        
+        lead = CaseLead(
+            case_id=id,
+            name=data.get('name'),
+            phone=data.get('phone'),
+            email=data.get('email'),
+            wechat=data.get('wechat'),
+            source=data.get('source', 'consult'),
+            message=data.get('message')
+        )
+        
+        db.session.add(lead)
+        
+        # 增加鐣欒祫鏁?        case.lead_count += 1
+        
+        db.session.commit()
+        
+        return api_response(message='鎻愪氦成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/filters', methods=['GET'])
+def get_case_filters():
+    """获取妗堜緥绛涢夐夐"""
+    try:
+        # 椋庢牸鍒楄
+        styles = db.session.query(CaseStudy.style).distinct().filter(
+            CaseStudy.style.isnot(None),
+            CaseStudy.status == '已发布,
+            CaseStudy.is_public == True
+        ).all()
+        
+        # 鎴峰瀷鍒楄
+        house_types = db.session.query(CaseStudy.house_type).distinct().filter(
+            CaseStudy.house_type.isnot(None),
+            CaseStudy.status == '已发布,
+            CaseStudy.is_public == True
+        ).all()
+        
+        # 濂楅鍒楄
+        packages = db.session.query(CaseStudy.package_type).distinct().filter(
+            CaseStudy.package_type.isnot(None),
+            CaseStudy.status == '已发布,
+            CaseStudy.is_public == True
+        ).all()
+        
+        return api_response(data={
+            'styles': [s[0] for s in styles if s[0]],
+            'house_types': [h[0] for h in house_types if h[0]],
+            'packages': [p[0] for p in packages if p[0]]
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ==================== 绮鹃夋渚?API ====================
+
+@case_bp.route('/cases/featured', methods=['GET'])
+def get_featured_cases():
+    """获取绮鹃夋渚?""
+    try:
+        limit = request.args.get('limit', 6, type=int)
+        
+        cases = CaseStudy.query.filter_by(
+            status='已发布', is_public=True, is_featured=True
+        ).filter(CaseStudy.deleted_at.is_(None)).order_by(
+            desc(CaseStudy.publish_time)
+        ).limit(limit).all()
+        
+        return api_response(data=[item.to_dict() for item in cases])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+
+

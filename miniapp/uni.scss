@@ -1,0 +1,59 @@
+/**
+ * 这里是uni-app内置的常用样式变量
+ */
+
+/* 主色调 */
+$uni-primary: #8B4513;
+$uni-primary-light: #D2691E;
+$uni-primary-dark: #5D3A1A;
+
+/* 辅助色 */
+$uni-success: #4cd964;
+$uni-warning: #f0ad4e;
+$uni-error: #dd524d;
+$uni-info: #909399;
+
+/* 文字颜色 */
+$uni-text-color: #262626;
+$uni-text-color-inverse: #fff;
+$uni-text-color-grey: #8c8c8c;
+$uni-text-color-placeholder: #bfbfbf;
+
+/* 背景色 */
+$uni-bg-color: #f5f7fa;
+$uni-bg-color-grey: #f8f8f8;
+$uni-bg-color-hover: #f1f1f1;
+
+/* 边框颜色 */
+$uni-border-color: #d9d9d9;
+$uni-border-color-light: #e8e8e8;
+
+/* 尺寸变量 */
+$uni-font-size-sm: 24rpx;
+$uni-font-size-base: 28rpx;
+$uni-font-size-lg: 32rpx;
+$uni-font-size-xl: 36rpx;
+
+/* 图片尺寸 */
+$uni-img-size-sm: 40rpx;
+$uni-img-size-base: 52rpx;
+$uni-img-size-lg: 80rpx;
+
+/* 水平间距 */
+$uni-spacing-row-sm: 10rpx;
+$uni-spacing-row-base: 20rpx;
+$uni-spacing-row-lg: 30rpx;
+
+/* 垂直间距 */
+$uni-spacing-col-sm: 8rpx;
+$uni-spacing-col-base: 16rpx;
+$uni-spacing-col-lg: 24rpx;
+
+/* 圆角 */
+$uni-border-radius-sm: 8rpx;
+$uni-border-radius-base: 16rpx;
+$uni-border-radius-lg: 24rpx;
+$uni-border-radius-circle: 50%;
+
+/* 阴影 */
+$uni-box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.08);

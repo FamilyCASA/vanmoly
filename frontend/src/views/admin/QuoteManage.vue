@@ -1,0 +1,1514 @@
+<template>
+  <div class="quote-manage">
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h2>报价管理</h2>
+      <div>
+        <el-button type="success" @click="$router.push('/admin/quotes/from-case')">
+          <el-icon><DocumentCopy /></el-icon> 从案例新建
+        </el-button>
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon> 手动新建
+        </el-button>
+      </div>
+    </div>
+
+    <!-- 统计卡片 -->
+    <el-row :gutter="16" class="stats-row">
+      <el-col :span="4" v-for="(count, status) in stats.by_status" :key="status">
+        <el-card class="stat-card" :class="status">
+          <div class="stat-value">{{ count }}</div>
+          <div class="stat-label">{{ statusLabel(status) }}</div>
+        </el-card>
+      </el-col>
+      <el-col :span="4">
+        <el-card class="stat-card total">
+          <div class="stat-value">¥{{ formatMoney(stats.total_amount) }}</div>
+          <div class="stat-label">报价总额</div>
+        </el-card>
+      </el-col>
+    </el-row>
+
+    <!-- 筛选栏 -->
+    <el-card class="filter-card" shadow="never">
+      <el-form :inline="true" :model="filterForm">
+        <el-form-item label="关键词">
+          <el-input v-model="filterForm.keyword" placeholder="报价编号" clearable />
+        </el-form-item>
+        <el-form-item label="状态">
+          <el-select v-model="filterForm.status" placeholder="全部状态" clearable>
+            <el-option v-for="s in options.status_list" :key="s.value" :label="s.label" :value="s.value" />
+          </el-select>
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="loadData">查询</el-button>
+          <el-button @click="resetFilter">重置</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <!-- 报价列表 -->
+    <el-card shadow="never">
+      <el-table :data="quotes" v-loading="loading" stripe>
+        <el-table-column prop="quote_no" label="报价编号" width="140" />
+
+        <el-table-column label="客户" min-width="150">
+          <template #default="{ row }">
+            <div class="customer-name">{{ row.customer_name }}</div>
+            <div class="customer-phone">{{ row.customer_phone }}</div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="总价" width="150">
+          <template #default="{ row }">
+            <div class="amount">¥{{ formatMoney(row.total_amount) }}</div>
+          </template>
+        </el-table-column>
+
+        <el-table-column label="状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="statusType(row.status)" size="small">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+
+        <el-table-column prop="creator_name" label="创建人" width="100" />
+
+        <el-table-column prop="created_at" label="创建时间" width="150">
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
+
+        <el-table-column label="操作" width="250" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button link type="primary" @click="editQuote(row)" v-if="row.status === 'draft'">编辑</el-button>
+            <el-button link type="success" @click="previewQuote(row)">预览</el-button>
+            <el-button link type="danger" @click="deleteQuote(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <div class="pagination">
+        <el-pagination
+          v-model:current-page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          layout="total, prev, pager, next"
+          @current-change="loadData"
+        />
+      </div>
+    </el-card>
+
+    <!-- 新建/编辑报价对话框 -->
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.isEdit ? '编辑报价' : '新建报价'"
+      width="95%"
+      :fullscreen="dialog.fullscreen"
+      class="quote-dialog"
+    >
+      <template #header>
+        <div class="dialog-header">
+          <span>{{ dialog.isEdit ? '编辑报价' : '新建报价' }}</span>
+          <el-button link @click="dialog.fullscreen = !dialog.fullscreen">
+            <el-icon><FullScreen /></el-icon>
+          </el-button>
+        </div>
+      </template>
+
+      <el-steps :active="activeStep" finish-status="success" class="quote-steps">
+        <el-step title="封面设计" />
+        <el-step title="服务团队" />
+        <el-step title="分类汇总" />
+        <el-step title="物料详单" />
+        <el-step title="签字确认" />
+      </el-steps>
+
+      <!-- 步骤1: 封面设计 -->
+      <div v-show="activeStep === 0" class="step-content">
+        <el-row :gutter="24">
+          <el-col :span="8">
+            <el-card title="封面配置">
+              <el-form :model="form.cover_config" label-width="100px">
+                <el-form-item label="选择模板">
+                  <div class="template-grid">
+                    <div
+                      v-for="t in templates"
+                      :key="t.id"
+                      class="template-item"
+                      :class="{ active: form.cover_config.template_id === t.id }"
+                      @click="selectTemplate(t)"
+                    >
+                      <div class="template-preview" :style="getTemplateStyle(t)">
+                        <span>{{ t.name }}</span>
+                      </div>
+                    </div>
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="主色调">
+                  <el-color-picker v-model="form.cover_config.primary_color" show-alpha />
+                </el-form-item>
+
+                <el-form-item label="背景图片">
+                  <el-upload
+                    class="cover-uploader"
+                    action="/api/v3/upload/image"
+                    :show-file-list="false"
+                    :on-success="handleCoverUpload"
+                  >
+                    <img v-if="form.cover_config.background_image" :src="form.cover_config.background_image" class="cover-image" />
+                    <el-icon v-else class="cover-uploader-icon"><Plus /></el-icon>
+                  </el-upload>
+                </el-form-item>
+
+                <el-form-item label="Logo">
+                  <el-upload
+                    class="logo-uploader"
+                    action="/api/v3/upload/image"
+                    :show-file-list="false"
+                    :on-success="handleLogoUpload"
+                  >
+                    <img v-if="form.cover_config.logo" :src="form.cover_config.logo" class="logo-image" />
+                    <el-icon v-else class="logo-uploader-icon"><Plus /></el-icon>
+                  </el-upload>
+                </el-form-item>
+
+                <el-form-item label="水印文字">
+                  <el-input v-model="form.cover_config.watermark" placeholder="D&B 帝标|设记家全案服务" />
+                </el-form-item>
+
+                <el-form-item label="门店名称">
+                  <el-input v-model="form.cover_config.store_name" placeholder="D&B 帝标|设记家·全安落地服务中心" />
+                </el-form-item>
+
+                <el-form-item label="显示设置">
+                  <el-checkbox v-model="form.cover_config.show_customer_info">显示客户信息</el-checkbox>
+                  <el-checkbox v-model="form.cover_config.show_store_name">显示门店名称</el-checkbox>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+
+          <el-col :span="16">
+            <el-card title="封面预览">
+              <div class="cover-preview" :style="getCoverPreviewStyle()">
+                <div class="cover-watermark" v-if="form.cover_config.watermark">
+                  {{ form.cover_config.watermark }}
+                </div>
+                <div class="cover-content">
+                  <img v-if="form.cover_config.logo" :src="form.cover_config.logo" class="cover-logo" />
+                  <h1 class="cover-title">全案服务报价单</h1>
+                  <div class="cover-subtitle" v-if="form.cover_config.store_name">
+                    {{ form.cover_config.store_name }}
+                  </div>
+                  <div class="cover-info" v-if="form.cover_config.show_customer_info && selectedCustomer">
+                    <div class="info-item">
+                      <span class="label">客户姓名：</span>
+                      <span class="value">{{ selectedCustomer.name }}</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="label">联系电话：</span>
+                      <span class="value">{{ selectedCustomer.phone }}</span>
+                    </div>
+                    <div class="info-item">
+                      <span class="label">房屋地址：</span>
+                      <span class="value">{{ selectedCustomer.address || '-' }}</span>
+                    </div>
+                  </div>
+                  <div class="cover-quote-no">{{ form.quote_no || 'BJ202604260001' }}</div>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+
+      <!-- 步骤2: 服务团队 -->
+      <div v-show="activeStep === 1" class="step-content">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>服务团队配置</span>
+              <el-button type="primary" size="small" @click="addTeamMember">
+                <el-icon><Plus /></el-icon> 添加成员
+              </el-button>
+            </div>
+          </template>
+
+          <el-table :data="form.service_team" border>
+            <el-table-column label="岗位" width="180">
+              <template #default="{ row, $index }">
+                <el-select v-model="row.role" @change="onRoleChange($index)">
+                  <el-option
+                    v-for="r in options.service_roles"
+                    :key="r.value"
+                    :label="r.label"
+                    :value="r.value"
+                  />
+                </el-select>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="姓名" width="150">
+              <template #default="{ row, $index }">
+                <el-select-v2
+                  v-model="row.employee_id"
+                  :options="employeeOptions"
+                  placeholder="选择员工"
+                  @change="onEmployeeChange($index, $event)"
+                />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="联系电话" width="150">
+              <template #default="{ row }">
+                <el-input v-model="row.phone" placeholder="联系电话" />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="操作" width="100">
+              <template #default="{ $index }">
+                <el-button type="danger" link @click="removeTeamMember($index)">删除</el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+
+          <div class="team-preview" v-if="form.service_team.length > 0">
+            <h4>团队预览</h4>
+            <el-row :gutter="16">
+              <el-col :span="6" v-for="member in form.service_team" :key="member.role">
+                <div class="team-member-card">
+                  <div class="role">{{ member.role_name }}</div>
+                  <div class="name">{{ member.name }}</div>
+                  <div class="phone">{{ member.phone }}</div>
+                </div>
+              </el-col>
+            </el-row>
+          </div>
+        </el-card>
+      </div>
+
+      <!-- 步骤3: 分类汇总 -->
+      <div v-show="activeStep === 2" class="step-content">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>分类汇总配置</span>
+              <el-button type="primary" size="small" @click="autoCalculate">
+                自动计算
+              </el-button>
+            </div>
+          </template>
+
+          <el-row :gutter="16">
+            <el-col :span="12" v-for="cat in categoryList" :key="cat.key">
+              <el-card class="category-card" shadow="hover">
+                <div class="category-header">
+                  <span class="category-name">{{ cat.label }}</span>
+                  <el-switch v-model="cat.enabled" />
+                </div>
+                <el-input-number
+                  v-model="form.category_summary[cat.key].amount"
+                  :min="0"
+                  :precision="2"
+                  :disabled="!cat.enabled"
+                  style="width: 100%"
+                />
+              </el-card>
+            </el-col>
+          </el-row>
+
+          <el-divider />
+
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="小计">
+                <el-input-number v-model="form.subtotal" :min="0" :precision="2" disabled style="width: 100%" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="管理费率 %">
+                <el-input-number v-model="form.management_fee_rate" :min="0" :max="100" :precision="2" @change="calculateTotal" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="管理费">
+                <el-input-number v-model="form.management_fee" :min="0" :precision="2" disabled style="width: 100%" />
+              </el-form-item>
+            </el-col>
+          </el-row>
+
+          <el-row :gutter="16">
+            <el-col :span="8">
+              <el-form-item label="税率 %">
+                <el-input-number v-model="form.tax_rate" :min="0" :max="100" :precision="2" @change="calculateTotal" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="税费">
+                <el-input-number v-model="form.tax" :min="0" :precision="2" disabled style="width: 100%" />
+              </el-form-item>
+            </el-col>
+            <el-col :span="8">
+              <el-form-item label="总价">
+                <div class="total-amount">¥{{ formatMoney(form.total_amount) }}</div>
+              </el-form-item>
+            </el-col>
+          </el-row>
+        </el-card>
+      </div>
+
+      <!-- 步骤4: 物料详单 -->
+      <div v-show="activeStep === 3" class="step-content">
+        <el-card>
+          <template #header>
+            <div class="card-header">
+              <span>物料详单</span>
+              <div>
+                <el-button type="primary" size="small" @click="showImportDialog = true">
+                  <el-icon><Download /></el-icon> 从物料库导入
+                </el-button>
+                <el-button type="success" size="small" @click="addItem">
+                  <el-icon><Plus /></el-icon> 手动添加
+                </el-button>
+              </div>
+            </div>
+          </template>
+
+          <el-table :data="form.items" border row-key="id" default-expand-all>
+            <el-table-column type="expand">
+              <template #default="{ row }">
+                <el-form :model="row" label-width="80px" inline>
+                  <el-form-item label="规格">
+                    <el-input v-model="row.spec" placeholder="规格" />
+                  </el-form-item>
+                  <el-form-item label="品牌">
+                    <el-input v-model="row.brand" placeholder="品牌" />
+                  </el-form-item>
+                  <el-form-item label="单位">
+                    <el-input v-model="row.unit" placeholder="单位" style="width: 80px" />
+                  </el-form-item>
+                  <el-form-item label="工艺">
+                    <el-input v-model="row.craft_type" placeholder="工艺类型" />
+                  </el-form-item>
+                  <el-form-item label="工艺费">
+                    <el-input-number v-model="row.craft_price" :min="0" :precision="2" />
+                  </el-form-item>
+                  <el-divider content-position="left">定制尺寸</el-divider>
+                  <el-form-item label="宽(mm)">
+                    <el-input-number v-model="row.width" :min="0" :precision="0" placeholder="宽度" style="width: 120px" @change="calculateMeasurement(row)" />
+                  </el-form-item>
+                  <el-form-item label="深(mm)">
+                    <el-input-number v-model="row.depth" :min="0" :precision="0" placeholder="深度" style="width: 120px" @change="calculateMeasurement(row)" />
+                  </el-form-item>
+                  <el-form-item label="高(mm)">
+                    <el-input-number v-model="row.height" :min="0" :precision="0" placeholder="高度" style="width: 120px" @change="calculateMeasurement(row)" />
+                  </el-form-item>
+                  <el-form-item label="计量值">
+                    <el-input-number v-model="row.measurement_value" :min="0" :precision="4" style="width: 120px" />
+                  </el-form-item>
+                  <el-divider content-position="left">工艺系数</el-divider>
+                  <el-form-item label="工艺数量">
+                    <el-input-number v-model="row.craft_quantity" :min="0" :precision="2" style="width: 120px" />
+                  </el-form-item>
+                  <el-form-item label="工艺系数">
+                    <el-input-number v-model="row.craft_coefficient" :min="0" :precision="2" style="width: 120px" />
+                  </el-form-item>
+                </el-form>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="房间" width="120">
+              <template #default="{ row }">
+                <el-select v-model="row.room_name" size="small">
+                  <el-option v-for="r in options.rooms" :key="r" :label="r" :value="r" />
+                </el-select>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="分类" width="200">
+              <template #default="{ row }">
+                <el-cascader
+                  :model-value="getItemCategory(row)"
+                  @update:model-value="(val) => setItemCategory(row, val)"
+                  :options="categoryOptions"
+                  :props="{ checkStrictly: true }"
+                  size="small"
+                  style="width: 100%"
+                />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="名称" min-width="200">
+              <template #default="{ row }">
+                <el-input v-model="row.name" size="small" />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="数量" width="100">
+              <template #default="{ row }">
+                <el-input-number v-model="row.quantity" :min="0" :precision="2" size="small" style="width: 90px" @change="calculateItemTotal(row)" />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="单价" width="120">
+              <template #default="{ row }">
+                <el-input-number v-model="row.unit_price" :min="0" :precision="2" size="small" style="width: 110px" @change="calculateItemTotal(row)" />
+              </template>
+            </el-table-column>
+
+            <el-table-column label="总价" width="120">
+              <template #default="{ row }">
+                <span class="item-total">¥{{ formatMoney(row.total_price) }}</span>
+              </template>
+            </el-table-column>
+
+            <el-table-column label="操作" width="80">
+              <template #default="{ $index }">
+                <el-button type="danger" link size="small" @click="removeItem($index)">
+                  <el-icon><Delete /></el-icon>
+                </el-button>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-card>
+      </div>
+
+      <!-- 步骤5: 签字确认 -->
+      <div v-show="activeStep === 4" class="step-content">
+        <el-row :gutter="24">
+          <el-col :span="12">
+            <el-card title="签名配置">
+              <el-form label-width="120px">
+                <el-form-item label="客户签名">
+                  <div class="signature-wrapper">
+                    <img v-if="form.signature_customer" :src="form.signature_customer" class="signature-display" @click="openSignatureDialog('customer')" />
+                    <div v-else class="signature-add" @click="openSignatureDialog('customer')">
+                      <el-icon><Edit /></el-icon>
+                      <span>点击手写签名</span>
+                    </div>
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="规划师签名">
+                  <div class="signature-wrapper">
+                    <img v-if="form.signature_planner" :src="form.signature_planner" class="signature-display" @click="openSignatureDialog('planner')" />
+                    <div v-else class="signature-add" @click="openSignatureDialog('planner')">
+                      <el-icon><Edit /></el-icon>
+                      <span>点击手写签名</span>
+                    </div>
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="店长签名">
+                  <div class="signature-wrapper">
+                    <img v-if="form.signature_manager" :src="form.signature_manager" class="signature-display" @click="openSignatureDialog('manager')" />
+                    <div v-else class="signature-add" @click="openSignatureDialog('manager')">
+                      <el-icon><Edit /></el-icon>
+                      <span>点击手写签名</span>
+                    </div>
+                  </div>
+                </el-form-item>
+
+                <el-form-item label="电子公章">
+                  <el-upload
+                    class="signature-uploader"
+                    action="/api/v3/upload/image"
+                    :show-file-list="false"
+                    :on-success="(res) => form.signature_seal = res.url"
+                  >
+                    <img v-if="form.signature_seal" :src="form.signature_seal" class="signature-image" />
+                    <div v-else class="signature-placeholder">
+                      <el-icon><Stamp /></el-icon>
+                      <span>点击上传公章</span>
+                    </div>
+                  </el-upload>
+                </el-form-item>
+              </el-form>
+            </el-card>
+          </el-col>
+
+          <el-col :span="12">
+            <el-card title="报价预览">
+              <div class="quote-summary">
+                <div class="summary-row">
+                  <span>物料项数：</span>
+                  <span>{{ form.items.length }} 项</span>
+                </div>
+                <div class="summary-row">
+                  <span>小计：</span>
+                  <span>¥{{ formatMoney(form.subtotal) }}</span>
+                </div>
+                <div class="summary-row">
+                  <span>管理费：</span>
+                  <span>¥{{ formatMoney(form.management_fee) }}</span>
+                </div>
+                <div class="summary-row">
+                  <span>税费：</span>
+                  <span>¥{{ formatMoney(form.tax) }}</span>
+                </div>
+                <el-divider />
+                <div class="summary-row total">
+                  <span>总价：</span>
+                  <span class="total-price">¥{{ formatMoney(form.total_amount) }}</span>
+                </div>
+              </div>
+            </el-card>
+          </el-col>
+        </el-row>
+      </div>
+
+      <template #footer>
+        <div class="dialog-footer">
+          <el-button v-if="activeStep > 0" @click="activeStep--">上一步</el-button>
+          <el-button v-if="activeStep < 4" type="primary" @click="activeStep++">下一步</el-button>
+          <el-button v-if="activeStep === 4" type="success" @click="saveQuote" :loading="dialog.loading">
+            保存报价
+          </el-button>
+        </div>
+      </template>
+    </el-dialog>
+
+    <!-- 导入物料对话框 -->
+    <el-dialog v-model="showImportDialog" title="从物料库导入" width="800px">
+      <MaterialSelector @select="onMaterialSelect" />
+    </el-dialog>
+
+    <!-- 签名对话框 -->
+    <el-dialog v-model="signatureDialog.visible" :title="signatureDialog.title" width="500px" :close-on-click-modal="false">
+      <SignaturePad
+        ref="signaturePadRef"
+        :title="signatureDialog.title"
+        @save="onSignatureSave"
+      />
+    </el-dialog>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Plus, FullScreen, Download, Delete, Edit, Stamp, DocumentCopy } from '@element-plus/icons-vue'
+import request from '@/utils/request'
+// import MaterialSelector from '@/components/MaterialSelector.vue'
+import SignaturePad from '@/components/SignaturePad.vue'
+
+const loading = ref(false)
+const quotes = ref([])
+const stats = ref({})
+const page = ref(1)
+const pageSize = ref(10)
+const total = ref(0)
+const activeStep = ref(0)
+const showImportDialog = ref(false)
+
+const filterForm = reactive({
+  keyword: '',
+  status: ''
+})
+
+const options = reactive({
+  status_list: [],
+  service_roles: [],
+  rooms: [],
+  employees: []
+})
+
+const templates = ref([])
+const customers = ref([])
+const selectedCustomer = ref(null)
+
+const dialog = reactive({
+  visible: false,
+  isEdit: false,
+  loading: false,
+  fullscreen: false
+})
+
+const form = reactive({
+  id: null,
+  quote_no: '',
+  customer_id: null,
+  cover_config: {
+    template_id: null,
+    template_type: 'modern',
+    primary_color: '#8B4513',
+    background_image: '',
+    logo: '',
+    watermark: 'D&B 帝标|设记家全案服务',
+    store_name: 'D&B 帝标|设记家·全安落地服务中心',
+    show_customer_info: true,
+    show_store_name: true
+  },
+  service_team: [],
+  category_summary: {},
+  subtotal: 0,
+  management_fee: 0,
+  management_fee_rate: 5,
+  tax: 0,
+  tax_rate: 6,
+  total_amount: 0,
+  items: [],
+  signature_customer: '',
+  signature_planner: '',
+  signature_manager: '',
+  signature_seal: ''
+})
+
+// 签名对话框
+const signatureDialog = reactive({
+  visible: false,
+  title: '',
+  type: ''
+})
+
+const signaturePadRef = ref(null)
+
+// 分类列表
+const categoryList = computed(() => [
+  { key: 'hard_material', label: '硬装主材', enabled: true },
+  { key: 'construction', label: '施工服务', enabled: true },
+  { key: 'installation', label: '安装服务', enabled: true },
+  { key: 'delivery', label: '配送服务', enabled: true },
+  { key: 'moving', label: '搬运服务', enabled: true },
+  { key: 'design', label: '设计服务', enabled: true },
+  { key: 'custom', label: '全屋定制', enabled: true },
+  { key: 'furniture', label: '成品家具', enabled: true },
+  { key: 'soft', label: '软装饰品', enabled: true },
+  { key: 'equipment', label: '电气设备', enabled: true },
+  { key: 'smart_home', label: '智能家居', enabled: false },
+  { key: 'other', label: '其他', enabled: false },
+])
+
+// 分类选项（级联选择器用）
+const categoryOptions = computed(() => {
+  return categoryList.value.map(cat => ({
+    value: cat.key,
+    label: cat.label,
+    children: []
+  }))
+})
+
+// 员工选项
+const employeeOptions = computed(() => {
+  return options.employees.map(e => ({
+    value: e.id,
+    label: `${e.name} (${e.phone})`
+  }))
+})
+
+// 加载数据
+const loadData = async () => {
+  loading.value = true
+  try {
+    const res = await request.get('/quotes', {
+      params: {
+        page: page.value,
+        page_size: pageSize.value,
+        keyword: filterForm.keyword,
+        status: filterForm.status
+      }
+    })
+    quotes.value = res.items
+    total.value = res.total
+  } catch (error) {
+    console.error('加载失败', error)
+  } finally {
+    loading.value = false
+  }
+}
+
+const loadStats = async () => {
+  try {
+    const res = await request.get('/quotes/statistics')
+    stats.value = res
+  } catch (error) {
+    console.error('加载统计失败', error)
+  }
+}
+
+const loadOptions = async () => {
+  try {
+    const res = await request.get('/quotes/options')
+    Object.assign(options, res)
+  } catch (error) {
+    console.error('加载选项失败', error)
+  }
+}
+
+const loadTemplates = async () => {
+  try {
+    const res = await request.get('/quotes/templates')
+    templates.value = res
+  } catch (error) {
+    console.error('加载模板失败', error)
+  }
+}
+
+const resetFilter = () => {
+  filterForm.keyword = ''
+  filterForm.status = ''
+  loadData()
+}
+
+// 创建报价
+const openCreateDialog = () => {
+  dialog.isEdit = false
+  dialog.visible = true
+  activeStep.value = 0
+
+  // 重置表单
+  Object.assign(form, {
+    id: null,
+    quote_no: '',
+    customer_id: null,
+    cover_config: {
+      template_id: null,
+      template_type: 'modern',
+      primary_color: '#8B4513',
+      background_image: '',
+      logo: '',
+      watermark: 'D&B 帝标|设记家全案服务',
+      store_name: 'D&B 帝标|设记家·全安落地服务中心',
+      show_customer_info: true,
+      show_store_name: true
+    },
+    service_team: [],
+    category_summary: {},
+    subtotal: 0,
+    management_fee: 0,
+    management_fee_rate: 5,
+    tax: 0,
+    tax_rate: 6,
+    total_amount: 0,
+    items: [],
+    signature_customer: '',
+    signature_planner: '',
+    signature_manager: '',
+    signature_seal: ''
+  })
+
+  // 初始化分类汇总
+  categoryList.value.forEach(cat => {
+    form.category_summary[cat.key] = { name: cat.label, amount: 0 }
+  })
+}
+
+// 封面相关
+const selectTemplate = (template) => {
+  form.cover_config.template_id = template.id
+  form.cover_config.template_type = template.template_type
+  if (template.style_config?.primary_color) {
+    form.cover_config.primary_color = template.style_config.primary_color
+  }
+}
+
+const getTemplateStyle = (template) => {
+  const color = template.style_config?.primary_color || '#8B4513'
+  return {
+    background: `linear-gradient(135deg, ${color} 0%, ${color}dd 100%)`,
+    color: '#fff'
+  }
+}
+
+const getCoverPreviewStyle = () => {
+  const config = form.cover_config
+  const style = {
+    background: config.primary_color || '#8B4513'
+  }
+  if (config.background_image) {
+    style.backgroundImage = `url(${config.background_image})`
+    style.backgroundSize = 'cover'
+    style.backgroundPosition = 'center'
+  }
+  return style
+}
+
+const handleCoverUpload = (res) => {
+  form.cover_config.background_image = res.url
+}
+
+const handleLogoUpload = (res) => {
+  form.cover_config.logo = res.url
+}
+
+// 团队相关
+const addTeamMember = () => {
+  form.service_team.push({
+    role: '',
+    role_name: '',
+    employee_id: null,
+    name: '',
+    phone: ''
+  })
+}
+
+const removeTeamMember = (index) => {
+  form.service_team.splice(index, 1)
+}
+
+const onRoleChange = (index) => {
+  const member = form.service_team[index]
+  const role = options.service_roles.find(r => r.value === member.role)
+  if (role) {
+    member.role_name = role.label
+  }
+}
+
+const onEmployeeChange = (index, employeeId) => {
+  const member = form.service_team[index]
+  const employee = options.employees.find(e => e.id === employeeId)
+  if (employee) {
+    member.name = employee.name
+    member.phone = employee.phone
+  }
+}
+
+// 分类汇总
+const autoCalculate = () => {
+  // 根据物料项自动计算分类金额
+  const summary = {}
+  form.items.forEach(item => {
+    const cat = item.category_level1 || 'other'
+    if (!summary[cat]) summary[cat] = 0
+    summary[cat] += (item.total_price || 0)
+  })
+
+  Object.keys(summary).forEach(key => {
+    if (form.category_summary[key]) {
+      form.category_summary[key].amount = summary[key]
+    }
+  })
+
+  calculateTotal()
+}
+
+const calculateTotal = () => {
+  // 计算小计
+  let subtotal = 0
+  Object.values(form.category_summary).forEach(cat => {
+    subtotal += (cat.amount || 0)
+  })
+  form.subtotal = subtotal
+
+  // 计算管理费
+  form.management_fee = subtotal * (form.management_fee_rate / 100)
+
+  // 计算税费
+  form.tax = (subtotal + form.management_fee) * (form.tax_rate / 100)
+
+  // 计算总价
+  form.total_amount = subtotal + form.management_fee + form.tax
+}
+
+// 物料项相关 - 获取分类数组（用于级联选择器）
+const getItemCategory = (row) => {
+  const result = []
+  if (row.category_level1) result.push(row.category_level1)
+  if (row.category_level2) result.push(row.category_level2)
+  if (row.category_level3) result.push(row.category_level3)
+  return result
+}
+
+// 物料项相关 - 设置分类数组（用于级联选择器）
+const setItemCategory = (row, val) => {
+  row.category_level1 = val[0] || ''
+  row.category_level2 = val[1] || ''
+  row.category_level3 = val[2] || ''
+}
+
+const addItem = () => {
+  form.items.push({
+    room_name: '客厅',
+    category_level1: 'hard_material',
+    category_level2: '',
+    category_level3: '',
+    item_type: 'product',
+    name: '',
+    spec: '',
+    brand: '',
+    unit: '件',
+    quantity: 1,
+    unit_price: 0,
+    total_price: 0,
+    craft_type: '',
+    craft_price: 0,
+    image: '',
+    remark: '',
+    // V3.2 增强字段
+    width: null,
+    depth: null,
+    height: null,
+    measurement_value: 1,
+    craft_quantity: 1,
+    craft_coefficient: 1,
+  })
+}
+
+// 根据宽深高自动计算计量值（示例：面积=宽*深/1000000）
+const calculateMeasurement = (item) => {
+  if (item.width && item.depth) {
+    item.measurement_value = Math.max(1, (item.width * item.depth) / 1000000)
+  }
+}
+
+const removeItem = (index) => {
+  form.items.splice(index, 1)
+}
+
+const calculateItemTotal = (item) => {
+  item.total_price = (item.quantity || 0) * (item.unit_price || 0)
+}
+
+const onMaterialSelect = (materials) => {
+  materials.forEach(m => {
+    form.items.push({
+      room_name: '客厅',
+      category_level1: m.category_level1 || 'hard_material',
+      category_level2: '',
+      category_level3: '',
+      item_type: 'product',
+      sku_id: m.id,
+      name: m.name,
+      spec: m.spec,
+      brand: m.brand,
+      unit: m.unit,
+      quantity: 1,
+      unit_price: m.sale_price || m.base_price || 0,
+      total_price: m.sale_price || m.base_price || 0,
+      image: m.images?.[0] || '',
+      remark: ''
+    })
+  })
+  showImportDialog.value = false
+}
+
+// 签名相关
+const openSignatureDialog = (type) => {
+  signatureDialog.type = type
+  const titles = {
+    customer: '客户签名',
+    planner: '规划师签名',
+    manager: '店长签名'
+  }
+  signatureDialog.title = titles[type] || '签名'
+  signatureDialog.visible = true
+}
+
+const onSignatureSave = (signatureData) => {
+  const type = signatureDialog.type
+  if (type === 'customer') {
+    form.signature_customer = signatureData
+  } else if (type === 'planner') {
+    form.signature_planner = signatureData
+  } else if (type === 'manager') {
+    form.signature_manager = signatureData
+  }
+  signatureDialog.visible = false
+}
+
+// 保存报价
+const saveQuote = async () => {
+  dialog.loading = true
+  try {
+    if (dialog.isEdit) {
+      await request.put(`/quotes/${form.id}`, form)
+      ElMessage.success('更新成功')
+    } else {
+      await request.post('/quotes', form)
+      ElMessage.success('创建成功')
+    }
+    dialog.visible = false
+    loadData()
+    loadStats()
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '保存失败')
+  } finally {
+    dialog.loading = false
+  }
+}
+
+// 其他操作
+const viewDetail = (row) => {
+  router.push(`/admin/quotes/${row.id}`)
+}
+
+const editQuote = (row) => {
+  // 编辑报价
+}
+
+const previewQuote = (row) => {
+  router.push(`/admin/quotes/${row.id}`)
+}
+
+const deleteQuote = async (row) => {
+  try {
+    await ElMessageBox.confirm('确定删除该报价吗？', '提示', { type: 'warning' })
+    await request.delete(`/quotes/${row.id}`)
+    ElMessage.success('删除成功')
+    loadData()
+    loadStats()
+  } catch (error) {
+    if (error !== 'cancel') ElMessage.error('删除失败')
+  }
+}
+
+// 辅助函数
+const statusType = (status) => {
+  const types = {
+    draft: 'info',
+    sent: 'warning',
+    confirmed: 'success',
+    signed: 'success',
+    expired: 'danger'
+  }
+  return types[status] || 'info'
+}
+
+const statusLabel = (status) => {
+  const labels = {
+    draft: '草稿',
+    sent: '已发送',
+    confirmed: '已确认',
+    signed: '已签署',
+    expired: '已过期'
+  }
+  return labels[status] || status
+}
+
+const formatMoney = (amount) => {
+  if (!amount) return '0'
+  return Number(amount).toLocaleString('zh-CN', { minimumFractionDigits: 0, maximumFractionDigits: 2 })
+}
+
+const formatDate = (date) => {
+  if (!date) return '-'
+  return new Date(date).toLocaleDateString('zh-CN')
+}
+
+onMounted(() => {
+  loadData()
+  loadStats()
+  loadOptions()
+  loadTemplates()
+
+  // 初始化分类汇总
+  categoryList.value.forEach(cat => {
+    form.category_summary[cat.key] = { name: cat.label, amount: 0 }
+  })
+})
+</script>
+
+<style scoped>
+.quote-manage {
+  padding: 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-header h2 {
+  margin: 0;
+}
+
+.stats-row {
+  margin-bottom: 24px;
+}
+
+.stat-card {
+  text-align: center;
+}
+
+.stat-card .stat-value {
+  font-size: 24px;
+  font-weight: bold;
+  color: #262626;
+}
+
+.stat-card .stat-label {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-top: 4px;
+}
+
+.stat-card.total .stat-value {
+  color: #52c41a;
+}
+
+.filter-card {
+  margin-bottom: 24px;
+}
+
+.customer-name {
+  font-weight: 500;
+  color: #262626;
+}
+
+.customer-phone {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.amount {
+  font-weight: 500;
+  color: #f5222d;
+}
+
+.pagination {
+  margin-top: 20px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+/* 对话框样式 */
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.quote-steps {
+  margin-bottom: 30px;
+}
+
+.step-content {
+  min-height: 500px;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+/* 模板选择 */
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.template-item {
+  cursor: pointer;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  transition: all 0.3s;
+}
+
+.template-item.active {
+  border-color: #409eff;
+}
+
+.template-preview {
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 封面上传 */
+.cover-uploader {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  height: 120px;
+}
+
+.cover-uploader:hover {
+  border-color: #409eff;
+}
+
+.cover-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cover-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.logo-uploader {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 120px;
+  height: 120px;
+}
+
+.logo-uploader:hover {
+  border-color: #409eff;
+}
+
+.logo-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+
+/* 封面预览 */
+.cover-preview {
+  min-height: 500px;
+  border-radius: 12px;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  overflow: hidden;
+}
+
+.cover-watermark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%) rotate(-30deg);
+  font-size: 48px;
+  opacity: 0.1;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.cover-content {
+  text-align: center;
+  z-index: 1;
+}
+
+.cover-logo {
+  max-width: 120px;
+  max-height: 60px;
+  margin-bottom: 20px;
+}
+
+.cover-title {
+  font-size: 36px;
+  font-weight: bold;
+  margin-bottom: 10px;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+}
+
+.cover-subtitle {
+  font-size: 18px;
+  margin-bottom: 40px;
+  opacity: 0.9;
+}
+
+.cover-info {
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(10px);
+  padding: 24px 40px;
+  border-radius: 12px;
+  margin-bottom: 30px;
+}
+
+.info-item {
+  display: flex;
+  justify-content: flex-start;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.info-item:last-child {
+  margin-bottom: 0;
+}
+
+.info-item .label {
+  width: 80px;
+  opacity: 0.8;
+}
+
+.info-item .value {
+  font-weight: 500;
+}
+
+.cover-quote-no {
+  font-size: 14px;
+  opacity: 0.7;
+  letter-spacing: 2px;
+}
+
+/* 团队预览 */
+.team-preview {
+  margin-top: 30px;
+}
+
+.team-preview h4 {
+  margin-bottom: 16px;
+}
+
+.team-member-card {
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  text-align: center;
+  margin-bottom: 16px;
+}
+
+.team-member-card .role {
+  font-size: 12px;
+  color: #8c8c8c;
+  margin-bottom: 8px;
+}
+
+.team-member-card .name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #262626;
+  margin-bottom: 4px;
+}
+
+.team-member-card .phone {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+/* 分类卡片 */
+.category-card {
+  margin-bottom: 16px;
+}
+
+.category-card .category-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.category-card .category-name {
+  font-weight: 500;
+}
+
+.total-amount {
+  font-size: 24px;
+  font-weight: bold;
+  color: #f5222d;
+}
+
+/* 物料项 */
+.item-total {
+  font-weight: 500;
+  color: #f5222d;
+}
+
+/* 签名上传 */
+.signature-uploader {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  width: 200px;
+  height: 100px;
+}
+
+.signature-uploader:hover {
+  border-color: #409eff;
+}
+
+.signature-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+}
+
+.signature-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8c939d;
+}
+
+.signature-placeholder span {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* 签名显示 */
+.signature-wrapper {
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  width: 200px;
+  height: 100px;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.signature-wrapper:hover {
+  border-color: #409eff;
+}
+
+.signature-display {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  background: #fff;
+}
+
+.signature-add {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: #8c939d;
+  background: #fafafa;
+}
+
+.signature-add span {
+  font-size: 12px;
+  margin-top: 8px;
+}
+
+/* 报价汇总 */
+.quote-summary {
+  padding: 20px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  font-size: 14px;
+}
+
+.summary-row.total {
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.summary-row .total-price {
+  color: #f5222d;
+  font-size: 24px;
+}
+
+/* 对话框底部 */
+.dialog-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
+</style>

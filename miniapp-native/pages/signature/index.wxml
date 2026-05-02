@@ -1,0 +1,28 @@
+<view class="container">
+  <view class="header">
+    <text class="title">手写签名</text>
+  </view>
+  
+  <view class="canvas-container">
+    <canvas 
+      canvas-id="signatureCanvas" 
+      class="signature-canvas"
+      bindtouchstart="onTouchStart"
+      bindtouchmove="onTouchMove"
+      bindtouchend="onTouchEnd"
+    ></canvas>
+    <view class="canvas-hint" wx:if="{{!hasDrawn}}">
+      <text>请在此处手写签名</text>
+    </view>
+  </view>
+  
+  <view class="actions">
+    <button class="btn btn-clear" bindtap="clearCanvas">清空</button>
+    <button class="btn btn-save" bindtap="saveSignature">保存签名</button>
+  </view>
+  
+  <view class="preview" wx:if="{{signatureImage}}">
+    <text class="preview-title">签名预览:</text>
+    <image src="{{signatureImage}}" mode="aspectFit" class="preview-image"/>
+  </view>
+</view>

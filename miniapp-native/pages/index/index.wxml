@@ -1,0 +1,181 @@
+<!-- 首页 - 品牌门面 + 获客引擎 -->
+<view class="container">
+  
+  <!-- Banner轮播 - 视觉冲击 -->
+  <swiper class="banner" indicator-dots autoplay circular interval="5000" duration="500">
+    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-item="{{item}}">
+      <image src="{{item.image}}" mode="aspectFill" class="banner-img"/>
+      <view class="banner-overlay">
+        <text class="banner-title">{{item.title}}</text>
+        <text class="banner-subtitle">{{item.subtitle}}</text>
+      </view>
+    </swiper-item>
+  </swiper>
+
+  <!-- 快速入口 - 4大核心功能 -->
+  <view class="quick-entry card">
+    <view class="entry-item" bindtap="goToCases">
+      <view class="entry-icon case-icon">
+        <text class="icon">🏠</text>
+      </view>
+      <text class="entry-text">装修案例</text>
+      <text class="entry-desc">实景参考</text>
+    </view>
+    <view class="entry-item" bindtap="goToLead">
+      <view class="entry-icon lead-icon">
+        <text class="icon">💬</text>
+      </view>
+      <text class="entry-text">免费咨询</text>
+      <text class="entry-desc">专家解答</text>
+    </view>
+    <view class="entry-item" bindtap="goToAppointment">
+      <view class="entry-icon appoint-icon">
+        <text class="icon">📏</text>
+      </view>
+      <text class="entry-text">预约量尺</text>
+      <text class="entry-desc">免费上门</text>
+    </view>
+    <view class="entry-item" bindtap="makePhoneCall">
+      <view class="entry-icon phone-icon">
+        <text class="icon">📞</text>
+      </view>
+      <text class="entry-text">电话咨询</text>
+      <text class="entry-desc">立即拨打</text>
+    </view>
+  </view>
+
+  <!-- 核心留资钩子 - 免费设计 -->
+  <view class="lead-hook card" bindtap="goToLead" data-source="首页钩子">
+    <view class="hook-content">
+      <view class="hook-left">
+        <text class="hook-title">🎁 免费获取设计方案</text>
+        <text class="hook-desc">填写需求，3分钟内获取专属设计</text>
+        <view class="hook-tags">
+          <text class="tag tag-gold">免费</text>
+          <text class="tag tag-primary">专业设计师</text>
+          <text class="tag tag-primary">3分钟响应</text>
+        </view>
+      </view>
+      <view class="hook-btn">
+        <text>立即领取</text>
+        <text class="arrow">→</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 服务优势 - 建立信任 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">为什么选择梵木里</text>
+    </view>
+    <view class="advantage-grid">
+      <view class="advantage-item">
+        <text class="advantage-num">58</text>
+        <text class="advantage-label">节点服务</text>
+        <text class="advantage-desc">全程透明可控</text>
+      </view>
+      <view class="advantage-item">
+        <text class="advantage-num">0</text>
+        <text class="advantage-label">增项承诺</text>
+        <text class="advantage-desc">合同价即结算价</text>
+      </view>
+      <view class="advantage-item">
+        <text class="advantage-num">10</text>
+        <text class="advantage-label">年质保</text>
+        <text class="advantage-desc">售后无忧保障</text>
+      </view>
+      <view class="advantage-item">
+        <text class="advantage-num">100%</text>
+        <text class="advantage-label">环保材料</text>
+        <text class="advantage-desc">国标E0级标准</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 精选案例 - 激发欲望 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">精选案例</text>
+      <text class="section-more" bindtap="goToCases">查看更多 →</text>
+    </view>
+    <scroll-view scroll-x class="case-scroll">
+      <view class="case-list">
+        <view class="case-item" wx:for="{{featuredCases}}" wx:key="id" bindtap="goToCaseDetail" data-id="{{item.id}}">
+          <image src="{{item.cover}}" mode="aspectFill" class="case-img"/>
+          <view class="case-info">
+            <text class="case-title">{{item.title}}</text>
+            <view class="case-tags">
+              <text class="tag tag-primary">{{item.style}}</text>
+              <text class="tag tag-gold">{{item.area}}㎡</text>
+            </view>
+            <text class="case-price">{{item.budget}}</text>
+          </view>
+          <!-- 案例上的留资按钮 -->
+          <view class="case-lead-btn" catchtap="onCaseLeadTap" data-case="{{item}}">
+            <text>获取同款</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 客户评价 - 社交证明 -->
+  <view class="section">
+    <view class="section-header">
+      <text class="section-title">客户口碑</text>
+    </view>
+    <view class="review-list">
+      <view class="review-item card" wx:for="{{reviews}}" wx:key="id">
+        <view class="review-header">
+          <image src="{{item.avatar}}" class="review-avatar"/>
+          <view class="review-user">
+            <text class="review-name">{{item.name}}</text>
+            <text class="review-date">{{item.date}}</text>
+          </view>
+          <view class="review-rating">
+            <text wx:for="{{5}}" wx:key="*this" class="star">⭐</text>
+          </view>
+        </view>
+        <text class="review-content">{{item.content}}</text>
+        <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="review-img"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部CTA - 强力留资 -->
+  <view class="bottom-cta card">
+    <text class="cta-title">准备开始装修了吗？</text>
+    <text class="cta-desc">立即预约，免费量尺 + 设计方案</text>
+    <view class="cta-buttons">
+      <button class="btn btn-primary" bindtap="goToAppointment">预约量尺</button>
+      <button class="btn btn-outline" bindtap="goToLead">免费咨询</button>
+    </view>
+  </view>
+
+  <!-- 底部留白（避开tabBar） -->
+  <view style="height: 40rpx;"></view>
+</view>
+
+<!-- 全局浮动留资按钮 -->
+<view class="float-btn" bindtap="goToLead" data-source="浮动按钮">
+  <text class="float-icon">💬</text>
+  <text class="float-text">咨询</text>
+</view>
+
+<!-- 首页弹窗留资（30秒后自动弹出） -->
+<view class="popup-mask" wx:if="{{showPopup}}" bindtap="closePopup">
+  <view class="popup-content" catchtap="preventBubble">
+    <view class="popup-close" bindtap="closePopup">×</view>
+    <image src="/images/gift.png" class="popup-icon"/>
+    <text class="popup-title">🎁 专属福利</text>
+    <text class="popup-desc">填写手机号，立即获取：</text>
+    <view class="popup-benefits">
+      <text class="benefit-item">✓ 免费设计方案</text>
+      <text class="benefit-item">✓ 精准报价清单</text>
+      <text class="benefit-item">✓ 案例同款参考</text>
+    </view>
+    <input type="number" placeholder="请输入手机号" class="popup-input" bindinput="onPhoneInput" maxlength="11"/>
+    <button class="btn btn-primary popup-btn" bindtap="submitLead">立即领取</button>
+    <text class="popup-tip">已有 {{leadCount}}+ 位业主领取</text>
+  </view>
+</view>

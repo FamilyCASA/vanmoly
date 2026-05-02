@@ -1,0 +1,423 @@
+/* 首页样式 */
+
+/* Banner */
+.banner {
+  height: 400rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  margin-bottom: 20rpx;
+}
+
+.banner-img {
+  width: 100%;
+  height: 100%;
+}
+
+.banner-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 40rpx 30rpx 30rpx;
+  background: linear-gradient(transparent, rgba(0,0,0,0.6));
+}
+
+.banner-title {
+  color: #fff;
+  font-size: 40rpx;
+  font-weight: 700;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.banner-subtitle {
+  color: rgba(255,255,255,0.9);
+  font-size: 26rpx;
+}
+
+/* 快速入口 */
+.quick-entry {
+  display: flex;
+  justify-content: space-around;
+  padding: 30rpx 20rpx;
+}
+
+.entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20rpx;
+}
+
+.entry-icon {
+  width: 100rpx;
+  height: 100rpx;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16rpx;
+  font-size: 48rpx;
+}
+
+.case-icon { background: linear-gradient(135deg, #8B4513, #A0522D); }
+.lead-icon { background: linear-gradient(135deg, #D2691E, #CD853F); }
+.appoint-icon { background: linear-gradient(135deg, #DAA520, #B8860B); }
+.phone-icon { background: linear-gradient(135deg, #228B22, #32CD32); }
+
+.entry-text {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.entry-desc {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 留资钩子 */
+.lead-hook {
+  background: linear-gradient(135deg, #8B4513 0%, #654321 100%);
+  color: #fff;
+  padding: 30rpx;
+}
+
+.hook-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hook-left {
+  flex: 1;
+}
+
+.hook-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.hook-desc {
+  font-size: 24rpx;
+  opacity: 0.9;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.hook-tags {
+  display: flex;
+  gap: 12rpx;
+}
+
+.hook-btn {
+  background: rgba(255,255,255,0.2);
+  padding: 16rpx 30rpx;
+  border-radius: 30rpx;
+  font-size: 28rpx;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.arrow {
+  font-size: 32rpx;
+}
+
+/* 服务优势 */
+.section {
+  margin-bottom: 30rpx;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+  padding: 0 10rpx;
+}
+
+.section-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #333;
+}
+
+.section-more {
+  font-size: 26rpx;
+  color: #8B4513;
+}
+
+.advantage-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20rpx;
+}
+
+.advantage-item {
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 30rpx 20rpx;
+  text-align: center;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.advantage-num {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #8B4513;
+  display: block;
+}
+
+.advantage-label {
+  font-size: 26rpx;
+  color: #333;
+  font-weight: 500;
+  margin-top: 8rpx;
+  display: block;
+}
+
+.advantage-desc {
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 4rpx;
+  display: block;
+}
+
+/* 精选案例 */
+.case-scroll {
+  white-space: nowrap;
+}
+
+.case-list {
+  display: flex;
+  padding: 0 10rpx;
+}
+
+.case-item {
+  position: relative;
+  width: 560rpx;
+  margin-right: 20rpx;
+  border-radius: 16rpx;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: 0 4rpx 16rpx rgba(0,0,0,0.08);
+}
+
+.case-img {
+  width: 100%;
+  height: 320rpx;
+}
+
+.case-info {
+  padding: 20rpx;
+}
+
+.case-title {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.case-tags {
+  display: flex;
+  gap: 12rpx;
+  margin-bottom: 10rpx;
+}
+
+.case-price {
+  font-size: 28rpx;
+  color: #D2691E;
+  font-weight: 600;
+}
+
+.case-lead-btn {
+  position: absolute;
+  right: 20rpx;
+  bottom: 20rpx;
+  background: linear-gradient(135deg, #8B4513, #D2691E);
+  color: #fff;
+  padding: 12rpx 24rpx;
+  border-radius: 24rpx;
+  font-size: 24rpx;
+}
+
+/* 客户评价 */
+.review-item {
+  margin-bottom: 20rpx;
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.review-avatar {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+}
+
+.review-user {
+  flex: 1;
+}
+
+.review-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  display: block;
+}
+
+.review-date {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.review-rating {
+  display: flex;
+}
+
+.star {
+  font-size: 24rpx;
+  margin-left: 4rpx;
+}
+
+.review-content {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.review-img {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 12rpx;
+}
+
+/* 底部CTA */
+.bottom-cta {
+  text-align: center;
+  padding: 40rpx 30rpx;
+}
+
+.cta-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 10rpx;
+}
+
+.cta-desc {
+  font-size: 26rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.cta-buttons {
+  display: flex;
+  gap: 20rpx;
+}
+
+.cta-buttons .btn {
+  flex: 1;
+}
+
+/* 弹窗 */
+.popup-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.popup-content {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 50rpx 40rpx;
+  width: 80%;
+  max-width: 600rpx;
+  text-align: center;
+  position: relative;
+}
+
+.popup-close {
+  position: absolute;
+  top: 20rpx;
+  right: 30rpx;
+  font-size: 48rpx;
+  color: #999;
+  line-height: 1;
+}
+
+.popup-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+.popup-title {
+  font-size: 36rpx;
+  font-weight: 600;
+  color: #333;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.popup-desc {
+  font-size: 26rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.popup-benefits {
+  text-align: left;
+  background: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 20rpx 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.benefit-item {
+  font-size: 26rpx;
+  color: #333;
+  display: block;
+  padding: 8rpx 0;
+}
+
+.popup-input {
+  height: 88rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 44rpx;
+  padding: 0 30rpx;
+  font-size: 28rpx;
+  margin-bottom: 20rpx;
+  text-align: center;
+}
+
+.popup-btn {
+  margin-bottom: 16rpx;
+}
+
+.popup-tip {
+  font-size: 22rpx;
+  color: #999;
+}

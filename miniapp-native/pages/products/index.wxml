@@ -1,0 +1,178 @@
+<view class="products-page">
+  <!-- 顶部搜索栏 -->
+  <view class="search-header">
+    <view class="search-bar">
+      <text class="search-icon">🔍</text>
+      <input 
+        type="text" 
+        placeholder="搜索产品名称、品牌..." 
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+        bindconfirm="onSearch"
+      />
+      <text wx:if="{{searchKeyword}}" class="clear-icon" bindtap="clearSearch">×</text>
+    </view>
+    <view class="selection-entry" bindtap="goToSelection">
+      <text class="cart-icon">🛒</text>
+      <text wx:if="{{selectionCount > 0}}" class="selection-badge">{{selectionCount}}</text>
+    </view>
+  </view>
+
+  <!-- 分类导航 -->
+  <scroll-view class="category-nav" scroll-x enhanced show-scrollbar="{{false}}">
+    <view 
+      wx:for="{{categories}}" 
+      wx:key="id"
+      class="category-item {{currentCategory === item.id ? 'active' : ''}}"
+      bindtap="selectCategory"
+      data-id="{{item.id}}"
+    >
+      <text>{{item.name}}</text>
+    </view>
+  </scroll-view>
+
+  <!-- 筛选栏 -->
+  <view class="filter-bar">
+    <view class="filter-item {{sortBy === 'default' ? 'active' : ''}}" bindtap="setSort" data-type="default">
+      <text>综合</text>
+    </view>
+    <view class="filter-item {{sortBy === 'price_asc' ? 'active' : ''}}" bindtap="setSort" data-type="price_asc">
+      <text>价格</text>
+      <text class="sort-arrow">{{sortBy === 'price_asc' ? '↑' : '↓'}}</text>
+    </view>
+    <view class="filter-item {{sortBy === 'sales' ? 'active' : ''}}" bindtap="setSort" data-type="sales">
+      <text>销量</text>
+    </view>
+    <view class="filter-item" bindtap="showFilter">
+      <text>筛选</text>
+      <text class="filter-icon">⚙</text>
+    </view>
+  </view>
+
+  <!-- 产品列表 -->
+  <scroll-view 
+    class="products-list" 
+    scroll-y 
+    enhanced
+    refresher-enabled
+    refresher-triggered="{{isRefreshing}}"
+    bindrefresherrefresh="onRefresh"
+    bindscrolltolower="onLoadMore"
+  >
+    <view class="products-grid">
+      <view 
+        wx:for="{{products}}" 
+        wx:key="id"
+        class="product-card"
+        bindtap="goToDetail"
+        data-id="{{item.id}}"
+      >
+        <view class="product-image-wrapper">
+          <image 
+            class="product-image main" 
+            src="{{item.main_image || '/images/placeholder.png'}}" 
+            mode="aspectFill"
+            lazy-load
+          />
+          <image 
+            wx:if="{{item.sub_image}}"
+            class="product-image sub" 
+            src="{{item.sub_image}}" 
+            mode="aspectFill"
+            lazy-load
+          />
+          <view class="quick-add" catchtap="quickAdd" data-item="{{item}}">
+            <text class="add-icon">+</text>
+          </view>
+        </view>
+        <view class="product-info">
+          <text class="product-brand">{{item.brand || '梵木里'}}</text>
+          <text class="product-name">{{item.name}}</text>
+          <view class="product-bottom">
+            <text class="product-price">¥{{item.sale_price}}</text>
+            <text wx:if="{{item.market_price > item.sale_price}}" class="product-original">¥{{item.market_price}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 加载状态 -->
+    <view class="load-more" wx:if="{{isLoadingMore}}">
+      <text>加载中...</text>
+    </view>
+    <view class="no-more" wx:if="{{noMore && products.length > 0}}">
+      <text>没有更多产品了</text>
+    </view>
+    <view class="empty-state" wx:if="{{!loading && products.length === 0}}">
+      <text class="empty-icon">📦</text>
+      <text class="empty-text">暂无相关产品</text>
+      <text class="empty-tip">换个分类或搜索词试试</text>
+    </view>
+  </scroll-view>
+
+  <!-- 筛选弹窗 -->
+  <view class="filter-modal {{showFilterModal ? 'show' : ''}}" bindtap="hideFilter">
+    <view class="filter-content" catchtap="preventBubble">
+      <view class="filter-header">
+        <text class="filter-title">筛选</text>
+        <text class="filter-close" bindtap="hideFilter">×</text>
+      </view>
+      
+      <scroll-view class="filter-body" scroll-y>
+        <!-- 价格区间 -->
+        <view class="filter-section">
+          <text class="section-label">价格区间</text>
+          <view class="price-range">
+            <input type="digit" placeholder="最低价" value="{{filter.minPrice}}" bindinput="onMinPriceInput"/>
+            <text class="range-separator">-</text>
+            <input type="digit" placeholder="最高价" value="{{filter.maxPrice}}" bindinput="onMaxPriceInput"/>
+          </view>
+        </view>
+
+        <!-- 品牌筛选 -->
+        <view class="filter-section" wx:if="{{brands.length > 0}}">
+          <text class="section-label">品牌</text>
+          <view class="brand-list">
+            <view 
+              wx:for="{{brands}}" 
+              wx:key="*this"
+              class="brand-item {{filter.selectedBrands.includes(item) ? 'selected' : ''}}"
+              bindtap="toggleBrand"
+              data-brand="{{item}}"
+            >
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 风格筛选 -->
+        <view class="filter-section" wx:if="{{styles.length > 0}}">
+          <text class="section-label">风格</text>
+          <view class="style-list">
+            <view 
+              wx:for="{{styles}}" 
+              wx:key="*this"
+              class="style-item {{filter.selectedStyles.includes(item) ? 'selected' : ''}}"
+              bindtap="toggleStyle"
+              data-style="{{item}}"
+            >
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+      </scroll-view>
+
+      <view class="filter-footer">
+        <button class="btn-reset" bindtap="resetFilter">重置</button>
+        <button class="btn-confirm" bindtap="confirmFilter">确定</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加到选品成功提示 -->
+  <view class="toast {{showToast ? 'show' : ''}}">
+    <text class="toast-icon">✓</text>
+    <text class="toast-text">已加入选品清单</text>
+  </view>
+</view>

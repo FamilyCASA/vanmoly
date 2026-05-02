@@ -1,0 +1,29 @@
+<view class="container">
+  <view class="header">
+    <text class="title">梵木里·全案服务</text>
+    <text class="subtitle">专业软装设计与服务</text>
+  </view>
+  
+  <view class="menu-grid">
+    <view class="menu-item" bindtap="goToSignature">
+      <view class="icon">✍️</view>
+      <text>手写签名</text>
+    </view>
+    <view class="menu-item">
+      <view class="icon">📋</view>
+      <text>报价管理</text>
+    </view>
+    <view class="menu-item">
+      <view class="icon">👤</view>
+      <text>客户管理</text>
+    </view>
+    <view class="menu-item">
+      <view class="icon">📊</view>
+      <text>工作流程</text>
+    </view>
+  </view>
+  
+  <view class="status-bar">
+    <text>后端状态: {{backendStatus}}</text>
+  </view>
+</view>

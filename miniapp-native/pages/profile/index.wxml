@@ -1,0 +1,118 @@
+<view class="container">
+  <!-- 用户信息 -->
+  <view class="user-header">
+    <view class="user-info">
+      <view class="avatar">{{userInfo.nickName ? userInfo.nickName[0] : '?'}}</view>
+      <view class="user-meta">
+        <text class="nickname">{{userInfo.nickName || '未登录'}}</text>
+        <text class="role" wx:if="{{userInfo.role}}">{{userInfo.role}}</text>
+      </view>
+    </view>
+    <button class="login-btn" wx:if="{{!isLoggedIn}}" bindtap="login">点击登录</button>
+  </view>
+
+  <!-- 数据概览 -->
+  <view class="stats-card" wx:if="{{isLoggedIn}}">
+    <view class="stat-item">
+      <text class="stat-num">{{stats.quotes || 0}}</text>
+      <text class="stat-label">我的报价</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.orders || 0}}</text>
+      <text class="stat-label">进行中</text>
+    </view>
+    <view class="stat-item">
+      <text class="stat-num">{{stats.completed || 0}}</text>
+      <text class="stat-label">已完成</text>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-section">
+    <view class="menu-title">我的服务</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goToSelection">
+        <view class="menu-left">
+          <text class="menu-icon">🛒</text>
+          <text class="menu-name">我的选品</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToQuotes">
+        <view class="menu-left">
+          <text class="menu-icon">📋</text>
+          <text class="menu-name">我的报价</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToWorkflow">
+        <view class="menu-left">
+          <text class="menu-icon">📊</text>
+          <text class="menu-name">项目进度</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToSignature">
+        <view class="menu-left">
+          <text class="menu-icon">✍️</text>
+          <text class="menu-name">电子签名</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 后台管理入口（仅员工可见） -->
+  <view class="menu-section" wx:if="{{isStaff}}">
+    <view class="menu-title">后台管理</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="goToAdmin">
+        <view class="menu-left">
+          <text class="menu-icon">⚙️</text>
+          <text class="menu-name">管理后台</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToCustomers">
+        <view class="menu-left">
+          <text class="menu-icon">👥</text>
+          <text class="menu-name">客户管理</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="goToMaterials">
+        <view class="menu-left">
+          <text class="menu-icon">📦</text>
+          <text class="menu-name">物料管理</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设置 -->
+  <view class="menu-section">
+    <view class="menu-title">设置</view>
+    <view class="menu-list">
+      <view class="menu-item" bindtap="contactService">
+        <view class="menu-left">
+          <text class="menu-icon">💬</text>
+          <text class="menu-name">联系客服</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+      <view class="menu-item" bindtap="aboutUs">
+        <view class="menu-left">
+          <text class="menu-icon">ℹ️</text>
+          <text class="menu-name">关于我们</text>
+        </view>
+        <text class="arrow">></text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 退出登录 -->
+  <view class="logout-section" wx:if="{{isLoggedIn}}">
+    <button class="logout-btn" bindtap="logout">退出登录</button>
+  </view>
+</view>

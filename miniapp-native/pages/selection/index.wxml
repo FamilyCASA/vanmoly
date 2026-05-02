@@ -1,0 +1,161 @@
+<view class="selection-page">
+  <!-- 顶部导航 -->
+  <view class="page-header">
+    <view class="header-left" bindtap="goBack">
+      <text class="back-icon">←</text>
+    </view>
+    <text class="header-title">我的选品清单</text>
+    <view class="header-right">
+      <text wx:if="{{selection.length > 0}}" class="edit-btn" bindtap="toggleEdit">
+        {{isEditing ? '完成' : '编辑'}}
+      </text>
+    </view>
+  </view>
+
+  <!-- 空状态 -->
+  <view wx:if="{{selection.length === 0}}" class="empty-state">
+    <text class="empty-icon">🛒</text>
+    <text class="empty-title">选品清单是空的</text>
+    <text class="empty-desc">去挑选喜欢的产品吧</text>
+    <button class="btn-primary" bindtap="goToProducts">去选品</button>
+  </view>
+
+  <!-- 选品列表 -->
+  <scroll-view wx:else class="selection-list" scroll-y enhanced>
+    <!-- 方案信息编辑 -->
+    <view class="scheme-section">
+      <view class="scheme-header" bindtap="toggleSchemeEdit">
+        <text class="scheme-title">方案信息</text>
+        <text class="scheme-toggle">{{showSchemeEdit ? '收起' : '编辑'}} ></text>
+      </view>
+      
+      <view wx:if="{{showSchemeEdit}}" class="scheme-form">
+        <view class="form-item">
+          <text class="form-label">方案名称</text>
+          <input 
+            type="text" 
+            placeholder="给方案起个名字" 
+            value="{{scheme.name}}"
+            bindinput="onSchemeNameInput"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">房间类型</text>
+          <picker mode="selector" range="{{roomTypes}}" bindchange="onRoomTypeChange">
+            <view class="picker-value">{{scheme.room_type || '请选择'}} ></view>
+          </picker>
+        </view>
+        <view class="form-item">
+          <text class="form-label">面积 (㎡)</text>
+          <input 
+            type="digit" 
+            placeholder="请输入面积" 
+            value="{{scheme.area}}"
+            bindinput="onAreaInput"
+          />
+        </view>
+        <view class="form-item">
+          <text class="form-label">备注</text>
+          <textarea 
+            placeholder="添加备注信息..." 
+            value="{{scheme.remark}}"
+            bindinput="onRemarkInput"
+          />
+        </view>
+      </view>
+      
+      <view wx:else class="scheme-preview">
+        <text class="preview-name">{{scheme.name || '未命名方案'}}</text>
+        <text wx:if="{{scheme.room_type}}" class="preview-meta">{{scheme.room_type}} {{scheme.area ? scheme.area + '㎡' : ''}}</text>
+      </view>
+    </view>
+
+    <!-- 按分类分组 -->
+    <view wx:for="{{groupedSelection}}" wx:key="category" class="category-group">
+      <view class="category-header">
+        <text class="category-name">{{item.category}}</text>
+        <text class="category-count">{{item.items.length}} 件</text>
+      </view>
+      
+      <view wx:for="{{item.items}}" wx:key="id" wx:for-item="product" class="selection-item">
+        <view wx:if="{{isEditing}}" class="item-checkbox" bindtap="toggleSelect" data-id="{{product.id}}" data-variant="{{product.variant_name}}">
+          <text class="checkbox {{selectedItems.includes(product.id + '_' + (product.variant_name || '')) ? 'checked' : ''}}">
+            {{selectedItems.includes(product.id + '_' + (product.variant_name || '')) ? '✓' : ''}}
+          </text>
+        </view>
+        
+        <image class="item-image" src="{{product.main_image || '/images/placeholder.png'}}" mode="aspectFill"/>
+        
+        <view class="item-info">
+          <text class="item-name">{{product.name}}</text>
+          <text wx:if="{{product.variant_name}}" class="item-variant">{{product.variant_name}}</text>
+          <text class="item-price">¥{{product.sale_price}}</text>
+        </view>
+        
+        <view class="item-actions">
+          <view wx:if="{{!isEditing}}" class="quantity-control">
+            <text class="qty-btn {{product.quantity <= 1 ? 'disabled' : ''}}" bindtap="decreaseQty" data-item="{{product}}">-</text>
+            <text class="qty-value">{{product.quantity}}</text>
+            <text class="qty-btn" bindtap="increaseQty" data-item="{{product}}">+</text>
+          </view>
+          
+          <view wx:if="{{!isEditing}}" class="item-total">
+            <text>¥{{(product.sale_price * product.quantity).toFixed(2)}}</text>
+          </view>
+          
+          <text wx:if="{{isEditing}}" class="delete-btn" bindtap="deleteItem" data-item="{{product}}">删除</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 价格汇总 -->
+    <view class="summary-section">
+      <view class="summary-row">
+        <text>商品总数</text>
+        <text>{{totalCount}} 件</text>
+      </view>
+      <view class="summary-row">
+        <text>商品总额</text>
+        <text>¥{{totalAmount.toFixed(2)}}</text>
+      </view>
+      <view class="summary-row total">
+        <text>合计</text>
+        <text class="total-price">¥{{totalAmount.toFixed(2)}}</text>
+      </view>
+    </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- 底部操作栏 -->
+  <view wx:if="{{selection.length > 0}}" class="action-bar">
+    <view wx:if="{{isEditing}}" class="edit-actions">
+      <view class="select-all" bindtap="toggleSelectAll">
+        <text class="checkbox {{isAllSelected ? 'checked' : ''}}">
+          {{isAllSelected ? '✓' : ''}}
+        </text>
+        <text>全选</text>
+      </view>
+      <button class="btn-delete" bindtap="deleteSelected">删除选中</button>
+    </view>
+    
+    <view wx:else class="normal-actions">
+      <view class="price-info">
+        <text class="total-label">合计:</text>
+        <text class="total-amount">¥{{totalAmount.toFixed(2)}}</text>
+      </view>
+      <button class="btn-submit" bindtap="submitScheme">提交方案</button>
+    </view>
+  </view>
+
+  <!-- 提交成功弹窗 -->
+  <view class="success-modal {{showSuccessModal ? 'show' : ''}}">
+    <view class="success-content">
+      <text class="success-icon">✓</text>
+      <text class="success-title">方案提交成功</text>
+      <text class="success-desc">我们的设计师将尽快与您联系</text>
+      <button class="btn-primary" bindtap="closeSuccessModal">确定</button>
+    </view>
+  </view>
+</view>

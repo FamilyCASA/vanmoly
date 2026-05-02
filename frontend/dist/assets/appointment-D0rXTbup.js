@@ -1,0 +1,1 @@
+import{r as n}from"./request-DGij_0zA.js";function a(t){return n.post("/appointments",t)}function o(t){return n.get("/appointments",{params:t})}function r(t,e){return n.put(`/appointments/${t}`,e)}function s(){return n.get("/appointments/stats")}function i(t){return n.get("/appointments/calendar",{params:t})}export{s as a,i as b,a as c,o as g,r as u};

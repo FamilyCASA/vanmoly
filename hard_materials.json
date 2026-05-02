@@ -1,0 +1,842 @@
+[
+  {
+    "code": "DS001",
+    "name": "24墙拆除及断面恢复",
+    "category_name": "打拆",
+    "unit": "m2",
+    "cost_price": 150.0,
+    "retail_price": 225.0,
+    "description": "1、人工费。2、机具费。（注：若有构造柱、地、圈梁等拆除将按本公司报价标准另行计费）。3、“西南”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS002",
+    "name": "12墙拆除及断面恢复",
+    "category_name": "打拆",
+    "unit": "m2",
+    "cost_price": 230.0,
+    "retail_price": 345.0,
+    "description": "1、人工费。2、机具费。（注：若有构造柱、地、圈梁等拆除将按本公司报价标准另行计费）",
+    "material_type": "service"
+  },
+  {
+    "code": "DS003",
+    "name": "双面石膏板隔墙",
+    "category_name": "打拆",
+    "unit": "m3",
+    "cost_price": 230.0,
+    "retail_price": 345.0,
+    "description": "1、“拉法基（博罗）环保石膏板。2、轻钢龙骨（天地龙骨、丝杆、配套膨胀）。3、2*3标准木条。4、防火、防腐涂料。5、人工费。6、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "DS004",
+    "name": "飘窗拆除（＜1.5m)及防水处理",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 1000.0,
+    "retail_price": 1500.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。3、“德高牌”柔性防水",
+    "material_type": "service"
+  },
+  {
+    "code": "DS005",
+    "name": "飘窗拆除（＞1.5m)及防水处理",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 1000.0,
+    "retail_price": 1500.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。3、“德高牌”柔性防水",
+    "material_type": "service"
+  },
+  {
+    "code": "DS006",
+    "name": "保温层铲除及表面恢复",
+    "category_name": "打拆",
+    "unit": "m2",
+    "cost_price": 35.0,
+    "retail_price": 52.5,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS007",
+    "name": "原墙、顶面白灰铲除",
+    "category_name": "打拆",
+    "unit": "m2",
+    "cost_price": 10.0,
+    "retail_price": 15.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS008",
+    "name": "煤气孔开孔",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 199.0,
+    "retail_price": 298.5,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS009",
+    "name": "空调孔",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 120.0,
+    "retail_price": 180.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS010",
+    "name": "卫生间排气孔",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 120.0,
+    "retail_price": 180.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "DS011",
+    "name": "烟道开孔",
+    "category_name": "打拆",
+    "unit": "个",
+    "cost_price": 200.0,
+    "retail_price": 300.0,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "MG001",
+    "name": "门洞加高",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 200.0,
+    "retail_price": 300.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG002",
+    "name": "门洞修正",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 300.0,
+    "retail_price": 450.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG003",
+    "name": "门洞倒圆",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 350.0,
+    "retail_price": 525.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG004",
+    "name": "中央空调出风口（1.5米以内）",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 120.0,
+    "retail_price": 180.0,
+    "description": "1、人工费。2、石膏板",
+    "material_type": "service"
+  },
+  {
+    "code": "MG005",
+    "name": "中央空调出风口加长处理",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 160.0,
+    "retail_price": 240.0,
+    "description": "1、人工费。2、石膏板",
+    "material_type": "service"
+  },
+  {
+    "code": "MG006",
+    "name": "新建非标门洞（欧松板）",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 600.0,
+    "retail_price": 900.0,
+    "description": "1、欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG007",
+    "name": "新建标准门洞（欧松板）",
+    "category_name": "木工",
+    "unit": "个",
+    "cost_price": 320.0,
+    "retail_price": 480.0,
+    "description": "1、欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG008",
+    "name": "弧形边顶",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 200.0,
+    "retail_price": 300.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板3、不上人轻钢龙骨（主龙骨、副龙骨、边龙骨、丝杆、配套膨胀）。4、2*3标准木条。5、防火、防腐涂料。6、人工费。7、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG009",
+    "name": "石膏板边顶＜60cm",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 125.0,
+    "retail_price": 187.5,
+    "description": "1、龙牌纸面石膏板。2、欧松板3、不上人轻钢龙骨（主龙骨、副龙骨、边龙骨、丝杆、配套膨胀）。4、2*3标准木条。5、防火、防腐涂料。6、人工费。7、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG010",
+    "name": "石膏板平顶",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 146.0,
+    "retail_price": 219.0,
+    "description": "1、材料：龙牌纸面石膏板+不上人轻钢龙骨+局部木龙骨+膨胀螺丝+自攻钉+防火涂料+防锈漆）\n层高3.3米内吊筋高度400mm以内，超出高度视具体情况补差）2、人工费、机具费",
+    "material_type": "service"
+  },
+  {
+    "code": "MG011",
+    "name": "双层石膏板走边",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 85.0,
+    "retail_price": 127.5,
+    "description": "1、龙牌纸面石膏板。2、人工费。3、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG012",
+    "name": "石膏板叠级",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 96.0,
+    "retail_price": 144.0,
+    "description": "1、龙牌纸面石膏板。2、人工费。3、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG013",
+    "name": "反光灯槽",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 55.0,
+    "retail_price": 82.5,
+    "description": "1、龙牌纸面石膏板。2、欧松板3、不上人轻钢龙骨（主龙骨、副龙骨、边龙骨、丝杆、配套膨胀）。4、2*3标准木条。5、防火、防腐涂料。6、人工费。7、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG014",
+    "name": "线形灯/投影隐藏槽基层",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 100.0,
+    "retail_price": 150.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板3、不上人轻钢龙骨（主龙骨、副龙骨、边龙骨、丝杆、配套膨胀）。4、2*3标准木条。5、防火、防腐涂料。6、人工费。7、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG015",
+    "name": "磁吸轨道灯安装费",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 60.0,
+    "retail_price": 90.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG016",
+    "name": "窗帘盒",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 90.0,
+    "retail_price": 135.0,
+    "description": "1、龙牌纸面石膏板。2、欧松板3、不上人轻钢龙骨（主龙骨、副龙骨、边龙骨、丝杆、配套膨胀）。4、2*3标准木条。5、防火、防腐涂料。6、人工费。7、配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG017",
+    "name": "钛金线条",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 85.0,
+    "retail_price": 127.5,
+    "description": "1、中纤板基层。2、黑钛金。3、人工费及配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG018",
+    "name": "欧松板基层",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 230.0,
+    "retail_price": 345.0,
+    "description": "1、优质欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG019",
+    "name": "欧松板地台基层",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 120.0,
+    "retail_price": 180.0,
+    "description": "1、优质欧松板。2、2*3标准木条。3、防火、防腐涂料。4、配套辅料。5、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "MG020",
+    "name": "钛金踢脚线",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 95.0,
+    "retail_price": 142.5,
+    "description": "1、中纤板基层。2、黑钛金。3、人工费及配套辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "MG021",
+    "name": "硬包（布面）",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 260.0,
+    "retail_price": 390.0,
+    "description": "1、定制布面硬包。2、安装费（基础造型，不含钛金及马丁）",
+    "material_type": "service"
+  },
+  {
+    "code": "MG022",
+    "name": "硬包（皮面）",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 280.0,
+    "retail_price": 420.0,
+    "description": "1、定制PVC皮面硬包。2、安装费（基础造型，不含钛金及马丁）",
+    "material_type": "service"
+  },
+  {
+    "code": "MG023",
+    "name": "生态木格栅",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 250.0,
+    "retail_price": 375.0,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "MG024",
+    "name": "钛金（展开面积超过10厘米）古铜色",
+    "category_name": "木工",
+    "unit": "m2",
+    "cost_price": 400.0,
+    "retail_price": 600.0,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "MG025",
+    "name": "石膏 钢琴键",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 25.0,
+    "retail_price": 37.5,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "MG026",
+    "name": "石膏 虎头线条",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 35.0,
+    "retail_price": 52.5,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "MG027",
+    "name": "钛金窗套/门套",
+    "category_name": "木工",
+    "unit": "m",
+    "cost_price": 220.0,
+    "retail_price": 330.0,
+    "description": "1、欧松板基层。2、黑钛金。3、人工及辅料。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG001",
+    "name": "包单根落水管（不含隔音棉）",
+    "category_name": "砖工",
+    "unit": "根",
+    "cost_price": 230.0,
+    "retail_price": 345.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG002",
+    "name": "包单根落水管（含竖向隔音棉）",
+    "category_name": "砖工",
+    "unit": "根",
+    "cost_price": 290.0,
+    "retail_price": 435.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。3、隔音棉",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG003",
+    "name": "横向隔音棉包裹",
+    "category_name": "砖工",
+    "unit": "米",
+    "cost_price": 70.0,
+    "retail_price": 105.0,
+    "description": "1、人工费。2、隔音棉及辅料",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG004",
+    "name": "包双根落水管（不含隔音棉）",
+    "category_name": "砖工",
+    "unit": "根",
+    "cost_price": 350.0,
+    "retail_price": 525.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG005",
+    "name": "包双根落水管（含竖向隔音棉）",
+    "category_name": "砖工",
+    "unit": "根",
+    "cost_price": 450.0,
+    "retail_price": 675.0,
+    "description": "1、人工费。2、“西南”水泥、河沙、红砖。3、隔音棉",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG006",
+    "name": "地砖正铺贴（300*300--800*800）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 85.0,
+    "retail_price": 127.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG007",
+    "name": "地砖正铺贴（600*1200）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 95.0,
+    "retail_price": 142.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG008",
+    "name": "地砖正铺贴（750*1500）或木纹砖",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 105.0,
+    "retail_price": 157.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG009",
+    "name": "地砖正铺贴（900*1800）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 107.0,
+    "retail_price": 160.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG010",
+    "name": "墙砖正铺贴（300*300--800*800）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 85.0,
+    "retail_price": 127.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG011",
+    "name": "墙砖正铺贴（600*1200）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 97.0,
+    "retail_price": 145.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG012",
+    "name": "墙砖正铺贴（750*1500）或木纹砖",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 107.0,
+    "retail_price": 160.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG013",
+    "name": "墙砖正铺贴（900*1800）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 115.0,
+    "retail_price": 172.5,
+    "description": "“西南”水泥、中砂、人工费(斜拼、拼花、波达线等造型均单独收费，异形瓷砖、非常规尺寸瓷砖均另外收费）",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG014",
+    "name": "门槛石铺贴工费",
+    "category_name": "砖工",
+    "unit": "个",
+    "cost_price": 50.0,
+    "retail_price": 75.0,
+    "description": "1、人工费。2、“西南”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG015",
+    "name": "墙面砂浆找平",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 45.0,
+    "retail_price": 67.5,
+    "description": "墙面误差超过",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG016",
+    "name": "电视墙瓷砖干挂",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 200.0,
+    "retail_price": 300.0,
+    "description": "1、人工费。2、机具费。3、云石胶。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG017",
+    "name": "背胶涂刷",
+    "category_name": "砖工",
+    "unit": "项",
+    "cost_price": 600.0,
+    "retail_price": 900.0,
+    "description": "1、人工费。2、“德高”瓷砖背胶。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG018",
+    "name": "壁龛",
+    "category_name": "砖工",
+    "unit": "项",
+    "cost_price": 800.0,
+    "retail_price": 1200.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG019",
+    "name": "蹲便安装费",
+    "category_name": "砖工",
+    "unit": "项",
+    "cost_price": 100.0,
+    "retail_price": 150.0,
+    "description": "1、人工费。2、机具费。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG020",
+    "name": "门槛石铺贴（工费）",
+    "category_name": "砖工",
+    "unit": "根",
+    "cost_price": 60.0,
+    "retail_price": 90.0,
+    "description": "1、人工费。2、机具费。3、“西南”或“红狮”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG021",
+    "name": "返窗沿（立面加平面）",
+    "category_name": "砖工",
+    "unit": "m",
+    "cost_price": 70.0,
+    "retail_price": 105.0,
+    "description": "1、人工费。2、机具费。3、“西南”或“红狮”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG022",
+    "name": "窗外延贴砖",
+    "category_name": "砖工",
+    "unit": "m",
+    "cost_price": 35.0,
+    "retail_price": 52.5,
+    "description": "1、人工费。2、机具费。3、“西南”或“红狮”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG023",
+    "name": "烟道处理",
+    "category_name": "砖工",
+    "unit": "项",
+    "cost_price": 130.0,
+    "retail_price": 195.0,
+    "description": "1、孔距2.5钢网、2、钉子。3、人工费",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG024",
+    "name": "人工砂浆找平（5公分以内）",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 50.0,
+    "retail_price": 75.0,
+    "description": "1、人工费。2、机具费。3、“西南”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG025",
+    "name": "自流平<2cm",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 60.0,
+    "retail_price": 90.0,
+    "description": "1、人工费。2、机具费。3、自流平材料",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG026",
+    "name": "自流平＞2cm",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 90.0,
+    "retail_price": 135.0,
+    "description": "1、人工费。2、机具费。3、自流平材料",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG027",
+    "name": "灯盘",
+    "category_name": "砖工",
+    "unit": "个",
+    "cost_price": 900.0,
+    "retail_price": 1350.0,
+    "description": "",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG028",
+    "name": "石膏阴角线",
+    "category_name": "砖工",
+    "unit": "m",
+    "cost_price": 20.0,
+    "retail_price": 30.0,
+    "description": "1、人工费。2、机具费。3、成品石膏线5~10cm.",
+    "material_type": "service"
+  },
+  {
+    "code": "ZG029",
+    "name": "单面抹灰",
+    "category_name": "砖工",
+    "unit": "m2",
+    "cost_price": 80.0,
+    "retail_price": 120.0,
+    "description": "1、人工费。2、“西南”水泥、河沙。",
+    "material_type": "service"
+  },
+  {
+    "code": "QG001",
+    "name": "原墙界面剂涂刷",
+    "category_name": "漆工",
+    "unit": "m2",
+    "cost_price": 5.0,
+    "retail_price": 7.5,
+    "description": "1、“303牌”界面剂。3、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "QG002",
+    "name": "原墙、顶面基层处理",
+    "category_name": "漆工",
+    "unit": "m2",
+    "cost_price": 33.0,
+    "retail_price": 49.5,
+    "description": "材料：“立邦”石膏粉、腻子膏。2、人工费。3、配套辅料（局部PVC抗裂网、滚筒、刷子等）\n工序：清扫基层、护角条安装、刮石膏腻子、找平、打磨\n\n",
+    "material_type": "service"
+  },
+  {
+    "code": "QG003",
+    "name": "原墙、顶面基层处理",
+    "category_name": "漆工",
+    "unit": "m2",
+    "cost_price": 40.0,
+    "retail_price": 60.0,
+    "description": "材料：“立邦”石膏粉、腻子膏。2、人工费。3、配套辅料（局部PVC抗裂网、滚筒、刷子等）\n工序：清扫基层、护角条安装、刮石膏腻子、找平、打磨\n\n",
+    "material_type": "service"
+  },
+  {
+    "code": "QG004",
+    "name": "乳胶漆涂刷（包含乳胶漆）",
+    "category_name": "漆工",
+    "unit": "m2",
+    "cost_price": 15.0,
+    "retail_price": 22.5,
+    "description": "1、“立邦通用”“金装五合一系列”。2、人工费（底一面二）。3、配套辅料（全屋有色漆不超过3个，增加一个需单独补差。需单独调色的深色漆补差。）标准：自然光下观察无明显色差，漆膜均匀、无脱层，无明显划痕污点、流坠、漏刷",
+    "material_type": "service"
+  },
+  {
+    "code": "QG005",
+    "name": "艺术漆",
+    "category_name": "漆工",
+    "unit": "m2",
+    "cost_price": 80.0,
+    "retail_price": 120.0,
+    "description": "卡百利（纯色系）",
+    "material_type": "service"
+  },
+  {
+    "code": "FS001",
+    "name": "日丰防水",
+    "category_name": "防水回填",
+    "unit": "m2",
+    "cost_price": 48.0,
+    "retail_price": 72.0,
+    "description": "1、“日丰”涂料防水。2、水泥、河沙。3、人工费。4、（地面满刷、卫生间墙面满刷、厨房墙面50公分）",
+    "material_type": "service"
+  },
+  {
+    "code": "FS002",
+    "name": "基坑防水防水",
+    "category_name": "防水回填",
+    "unit": "m2",
+    "cost_price": 48.0,
+    "retail_price": 72.0,
+    "description": "1、“日丰”涂料防水。2、水泥、河沙。3、人工费。4、（地面满刷、墙面30cm）",
+    "material_type": "service"
+  },
+  {
+    "code": "FS003",
+    "name": "碳渣回填",
+    "category_name": "防水回填",
+    "unit": "m2",
+    "cost_price": 280.0,
+    "retail_price": 420.0,
+    "description": "1、炭渣。2、人工费。3、水泥、河沙、红砖。",
+    "material_type": "service"
+  },
+  {
+    "code": "FS004",
+    "name": "日丰回填宝",
+    "category_name": "防水回填",
+    "unit": "m2",
+    "cost_price": 320.0,
+    "retail_price": 480.0,
+    "description": "1、日丰回填宝。2、人工费。",
+    "material_type": "service"
+  },
+  {
+    "code": "SD001",
+    "name": "水电改造人工费（水管走地）",
+    "category_name": "水电改造",
+    "unit": "m2",
+    "cost_price": 70.0,
+    "retail_price": 105.0,
+    "description": "1、开槽、安装底盒、走管、布线/管、敷槽、开关面板以及暗装筒灯安装\n\n（此费用为给水全改，排水局部改造，电线局部改造。如有水电走天，热水管保温层包裹、全屋换线等费用另计）",
+    "material_type": "service"
+  },
+  {
+    "code": "SD002",
+    "name": "水电改造材料费（水管走地）",
+    "category_name": "水电改造",
+    "unit": "m2",
+    "cost_price": 59.0,
+    "retail_price": 88.5,
+    "description": "1、电路：“川路”线管、86底盒、配件，“塔牌”电线（空调及厨房4mm2、照明2.5mm2），6类网线。2水路：“日丰”瓷芯管、配件（此费用为给水全改，排水局部改造，电线局部改造。不包含中央空调、循环水布管布线。如有电走天、全屋换线等费用另计）",
+    "material_type": "service"
+  },
+  {
+    "code": "SD003",
+    "name": "水电全改",
+    "category_name": "水电改造",
+    "unit": "m2",
+    "cost_price": 158.0,
+    "retail_price": 237.0,
+    "description": "1、开槽、安装底盒、走管、布线/管、敷槽、开关面板以及暗装筒灯安装（此费用为给水全改，排水局部改造，电线局部改造。不包含中央空调、循环水布管布线。如有电走天、全屋换线等费用另计）",
+    "material_type": "service"
+  },
+  {
+    "code": "SD004",
+    "name": "换强电箱",
+    "category_name": "水电改造",
+    "unit": "个",
+    "cost_price": 1000.0,
+    "retail_price": 1500.0,
+    "description": "1、人工费。(如需更换空开，需客户自购）",
+    "material_type": "service"
+  },
+  {
+    "code": "QT001",
+    "name": "建渣垃圾清运费及日常清洁",
+    "category_name": "其他施工项目",
+    "unit": "m2",
+    "cost_price": 10.0,
+    "retail_price": 15.0,
+    "description": "1、整个装修过程中5次日常卫生清理2、建筑垃圾从楼上装修地点运至小区内指定的垃圾堆放地点的人工费。（外运另计费）",
+    "material_type": "service"
+  },
+  {
+    "code": "QT002",
+    "name": "完工保洁",
+    "category_name": "其他施工项目",
+    "unit": "m3",
+    "cost_price": 8.0,
+    "retail_price": 12.0,
+    "description": "1、完工后由专业保洁公司做开荒保洁。",
+    "material_type": "service"
+  },
+  {
+    "code": "QT003",
+    "name": "材料采运及上楼（电梯）",
+    "category_name": "其他施工项目",
+    "unit": "m4",
+    "cost_price": 16.0,
+    "retail_price": 24.0,
+    "description": "1、材料室内运输、上楼搬运。",
+    "material_type": "service"
+  },
+  {
+    "code": "QT004",
+    "name": "成品保护",
+    "category_name": "其他施工项目",
+    "unit": "m5",
+    "cost_price": 8.0,
+    "retail_price": 12.0,
+    "description": "1、专用保护膜。2、人工费",
+    "material_type": "service"
+  }
+]

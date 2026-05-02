@@ -1,0 +1,318 @@
+/* 留资页面样式 */
+
+.lead-header {
+  text-align: center;
+  padding: 40rpx 0;
+}
+
+.header-icon {
+  width: 120rpx;
+  height: 120rpx;
+  margin-bottom: 20rpx;
+}
+
+.header-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #333;
+  display: block;
+  margin-bottom: 12rpx;
+}
+
+.header-desc {
+  font-size: 28rpx;
+  color: #666;
+}
+
+/* 福利展示 */
+.benefits {
+  display: flex;
+  justify-content: space-around;
+  padding: 30rpx 20rpx;
+  margin-bottom: 20rpx;
+}
+
+.benefit-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.benefit-icon {
+  font-size: 48rpx;
+  margin-bottom: 12rpx;
+}
+
+.benefit-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 6rpx;
+}
+
+.benefit-desc {
+  font-size: 22rpx;
+  color: #999;
+}
+
+/* 表单 */
+.form-card {
+  padding: 30rpx;
+  margin-bottom: 30rpx;
+}
+
+.form-item {
+  margin-bottom: 30rpx;
+}
+
+.form-label {
+  font-size: 28rpx;
+  color: #333;
+  font-weight: 500;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.required {
+  color: #f5222d;
+}
+
+.form-input {
+  height: 88rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  transition: border-color 0.3s;
+}
+
+.form-input:focus {
+  border-color: #8B4513;
+}
+
+/* 面积选择器 */
+.area-selector, .budget-selector {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.area-option, .budget-option {
+  padding: 16rpx 30rpx;
+  border-radius: 12rpx;
+  font-size: 26rpx;
+  color: #666;
+  background: #f5f5f5;
+  border: 2rpx solid transparent;
+  transition: all 0.3s;
+}
+
+.area-option.active, .budget-option.active {
+  background: rgba(139, 69, 19, 0.1);
+  color: #8B4513;
+  border-color: #8B4513;
+}
+
+/* 选择器 */
+.picker-value {
+  height: 88rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 12rpx;
+  padding: 0 24rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 28rpx;
+  color: #333;
+}
+
+.picker-arrow {
+  color: #999;
+}
+
+/* 文本域 */
+.form-textarea {
+  width: 100%;
+  height: 200rpx;
+  border: 2rpx solid #e5e5e5;
+  border-radius: 12rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+.textarea-count {
+  text-align: right;
+  font-size: 22rpx;
+  color: #999;
+  margin-top: 8rpx;
+  display: block;
+}
+
+/* 提交按钮 */
+.submit-btn {
+  margin: 0 20rpx 30rpx;
+}
+
+/* 信任背书 */
+.trust-section {
+  display: flex;
+  justify-content: center;
+  gap: 30rpx;
+  margin-bottom: 40rpx;
+}
+
+.trust-item {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+}
+
+.trust-icon {
+  width: 32rpx;
+  height: 32rpx;
+  background: #52c41a;
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20rpx;
+}
+
+.trust-text {
+  font-size: 24rpx;
+  color: #666;
+}
+
+/* 评价区域 */
+.reviews-section {
+  padding: 0 20rpx;
+}
+
+.reviews-section .section-title {
+  text-align: center;
+  font-size: 28rpx;
+  color: #999;
+  display: block;
+  margin-bottom: 20rpx;
+}
+
+.review-scroll {
+  display: flex;
+  gap: 20rpx;
+  overflow-x: auto;
+}
+
+.review-card {
+  flex-shrink: 0;
+  width: 500rpx;
+  background: #fff;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
+}
+
+.review-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16rpx;
+}
+
+.review-avatar {
+  width: 64rpx;
+  height: 64rpx;
+  border-radius: 50%;
+  margin-right: 16rpx;
+}
+
+.review-info {
+  flex: 1;
+}
+
+.review-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: #333;
+  display: block;
+}
+
+.review-date {
+  font-size: 22rpx;
+  color: #999;
+}
+
+.review-content {
+  font-size: 26rpx;
+  color: #666;
+  line-height: 1.6;
+}
+
+/* 成功弹窗 */
+.success-popup {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.success-content {
+  background: #fff;
+  border-radius: 24rpx;
+  padding: 60rpx 40rpx;
+  width: 80%;
+  max-width: 600rpx;
+  text-align: center;
+}
+
+.success-icon {
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, #52c41a, #73d13d);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 60rpx;
+  color: #fff;
+  margin: 0 auto 30rpx;
+}
+
+.success-title {
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #333;
+  display: block;
+  margin-bottom: 16rpx;
+}
+
+.success-desc {
+  font-size: 28rpx;
+  color: #666;
+  display: block;
+  margin-bottom: 30rpx;
+}
+
+.success-tips {
+  background: #f8f8f8;
+  border-radius: 16rpx;
+  padding: 20rpx;
+  margin-bottom: 30rpx;
+}
+
+.tip-item {
+  font-size: 26rpx;
+  color: #333;
+  display: block;
+  padding: 8rpx 0;
+}
+
+.mt-20 {
+  margin-top: 20rpx;
+}

@@ -1,0 +1,111 @@
+<!-- 案例列表页 - 激发欲望 + 留资转化 -->
+<view class="container">
+  
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrap">
+      <text class="search-icon">🔍</text>
+      <input 
+        class="search-input" 
+        placeholder="搜索风格、小区、面积..." 
+        bindinput="onSearchInput"
+        value="{{searchKeyword}}"
+      />
+      <text class="search-clear" wx:if="{{searchKeyword}}" bindtap="clearSearch">×</text>
+    </view>
+  </view>
+
+  <!-- 筛选标签 -->
+  <scroll-view scroll-x class="filter-scroll">
+    <view class="filter-list">
+      <view 
+        class="filter-item {{currentStyle === item ? 'active' : ''}}" 
+        wx:for="{{styleFilters}}" 
+        wx:key="*this"
+        bindtap="onStyleFilter"
+        data-style="{{item}}"
+      >
+        {{item}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <scroll-view scroll-x class="filter-scroll mt-10">
+    <view class="filter-list">
+      <view 
+        class="filter-item {{currentBudget === item ? 'active' : ''}}" 
+        wx:for="{{budgetFilters}}" 
+        wx:key="*this"
+        bindtap="onBudgetFilter"
+        data-budget="{{item}}"
+      >
+        {{item}}
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 案例列表 -->
+  <view class="case-grid">
+    <view 
+      class="case-card" 
+      wx:for="{{cases}}" 
+      wx:key="id"
+      bindtap="goToDetail"
+      data-id="{{item.id}}"
+    >
+      <view class="case-image-wrap">
+        <image src="{{item.cover}}" mode="aspectFill" class="case-image" lazy-load/>
+        <view class="case-badge" wx:if="{{item.isFeatured}}">精选</view>
+        <view class="case-overlay">
+          <text class="case-area">{{item.area}}㎡</text>
+        </view>
+      </view>
+      
+      <view class="case-content">
+        <text class="case-title">{{item.title}}</text>
+        <view class="case-meta">
+          <text class="tag tag-primary">{{item.style}}</text>
+          <text class="tag tag-gold">{{item.spaceType}}</text>
+        </view>
+        <view class="case-footer">
+          <text class="case-price">{{item.budget}}</text>
+          <view class="case-stats">
+            <text class="stat-item">👁 {{item.viewCount}}</text>
+            <text class="stat-item">❤️ {{item.likes}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 悬浮留资按钮 -->
+      <view class="case-lead-float" catchtap="onLeadTap" data-case="{{item}}">
+        <text>获取方案</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{hasMore}}">
+    <text bindtap="loadMore">加载更多 →</text>
+  </view>
+  <view class="no-more" wx:else>
+    <text>已显示全部案例</text>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 40rpx;"></view>
+</view>
+
+<!-- 底部留资栏 - 始终可见 -->
+<view class="lead-bar">
+  <view class="lead-bar-left">
+    <text class="lead-bar-title">没找到喜欢的？</text>
+    <text class="lead-bar-desc">告诉我们您的需求，为您推荐</text>
+  </view>
+  <button class="btn btn-primary lead-bar-btn" bindtap="goToLead">免费咨询</button>
+</view>
+
+<!-- 浮动咨询按钮 -->
+<view class="float-btn" bindtap="goToLead">
+  <text class="float-icon">💬</text>
+  <text class="float-text">咨询</text>
+</view>

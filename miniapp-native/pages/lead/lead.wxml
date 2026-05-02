@@ -1,0 +1,166 @@
+<!-- 留资页面 - 转化核心 -->
+<view class="container">
+  
+  <!-- 头部激励 -->
+  <view class="lead-header">
+    <image src="/images/gift.png" class="header-icon"/>
+    <text class="header-title">{{title}}</text>
+    <text class="header-desc">专业设计师为您量身定制</text>
+  </view>
+
+  <!-- 福利展示 -->
+  <view class="benefits card">
+    <view class="benefit-item">
+      <text class="benefit-icon">📐</text>
+      <text class="benefit-title">免费量尺</text>
+      <text class="benefit-desc">专业团队上门</text>
+    </view>
+    <view class="benefit-item">
+      <text class="benefit-icon">🎨</text>
+      <text class="benefit-title">设计方案</text>
+      <text class="benefit-desc">3D效果图</text>
+    </view>
+    <view class="benefit-item">
+      <text class="benefit-icon">📋</text>
+      <text class="benefit-title">精准报价</text>
+      <text class="benefit-desc">0增项承诺</text>
+    </view>
+  </view>
+
+  <!-- 表单区域 -->
+  <view class="form-card card">
+    <view class="form-item">
+      <text class="form-label">您的称呼 <text class="required">*</text></text>
+      <input 
+        class="form-input" 
+        placeholder="如：张先生"
+        value="{{form.name}}"
+        bindinput="onInput"
+        data-field="name"
+      />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">手机号码 <text class="required">*</text></text>
+      <input 
+        class="form-input" 
+        type="number"
+        placeholder="请输入手机号"
+        value="{{form.phone}}"
+        bindinput="onInput"
+        data-field="phone"
+        maxlength="11"
+      />
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">房屋面积</text>
+      <view class="area-selector">
+        <view 
+          class="area-option {{form.area === item ? 'active' : ''}}"
+          wx:for="{{areaOptions}}"
+          wx:key="*this"
+          bindtap="onAreaSelect"
+          data-area="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">装修预算</text>
+      <view class="budget-selector">
+        <view 
+          class="budget-option {{form.budget === item ? 'active' : ''}}"
+          wx:for="{{budgetOptions}}"
+          wx:key="*this"
+          bindtap="onBudgetSelect"
+          data-budget="{{item}}"
+        >
+          {{item}}
+        </view>
+      </view>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">户型</text>
+      <picker bindchange="onHouseTypeChange" value="{{houseTypeIndex}}" range="{{houseTypeOptions}}">
+        <view class="picker-value">
+          {{form.houseType || '请选择户型'}}
+          <text class="picker-arrow">→</text>
+        </view>
+      </picker>
+    </view>
+
+    <view class="form-item">
+      <text class="form-label">装修需求</text>
+      <textarea 
+        class="form-textarea" 
+        placeholder="请描述您的装修需求，如：风格偏好、特殊要求等"
+        value="{{form.intention}}"
+        bindinput="onInput"
+        data-field="intention"
+        maxlength="200"
+      />
+      <text class="textarea-count">{{form.intention.length || 0}}/200</text>
+    </view>
+  </view>
+
+  <!-- 提交按钮 -->
+  <button class="btn btn-primary submit-btn" bindtap="submitForm">
+    <text wx:if="{{!submitting}}">立即获取免费方案</text>
+    <text wx:else>提交中...</text>
+  </button>
+
+  <!-- 信任背书 -->
+  <view class="trust-section">
+    <view class="trust-item">
+      <text class="trust-icon">✓</text>
+      <text class="trust-text">信息严格保密</text>
+    </view>
+    <view class="trust-item">
+      <text class="trust-icon">✓</text>
+      <text class="trust-text">专业顾问1对1服务</text>
+    </view>
+    <view class="trust-item">
+      <text class="trust-icon">✓</text>
+      <text class="trust-text">不收取任何费用</text>
+    </view>
+  </view>
+
+  <!-- 客户评价 -->
+  <view class="reviews-section">
+    <text class="section-title">已有 2,580+ 位业主获取方案</text>
+    <view class="review-scroll">
+      <view class="review-card" wx:for="{{reviews}}" wx:key="id">
+        <view class="review-header">
+          <image src="{{item.avatar}}" class="review-avatar"/>
+          <view class="review-info">
+            <text class="review-name">{{item.name}}</text>
+            <text class="review-date">{{item.date}}</text>
+          </view>
+        </view>
+        <text class="review-content">{{item.content}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部留白 -->
+  <view style="height: 60rpx;"></view>
+</view>
+
+<!-- 提交成功弹窗 -->
+<view class="success-popup" wx:if="{{showSuccess}}">
+  <view class="success-content">
+    <view class="success-icon">✓</view>
+    <text class="success-title">提交成功！</text>
+    <text class="success-desc">专属顾问将在30分钟内与您联系</text>
+    <view class="success-tips">
+      <text class="tip-item">📞 请保持手机畅通</text>
+      <text class="tip-item">📱 关注公众号获取进度</text>
+    </view>
+    <button class="btn btn-primary" bindtap="closeSuccess">知道了</button>
+    <button class="btn btn-outline mt-20" bindtap="goToCases">查看案例</button>
+  </view>
+</view>

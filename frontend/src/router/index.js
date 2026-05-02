@@ -1,0 +1,290 @@
+import { createRouter, createWebHistory } from 'vue-router'
+
+const routes = [
+  {
+    path: '/',
+    name: 'Home',
+    component: () => import('@/views/Home.vue'),
+    meta: { title: '首页' }
+  },
+  {
+    path: '/cases',
+    name: 'CaseList',
+    component: () => import('@/views/cases/CaseList.vue'),
+    meta: { title: '案例展示' }
+  },
+  {
+    path: '/cases/:id',
+    name: 'CaseDetail',
+    component: () => import('@/views/cases/CaseDetailV2.vue'),
+    meta: { title: '案例详情' }
+  },
+  {
+    path: '/my-subscriptions',
+    name: 'MySubscriptions',
+    component: () => import('@/views/cases/MySubscriptions.vue'),
+    meta: { title: '我的订阅' }
+  },
+  {
+    path: '/products',
+    name: 'ProductList',
+    component: () => import('@/views/products/ProductList.vue'),
+    meta: { title: '产品中心' }
+  },
+  {
+    path: '/products/:id',
+    name: 'ProductDetail',
+    component: () => import('@/views/products/ProductDetailV2.vue'),
+    meta: { title: '产品详情' }
+  },
+
+  {
+    path: '/leads',
+    name: 'LeadList',
+    component: () => import('@/views/leads/LeadList.vue'),
+    meta: { title: '线索管理', requiresAuth: true }
+  },
+  {
+    path: '/book',
+    name: 'Appointment',
+    component: () => import('@/views/Appointment.vue'),
+    meta: { title: '预约量尺' }
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('@/views/LoginV2.vue'),
+    meta: { title: '登录', public: true }
+  },
+  {
+    path: '/customer/login',
+    name: 'CustomerLogin',
+    component: () => import('@/views/CustomerLogin.vue'),
+    meta: { title: '客户登录', public: true }
+  },
+  {
+    path: '/register',
+    name: 'CustomerRegister',
+    component: () => import('@/views/CustomerRegister.vue'),
+    meta: { title: '客户注册', public: true }
+  },
+  {
+    path: '/selection-center',
+    name: 'SelectionCenter',
+    component: () => import('@/views/SelectionCenter.vue'),
+    meta: { title: '我的选品中心', requiresAuth: true, isCustomerAuth: true }
+  },
+  {
+    path: '/demo/selection-button',
+    name: 'SelectionButtonDemo',
+    component: () => import('@/views/demo/SelectionButtonDemo.vue'),
+    meta: { title: '选品按钮演示', public: true }
+  },
+  {
+    path: '/demo/debug-selection',
+    name: 'DebugSelection',
+    component: () => import('@/views/demo/DebugSelection.vue'),
+    meta: { title: '选品调试', public: true }
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('@/views/admin/AdminLayout.vue'),
+    meta: { title: '管理后台', requiresAuth: true },
+    children: [
+      {
+        path: 'cases',
+        name: 'AdminCases',
+        component: () => import('@/views/admin/CaseManage.vue'),
+        meta: { title: '案例管理' }
+      },
+      {
+        path: 'cases/create',
+        name: 'AdminCaseCreate',
+        component: () => import('@/views/admin/CaseEdit.vue'),
+        meta: { title: '新建案例' }
+      },
+      {
+        path: 'cases/edit/:id',
+        name: 'AdminCaseEdit',
+        component: () => import('@/views/admin/CaseEdit.vue'),
+        meta: { title: '编辑案例' }
+      },
+      {
+        path: 'case-leads',
+        name: 'AdminCaseLeads',
+        component: () => import('@/views/admin/CaseLeadManage.vue'),
+        meta: { title: '客资管理' }
+      },
+      {
+        path: 'leads',
+        name: 'AdminLeads',
+        component: () => import('@/views/admin/LeadManageV2.vue'),
+        meta: { title: '线索管理 V2.0' }
+      },
+      {
+        path: 'dashboard',
+        name: 'AdminDashboard',
+        component: () => import('@/views/admin/Dashboard.vue'),
+        meta: { title: '数据看板' }
+      },
+      {
+        path: 'appointments',
+        name: 'AdminAppointments',
+        component: () => import('@/views/admin/AppointmentManage.vue'),
+        meta: { title: '预约管理' }
+      },
+      {
+        path: 'files',
+        name: 'AdminFiles',
+        component: () => import('@/views/admin/FileManage.vue'),
+        meta: { title: '文件管理' }
+      },
+      {
+        path: 'frontend',
+        name: 'AdminFrontend',
+        component: () => import('@/views/admin/FrontendConfig.vue'),
+        meta: { title: '前端配置' }
+      },
+      {
+        path: 'customers',
+        name: 'AdminCustomers',
+        component: () => import('@/views/admin/CustomerManage.vue'),
+        meta: { title: '客户管理' }
+      },
+      {
+        path: 'customers/:id',
+        name: 'AdminCustomerDetail',
+        component: () => import('@/views/admin/CustomerDetail.vue'),
+        meta: { title: '客户详情' }
+      },
+      {
+        path: 'workflow',
+        name: 'AdminWorkflow',
+        component: () => import('@/views/admin/ServiceWorkflow.vue'),
+        meta: { title: '服务流程' }
+      },
+      {
+        path: 'materials',
+        name: 'AdminMaterials',
+        component: () => import('@/views/admin/MaterialManageV2.vue'),
+        meta: { title: '物料管理 V2' }
+      },
+      {
+        path: 'categories',
+        name: 'AdminCategories',
+        component: () => import('@/views/admin/CategoryManage.vue'),
+        meta: { title: '分类管理' }
+      },
+      {
+        path: 'suppliers',
+        name: 'AdminSuppliers',
+        component: () => import('@/views/admin/SupplierManage.vue'),
+        meta: { title: '供应商管理' }
+      },
+      {
+        path: 'employees',
+        name: 'AdminEmployees',
+        component: () => import('@/views/admin/HRManageV2.vue'),
+        meta: { title: '人力资源 V2' }
+      },
+      {
+        path: 'contracts',
+        name: 'AdminContracts',
+        component: () => import('@/views/admin/ContractManage.vue'),
+        meta: { title: '合同管理' }
+      },
+      {
+        path: 'buildings',
+        name: 'AdminBuildings',
+        component: () => import('@/views/admin/BuildingManage.vue'),
+        meta: { title: '楼盘管理' }
+      },
+      {
+        path: 'quotes',
+        name: 'AdminQuotes',
+        component: () => import('@/views/admin/QuoteManage.vue'),
+        meta: { title: '报价管理' }
+      },
+      {
+        path: 'quotes/from-case',
+        name: 'QuoteFromCase',
+        component: () => import('@/views/admin/QuoteFromCase.vue'),
+        meta: { title: '从案例创建报价' }
+      },
+      {
+        path: 'quotes/:id',
+        name: 'QuoteDetail',
+        component: () => import('@/views/admin/QuoteDetail.vue'),
+        meta: { title: '报价预览' }
+      },
+      {
+        path: 'schemes',
+        name: 'AdminSchemes',
+        component: () => import('@/views/admin/SchemeManage.vue'),
+        meta: { title: '方案管理' }
+      },
+      {
+        path: 'users',
+        name: 'AdminUsers',
+        component: () => import('@/views/admin/UserManageV2.vue'),
+        meta: { title: '用户权限' }
+      },
+      {
+        path: 'stores',
+        name: 'AdminStores',
+        component: () => import('@/views/admin/StoreManage.vue'),
+        meta: { title: '分店管理' }
+      }
+    ]
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: () => import('@/views/NotFound.vue'),
+    meta: { title: '页面不存在' }
+  }
+]
+
+const router = createRouter({
+  history: createWebHistory(),
+  routes,
+  scrollBehavior() {
+    return { top: 0 }
+  }
+})
+
+// 路由守卫
+router.beforeEach((to, from, next) => {
+  // 设置页面标题
+  document.title = to.meta.title ? `${to.meta.title} - D&B 帝标|设记家 DEMO V.0.1` : 'D&B 帝标|设记家 - 全案服务系统 V3.0'
+  
+  // 检查是否需要登录（包括父路由和子路由）
+  const token = localStorage.getItem('token')
+  const customerToken = localStorage.getItem('customer_token')
+  
+  // 递归检查路由是否需要认证
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
+  
+  if (requiresAuth && !token) {
+    // 需要登录但未登录，跳转到登录页
+    next({ path: '/login', replace: true })
+    return
+  }
+  
+  // 客户专属页面：未注册引导注册，已注册可直达
+  if (to.meta.isCustomerAuth && !customerToken) {
+    next({ path: '/register', replace: true })
+    return
+  }
+  
+  if (to.path === '/login' && token) {
+    // 已登录但访问登录页，跳转到后台
+    next({ path: '/admin/dashboard', replace: true })
+    return
+  }
+  
+  next()
+})
+
+export default router

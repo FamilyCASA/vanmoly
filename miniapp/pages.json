@@ -1,0 +1,85 @@
+{
+  "pages": [
+    {
+      "path": "pages/index/index",
+      "style": {
+        "navigationBarTitleText": "D&B 帝标|设记家家装",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/case/list",
+      "style": {
+        "navigationBarTitleText": "装修案例",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/case/detail",
+      "style": {
+        "navigationBarTitleText": "案例详情",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/lead/form",
+      "style": {
+        "navigationBarTitleText": "免费咨询",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/appointment/index",
+      "style": {
+        "navigationBarTitleText": "预约量尺",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    },
+    {
+      "path": "pages/signature/index",
+      "style": {
+        "navigationBarTitleText": "手写签名",
+        "navigationBarBackgroundColor": "#8B4513",
+        "navigationBarTextStyle": "white"
+      }
+    }
+  ],
+  "globalStyle": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "D&B 帝标|设记家家装",
+    "navigationBarBackgroundColor": "#F8F8F8",
+    "backgroundColor": "#F8F8F8"
+  },
+  "tabBar": {
+    "color": "#999999",
+    "selectedColor": "#8B4513",
+    "borderStyle": "black",
+    "backgroundColor": "#ffffff",
+    "list": [
+      {
+        "pagePath": "pages/index/index",
+        "text": "首页",
+        "iconPath": "static/tabbar/home.png",
+        "selectedIconPath": "static/tabbar/home-active.png"
+      },
+      {
+        "pagePath": "pages/case/list",
+        "text": "案例",
+        "iconPath": "static/tabbar/case.png",
+        "selectedIconPath": "static/tabbar/case-active.png"
+      },
+      {
+        "pagePath": "pages/lead/form",
+        "text": "咨询",
+        "iconPath": "static/tabbar/consult.png",
+        "selectedIconPath": "static/tabbar/consult-active.png"
+      }
+    ]
+  },
+  "condition": {}
+}

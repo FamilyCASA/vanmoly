@@ -1,0 +1,90 @@
+<view class="container">
+  <!-- 报价头部 -->
+  <view class="quote-header">
+    <text class="quote-no">{{quote.quote_no}}</text>
+    <text class="quote-status {{quote.status}}">{{statusText[quote.status]}}</text>
+  </view>
+
+  <!-- 客户信息 -->
+  <view class="section">
+    <view class="section-title">客户信息</view>
+    <view class="info-list">
+      <view class="info-item">
+        <text class="label">客户姓名</text>
+        <text class="value">{{quote.customer_name}}</text>
+      </view>
+      <view class="info-item">
+        <text class="label">联系电话</text>
+        <text class="value">{{quote.customer_phone}}</text>
+      </view>
+      <view class="info-item">
+        <text class="label">房屋地址</text>
+        <text class="value">{{quote.customer_address || '-'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 物料清单 -->
+  <view class="section">
+    <view class="section-title">物料清单</view>
+    <view class="item-list">
+      <view class="item-card" wx:for="{{quote.items}}" wx:key="id">
+        <view class="item-header">
+          <text class="item-name">{{item.name}}</text>
+          <text class="item-total">¥{{item.total_price}}</text>
+        </view>
+        <view class="item-info">
+          <text class="item-room">{{item.room_name}}</text>
+          <text class="item-spec">{{item.spec}}</text>
+          <text class="item-quantity">{{item.quantity}}{{item.unit}}</text>
+          <text class="item-price">¥{{item.unit_price}}/{{item.unit}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 费用汇总 -->
+  <view class="section">
+    <view class="section-title">费用汇总</view>
+    <view class="summary-list">
+      <view class="summary-item">
+        <text class="label">小计</text>
+        <text class="value">¥{{quote.subtotal}}</text>
+      </view>
+      <view class="summary-item">
+        <text class="label">管理费 ({{quote.management_fee_rate}}%)</text>
+        <text class="value">¥{{quote.management_fee}}</text>
+      </view>
+      <view class="summary-item">
+        <text class="label">税费 ({{quote.tax_rate}}%)</text>
+        <text class="value">¥{{quote.tax}}</text>
+      </view>
+      <view class="summary-item total">
+        <text class="label">总价</text>
+        <text class="value">¥{{quote.total_amount}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 签名区域 -->
+  <view class="section" wx:if="{{quote.status === 'signed'}}">
+    <view class="section-title">签字确认</view>
+    <view class="signature-list">
+      <view class="signature-item" wx:if="{{quote.signature_customer}}">
+        <text class="sig-label">客户签名</text>
+        <image src="{{quote.signature_customer}}" mode="aspectFit"/>
+      </view>
+      <view class="signature-item" wx:if="{{quote.signature_planner}}">
+        <text class="sig-label">规划师签名</text>
+        <image src="{{quote.signature_planner}}" mode="aspectFit"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部操作 -->
+  <view class="action-bar">
+    <button class="action-btn" bindtap="goBack">返回</button>
+    <button class="action-btn primary" bindtap="signQuote" wx:if="{{quote.status !== 'signed'}}">签字确认</button>
+    <button class="action-btn primary" bindtap="shareQuote" wx:else>分享报价</button>
+  </view>
+</view>
