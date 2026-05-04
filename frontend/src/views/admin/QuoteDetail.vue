@@ -67,7 +67,8 @@
         </div>
       </template>
 
-      <el-tabs v-model="activeSpace" type="card">
+      <!-- 新格式：空间实例 -->
+      <el-tabs v-if="!useLegacyView" v-model="activeSpace" type="card">
         <el-tab-pane
           v-for="space in spaces"
           :key="space.id"
@@ -121,6 +122,57 @@
           </el-table>
         </el-tab-pane>
       </el-tabs>
+
+      <!-- 旧格式：扁平物料按房间分组 -->
+      <el-tabs v-else v-model="activeLegacyRoom" type="card">
+        <el-tab-pane
+          v-for="group in legacyGrouped"
+          :key="group.room_name"
+          :label="group.room_name"
+          :name="group.room_name"
+        >
+          <div class="space-overview">
+            <el-row :gutter="16">
+              <el-col :span="8">
+                <el-statistic title="物料数量" :value="group.items.length" />
+              </el-col>
+              <el-col :span="8">
+                <el-statistic title="房间小计" :value="group.total" :precision="2" prefix="¥" />
+              </el-col>
+              <el-col :span="8">
+                <el-tag type="info">旧版报价格式</el-tag>
+              </el-col>
+            </el-row>
+          </div>
+
+          <el-table :data="group.items" stripe style="margin-top: 16px">
+            <el-table-column type="index" width="50" />
+            <el-table-column prop="name" label="物料名称" min-width="200" />
+            <el-table-column prop="category_level1" label="分类" width="100">
+              <template #default="{ row }">
+                {{ row.category_level1 || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="brand" label="品牌" width="100" />
+            <el-table-column prop="spec" label="规格" width="140" />
+            <el-table-column prop="quantity" label="数量" width="80" align="right" />
+            <el-table-column prop="unit" label="单位" width="60" align="center" />
+            <el-table-column label="单价" width="100" align="right">
+              <template #default="{ row }">
+                ¥{{ row.unit_price }}
+              </template>
+            </el-table-column>
+            <el-table-column label="金额" width="120" align="right">
+              <template #default="{ row }">
+                <span class="amount">¥{{ row.total_price }}</span>
+              </template>
+            </el-table-column>
+          </el-table>
+        </el-tab-pane>
+      </el-tabs>
+
+      <!-- 无任何数据 -->
+      <el-empty v-if="!useLegacyView && spaces.length === 0" description="暂无报价明细" />
     </el-card>
 
     <!-- 费用汇总 -->
@@ -321,6 +373,24 @@ const moneyToChinese = (money) => {
   return result
 }
 
+// 旧报价扁平物料（按room_name分组）
+const legacyItems = ref([])
+const legacyGrouped = computed(() => {
+  if (!legacyItems.value.length) return []
+  const groups = {}
+  for (const item of legacyItems.value) {
+    const room = item.room_name || '未分类'
+    if (!groups[room]) {
+      groups[room] = { room_name: room, items: [], total: 0 }
+    }
+    groups[room].items.push(item)
+    groups[room].total += Number(item.total_price || 0)
+  }
+  return Object.values(groups)
+})
+const useLegacyView = computed(() => spaces.value.length === 0 && legacyItems.value.length > 0)
+const activeLegacyRoom = ref('')
+
 // 加载数据
 const loadQuote = async () => {
   loading.value = true
@@ -329,11 +399,23 @@ const loadQuote = async () => {
     quote.value = res || {}
     
     // 加载空间实例
-    const spacesRes = await request.get(`/quotes/${quoteId.value}/space-instances`)
-    spaces.value = Array.isArray(spacesRes) ? spacesRes : []
+    try {
+      const spacesRes = await request.get(`/quotes/${quoteId.value}/space-instances`)
+      spaces.value = Array.isArray(spacesRes) ? spacesRes : []
+    } catch (e) {
+      spaces.value = []
+    }
     
     if (spaces.value.length > 0) {
       activeSpace.value = String(spaces.value[0].id)
+    } else {
+      // 降级：使用报价自带的扁平items按room_name分组
+      const flatItems = quote.value.items || []
+      if (flatItems.length > 0) {
+        legacyItems.value = flatItems
+        const firstRoom = legacyGrouped.value[0]?.room_name
+        if (firstRoom) activeLegacyRoom.value = firstRoom
+      }
     }
   } catch (error) {
     ElMessage.error('加载报价失败')

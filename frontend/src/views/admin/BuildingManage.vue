@@ -3,9 +3,17 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <h2>楼盘管理</h2>
-      <el-button type="primary" @click="openCreateDialog">
-        <el-icon><Plus /></el-icon> 新建楼盘
-      </el-button>
+      <div class="header-actions">
+        <el-button @click="openImportDialog">
+          <el-icon><Upload /></el-icon> Excel导入
+        </el-button>
+        <el-button @click="downloadTemplate" :loading="templateLoading">
+          <el-icon><Download /></el-icon> 下载模板
+        </el-button>
+        <el-button type="primary" @click="openCreateDialog">
+          <el-icon><Plus /></el-icon> 新建楼盘
+        </el-button>
+      </div>
     </div>
 
     <!-- 统计卡片 -->
@@ -136,7 +144,12 @@
         <el-tabs v-model="activeTab">
           <el-tab-pane label="基本信息" name="basic">
             <el-form-item label="楼盘名称" required>
-              <el-input v-model="form.name" />
+              <div style="display:flex;gap:8px;width:100%">
+                <el-input v-model="form.name" style="flex:1" />
+                <el-button type="success" @click="openAiDialog" :loading="aiLoading">
+                  AI 智能填表
+                </el-button>
+              </div>
             </el-form-item>
 
             <el-form-item label="别名">
@@ -302,6 +315,98 @@
       </template>
     </el-dialog>
 
+    <!-- Excel 导入对话框 -->
+    <el-dialog v-model="importDialog.visible" title="Excel 批量导入" width="800px" :close-on-click-modal="false">
+      <!-- 步骤 1: 上传文件 -->
+      <div v-if="importDialog.step === 1">
+        <el-upload
+          ref="uploadRef"
+          drag
+          :auto-upload="false"
+          :limit="1"
+          accept=".xlsx,.xls,.csv"
+          :on-change="handleFileChange"
+          :on-remove="handleFileRemove"
+        >
+          <el-icon class="el-icon--upload"><Upload /></el-icon>
+          <div class="el-upload__text">拖拽文件到此处，或<em>点击上传</em></div>
+          <template #tip>
+            <div class="el-upload__tip">支持 .xlsx / .xls / .csv 格式</div>
+          </template>
+        </el-upload>
+      </div>
+
+      <!-- 步骤 2: 数据预览 -->
+      <div v-if="importDialog.step === 2">
+        <el-alert
+          :title="`共 ${importPreview.stats.total_rows} 行数据，识别到 ${importPreview.stats.mapped_count}/${importPreview.stats.column_count} 个字段映射`"
+          :type="importPreview.stats.mapped_count > 0 ? 'success' : 'warning'"
+          show-icon
+          :closable="false"
+          style="margin-bottom:16px"
+        />
+        <div v-if="importPreview.stats.unmapped?.length" style="margin-bottom:12px">
+          <el-tag v-for="col in importPreview.stats.unmapped" :key="col" type="warning" size="small" style="margin:2px">
+            {{ col }} (未识别)
+          </el-tag>
+        </div>
+        <el-table :data="importPreview.preview" border stripe max-height="400" size="small">
+          <el-table-column v-for="col in importPreview.stats.columns" :key="col" :prop="col" :label="col" min-width="100" show-overflow-tooltip />
+        </el-table>
+      </div>
+
+      <!-- 步骤 3: 导入结果 -->
+      <div v-if="importDialog.step === 3">
+        <el-result
+          icon="success"
+          :title="importResult.message || '导入完成'"
+        >
+          <template #extra>
+            <div style="text-align:left;line-height:2">
+              <p>新建楼盘：<b>{{ importResult.created_buildings || 0 }}</b> 个</p>
+              <p>更新楼盘：<b>{{ importResult.updated_buildings || 0 }}</b> 个</p>
+              <p>导入业主：<b>{{ importResult.created_customers || 0 }}</b> 条</p>
+              <p>数据总行数：<b>{{ importResult.total_rows || 0 }}</b></p>
+            </div>
+          </template>
+        </el-result>
+      </div>
+
+      <template #footer>
+        <el-button @click="importDialog.visible = false">
+          {{ importDialog.step === 3 ? '关闭' : '取消' }}
+        </el-button>
+        <el-button v-if="importDialog.step === 1" type="primary" @click="analyzeExcel" :loading="importDialog.loading" :disabled="!importDialog.file">
+          分析数据
+        </el-button>
+        <el-button v-if="importDialog.step === 2" type="primary" @click="doImport" :loading="importDialog.loading">
+          确认导入
+        </el-button>
+      </template>
+    </el-dialog>
+
+    <!-- AI 智能填表对话框 -->
+    <el-dialog v-model="aiDialog.visible" title="AI 智能填表" width="600px">
+      <el-alert
+        title="粘贴楼盘的原始信息（网页复制、文本记录等），AI 会自动提取结构化数据填入表单"
+        type="info"
+        :closable="false"
+        style="margin-bottom:16px"
+      />
+      <el-input
+        v-model="aiDialog.text"
+        type="textarea"
+        :rows="8"
+        placeholder="例：天府匠芯，位于成都市青羊区蔡桥街道，由XX开发，物业公司XX，2024年交房，总户数1200户，主力户型89-125平..."
+      />
+      <template #footer>
+        <el-button @click="aiDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="doAiSummarize" :loading="aiLoading">
+          AI 分析填表
+        </el-button>
+      </template>
+    </el-dialog>
+
     <!-- 详情抽屉 -->
     <el-drawer v-model="detailDrawer.visible" :title="detailDrawer.title" size="60%">
       <div v-if="detailDrawer.building" class="building-detail">
@@ -349,7 +454,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Upload, Download } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const loading = ref(false)
@@ -401,7 +506,8 @@ const form = reactive({
   contact_position: '',
   cooperation_start_date: null,
   cooperation_end_date: null,
-  cooperation_terms: ''
+  cooperation_terms: '',
+  remark: ''
 })
 
 const followDialog = reactive({
@@ -424,6 +530,34 @@ const detailDrawer = reactive({
   title: '',
   building: null
 })
+
+// ========== Excel 导入 ==========
+const uploadRef = ref(null)
+const importDialog = reactive({
+  visible: false,
+  step: 1,
+  loading: false,
+  file: null
+})
+const importPreview = reactive({
+  preview: [],
+  stats: { total_rows: 0, columns: [], column_count: 0, mapping: {}, unmapped: [], mapped_count: 0 }
+})
+const importResult = reactive({
+  message: '',
+  created_buildings: 0,
+  updated_buildings: 0,
+  created_customers: 0,
+  total_rows: 0
+})
+const templateLoading = ref(false)
+
+// ========== AI 智能填表 ==========
+const aiDialog = reactive({
+  visible: false,
+  text: ''
+})
+const aiLoading = ref(false)
 
 // 加载数据
 const loadData = async () => {
@@ -499,7 +633,8 @@ const openCreateDialog = () => {
     contact_position: '',
     cooperation_start_date: null,
     cooperation_end_date: null,
-    cooperation_terms: ''
+    cooperation_terms: '',
+    remark: ''
   })
 }
 
@@ -640,6 +775,137 @@ const formatDateTime = (datetime) => {
   return new Date(datetime).toLocaleString('zh-CN')
 }
 
+// ========== Excel 导入方法 ==========
+const openImportDialog = () => {
+  importDialog.visible = true
+  importDialog.step = 1
+  importDialog.file = null
+  importDialog.loading = false
+  importPreview.preview = []
+  importPreview.stats = { total_rows: 0, columns: [], column_count: 0, mapping: {}, unmapped: [], mapped_count: 0 }
+}
+
+const handleFileChange = (uploadFile) => {
+  importDialog.file = uploadFile.raw
+}
+
+const handleFileRemove = () => {
+  importDialog.file = null
+}
+
+const analyzeExcel = async () => {
+  if (!importDialog.file) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  importDialog.loading = true
+  try {
+    const formData = new FormData()
+    formData.append('file', importDialog.file)
+    const res = await request.post('/buildings/ai-analyze-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    importPreview.preview = res.preview || []
+    importPreview.stats = res.stats || {}
+    importDialog.step = 2
+  } catch (error) {
+    ElMessage.error('分析失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    importDialog.loading = false
+  }
+}
+
+const doImport = async () => {
+  if (!importDialog.file) {
+    ElMessage.warning('文件丢失，请重新上传')
+    importDialog.step = 1
+    return
+  }
+  importDialog.loading = true
+  try {
+    const formData = new FormData()
+    formData.append('file', importDialog.file)
+    const res = await request.post('/buildings/import-excel', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    importResult.message = res.message || '导入完成'
+    importResult.created_buildings = res.created_buildings || 0
+    importResult.updated_buildings = res.updated_buildings || 0
+    importResult.created_customers = res.created_customers || 0
+    importResult.total_rows = res.total_rows || 0
+    importDialog.step = 3
+    loadData()
+    loadStats()
+  } catch (error) {
+    ElMessage.error('导入失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    importDialog.loading = false
+  }
+}
+
+const downloadTemplate = async () => {
+  templateLoading.value = true
+  try {
+    const res = await request.get('/buildings/import-template', {
+      responseType: 'blob'
+    })
+    const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '楼盘调查导入模板.xlsx'
+    a.click()
+    window.URL.revokeObjectURL(url)
+  } catch (error) {
+    ElMessage.error('下载模板失败')
+  } finally {
+    templateLoading.value = false
+  }
+}
+
+// ========== AI 智能填表方法 ==========
+const openAiDialog = () => {
+  aiDialog.visible = true
+  aiDialog.text = ''
+}
+
+const doAiSummarize = async () => {
+  if (!aiDialog.text.trim()) {
+    ElMessage.warning('请输入楼盘原始信息')
+    return
+  }
+  aiLoading.value = true
+  try {
+    const res = await request.post('/buildings/ai-summarize', {
+      text: aiDialog.text
+    })
+    const data = res.data || res
+    // 自动填入表单
+    if (data.name) form.name = data.name
+    if (data.alias) form.alias = data.alias
+    if (data.province) form.province = data.province
+    if (data.city) form.city = data.city
+    if (data.district) form.district = data.district
+    if (data.address) form.address = data.address
+    if (data.developer) form.developer = data.developer
+    if (data.property_company) form.property_company = data.property_company
+    if (data.build_year) form.build_year = data.build_year
+    if (data.total_houses) form.total_houses = data.total_houses
+    if (data.property_type) form.property_type = data.property_type
+    if (data.remark) form.remark = data.remark
+    // 如果有原始摘要，追加到备注
+    if (data.raw_summary && !form.remark) {
+      form.remark = data.raw_summary
+    }
+    aiDialog.visible = false
+    ElMessage.success('AI 已自动填入表单，请检查并补充信息')
+  } catch (error) {
+    ElMessage.error('AI 分析失败: ' + (error.response?.data?.message || error.message))
+  } finally {
+    aiLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadData()
   loadStats()
@@ -661,6 +927,11 @@ onMounted(() => {
 
 .page-header h2 {
   margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .stats-row {

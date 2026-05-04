@@ -59,3 +59,6 @@ cases image/
 *.dump.tar
 *.dump.tar.gz
 *.dump.tar.bz2
+
+backend/static/uploads/
+frontend/dist/
