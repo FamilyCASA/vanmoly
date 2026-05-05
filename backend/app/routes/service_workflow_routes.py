@@ -6,13 +6,67 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.service_workflow import (
     WorkflowNode, CustomerWorkflow, WorkflowNodeRecord,
-    PHASES, NODES_DEFINITION
+    WorkflowPhaseConfig, DEFAULT_PHASES, PHASES, NODES_DEFINITION
 )
 from app.models.customer import Customer
 from app.routes.auth_routes_v2 import jwt_required_v2
 from datetime import datetime
 
 service_workflow_bp = Blueprint('service_workflow', __name__, url_prefix='/api/v3/workflows')
+
+
+# ========== 阶段配置管理 ==========
+
+@service_workflow_bp.route('/phases', methods=['GET'])
+@jwt_required_v2
+def get_phases(current_user):
+    """获取阶段配置（从数据库读取，支持自定义名称）"""
+    phases = WorkflowPhaseConfig.query.filter_by(
+        is_enabled=True
+    ).order_by(WorkflowPhaseConfig.sort_order).all()
+
+    if not phases:
+        # 首次访问，自动初始化默认阶段
+        for p in DEFAULT_PHASES:
+            phase = WorkflowPhaseConfig(
+                code=p['code'],
+                name=p['name'],
+                color=p['color'],
+                sort_order=p['sort_order']
+            )
+            db.session.add(phase)
+        db.session.commit()
+        phases = WorkflowPhaseConfig.query.filter_by(
+            is_enabled=True
+        ).order_by(WorkflowPhaseConfig.sort_order).all()
+
+    return jsonify({
+        'code': 200,
+        'data': [p.to_dict() for p in phases]
+    })
+
+
+@service_workflow_bp.route('/phases/<int:phase_id>', methods=['PUT'])
+@jwt_required_v2
+def update_phase(current_user, phase_id):
+    """更新阶段配置（改名/改色/改排序）"""
+    phase = WorkflowPhaseConfig.query.get_or_404(phase_id)
+    data = request.get_json()
+
+    if 'name' in data:
+        phase.name = data['name']
+    if 'color' in data:
+        phase.color = data['color']
+    if 'sort_order' in data:
+        phase.sort_order = data['sort_order']
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '阶段配置更新成功',
+        'data': phase.to_dict()
+    })
 
 
 # ========== 节点定义管理 ==========
@@ -29,17 +83,29 @@ def get_nodes(current_user):
 
     nodes = query.order_by(WorkflowNode.phase_order).all()
 
+    # 从数据库获取阶段配置
+    db_phases = WorkflowPhaseConfig.query.filter_by(
+        is_enabled=True
+    ).order_by(WorkflowPhaseConfig.sort_order).all()
+    phase_map = {p.code: p.to_dict() for p in db_phases}
+
     # 按阶段分组
     result = {}
-    for phase_info in PHASES:
-        result[phase_info['code']] = {
-            'info': phase_info,
+    for p in db_phases:
+        result[p.code] = {
+            'info': p.to_dict(),
             'nodes': []
         }
 
     for node in nodes:
         if node.phase in result:
             result[node.phase]['nodes'].append(node.to_dict())
+        else:
+            # 节点的阶段不在配置中，创建临时分组
+            result[node.phase] = {
+                'info': {'code': node.phase, 'name': node.phase, 'color': '#999'},
+                'nodes': [node.to_dict()]
+            }
 
     return jsonify({
         'code': 200,
@@ -47,15 +113,191 @@ def get_nodes(current_user):
     })
 
 
+@service_workflow_bp.route('/nodes/<int:node_id>', methods=['PUT'])
+@jwt_required_v2
+def update_node(current_user, node_id):
+    """更新节点"""
+    node = WorkflowNode.query.get_or_404(node_id)
+    data = request.get_json()
+
+    if 'node_name' in data:
+        node.node_name = data['node_name']
+    if 'phase' in data:
+        node.phase = data['phase']
+        # 移动到新阶段时，更新 phase_order 到该阶段末尾
+        max_order = db.session.query(
+            db.func.max(WorkflowNode.phase_order)
+        ).filter_by(phase=data['phase']).scalar() or 0
+        node.phase_order = max_order + 1
+        node.sort_order = node.phase_order
+    if 'description' in data:
+        node.description = data['description']
+    if 'responsible_roles' in data:
+        node.responsible_roles = data['responsible_roles']
+    if 'input_requirements' in data:
+        node.input_requirements = data['input_requirements']
+    if 'output_deliverables' in data:
+        node.output_deliverables = data['output_deliverables']
+    if 'related_module' in data:
+        node.related_module = data['related_module']
+    if 'finance_trigger' in data:
+        node.finance_trigger = data['finance_trigger']
+    if 'finance_type' in data:
+        node.finance_type = data['finance_type']
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '节点更新成功',
+        'data': node.to_dict()
+    })
+
+
+@service_workflow_bp.route('/nodes', methods=['POST'])
+@jwt_required_v2
+def create_node(current_user):
+    """新增节点"""
+    data = request.get_json()
+
+    phase = data.get('phase')
+    if not phase:
+        return jsonify({'code': 400, 'message': '必须指定阶段'}), 400
+
+    # 获取该阶段最大 phase_order
+    max_order = db.session.query(
+        db.func.max(WorkflowNode.phase_order)
+    ).filter_by(phase=phase).scalar() or 0
+
+    new_order = max_order + 1
+
+    # 自动生成 node_code
+    total_count = WorkflowNode.query.count()
+    node_code = data.get('node_code', f'N{total_count + 1:02d}')
+
+    node = WorkflowNode(
+        node_code=node_code,
+        node_name=data.get('node_name', '新节点'),
+        phase=phase,
+        phase_order=new_order,
+        sort_order=new_order,
+        description=data.get('description', ''),
+        responsible_roles=data.get('responsible_roles', []),
+        input_requirements=data.get('input_requirements', []),
+        output_deliverables=data.get('output_deliverables', []),
+        related_module=data.get('related_module'),
+        finance_trigger=data.get('finance_trigger', False),
+        finance_type=data.get('finance_type'),
+        is_enabled=True
+    )
+    db.session.add(node)
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '节点创建成功',
+        'data': node.to_dict()
+    })
+
+
+@service_workflow_bp.route('/nodes/<int:node_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_node(current_user, node_id):
+    """删除节点（软删除：设为禁用）"""
+    node = WorkflowNode.query.get_or_404(node_id)
+    node.is_enabled = False
+    db.session.commit()
+
+    # 重新排序该阶段剩余节点
+    _reorder_nodes(node.phase)
+
+    return jsonify({
+        'code': 200,
+        'message': '节点已删除'
+    })
+
+
+@service_workflow_bp.route('/nodes/reorder', methods=['POST'])
+@jwt_required_v2
+def reorder_nodes(current_user):
+    """批量重排节点顺序"""
+    data = request.get_json()
+    phase = data.get('phase')
+    node_ids = data.get('node_ids', [])  # 有序ID列表
+
+    if not phase or not node_ids:
+        return jsonify({'code': 400, 'message': '需要phase和node_ids参数'}), 400
+
+    for i, nid in enumerate(node_ids, 1):
+        node = WorkflowNode.query.get(nid)
+        if node:
+            node.phase_order = i
+            node.sort_order = i
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '排序更新成功'
+    })
+
+
+def _reorder_nodes(phase):
+    """重新排序指定阶段的节点"""
+    nodes = WorkflowNode.query.filter_by(
+        phase=phase, is_enabled=True
+    ).order_by(WorkflowNode.phase_order).all()
+
+    for i, node in enumerate(nodes, 1):
+        node.phase_order = i
+        node.sort_order = i
+
+    db.session.commit()
+
+
 @service_workflow_bp.route('/nodes/init', methods=['POST'])
 @jwt_required_v2
 def init_nodes(current_user):
-    """初始化58节点（首次使用）"""
+    """初始化节点和阶段配置（首次使用）"""
     # 检查是否已初始化
     existing = WorkflowNode.query.first()
     if existing:
-        return jsonify({'code': 400, 'message': '节点已初始化'}), 400
+        # 已有节点，检查是否需要迁移 follow_up -> soft_service/after_sales
+        follow_up_nodes = WorkflowNode.query.filter_by(phase='follow_up', is_enabled=True).all()
+        if follow_up_nodes:
+            for node in follow_up_nodes:
+                node_num = int(node.node_code.replace('N', ''))
+                if 44 <= node_num <= 53:
+                    node.phase = 'soft_service'
+                elif 54 <= node_num <= 58:
+                    node.phase = 'after_sales'
+            db.session.commit()
 
+        # 确保阶段配置存在
+        if not WorkflowPhaseConfig.query.first():
+            for p in DEFAULT_PHASES:
+                phase = WorkflowPhaseConfig(
+                    code=p['code'],
+                    name=p['name'],
+                    color=p['color'],
+                    sort_order=p['sort_order']
+                )
+                db.session.add(phase)
+            db.session.commit()
+
+        return jsonify({'code': 400, 'message': '节点已初始化，已执行迁移检查'}), 400
+
+    # 初始化阶段配置
+    for p in DEFAULT_PHASES:
+        phase = WorkflowPhaseConfig(
+            code=p['code'],
+            name=p['name'],
+            color=p['color'],
+            sort_order=p['sort_order']
+        )
+        db.session.add(phase)
+
+    # 初始化节点
     for i, node_def in enumerate(NODES_DEFINITION, 1):
         node = WorkflowNode(
             node_code=node_def['code'],
@@ -81,14 +323,7 @@ def init_nodes(current_user):
     })
 
 
-@service_workflow_bp.route('/phases', methods=['GET'])
-@jwt_required_v2
-def get_phases(current_user):
-    """获取阶段定义"""
-    return jsonify({
-        'code': 200,
-        'data': PHASES
-    })
+
 
 
 # ========== 客户流程实例 ==========
@@ -163,14 +398,33 @@ def create_workflow(current_user):
         node_code='N01', is_enabled=True
     ).first()
 
+    # Parse date strings to Python date objects (SQLAlchemy Date type requirement)
+    from datetime import datetime as dt
+    def parse_date(value):
+        if value is None:
+            return None
+        if hasattr(value, 'date'):
+            return value.date() if hasattr(value, 'date') else value
+        if not isinstance(value, str):
+            return value
+        for fmt in ('%Y-%m-%dT%H:%M:%S.%fZ', '%Y-%m-%dT%H:%M:%SZ', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%d'):
+            try:
+                return dt.strptime(value[:19] if len(value) > 19 else value, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    start_date = parse_date(data.get('start_date'))
+    planned_end_date = parse_date(data.get('planned_end_date'))
+
     workflow = CustomerWorkflow(
         tenant_id=current_user.get('tenant_id', '0'),
         customer_id=customer_id,
         current_node_id=first_node.id if first_node else None,
         current_phase='acquisition',
         status='active',
-        start_date=data.get('start_date'),
-        planned_end_date=data.get('planned_end_date'),
+        start_date=start_date,
+        planned_end_date=planned_end_date,
         total_nodes=58,
         completed_nodes=0
     )
@@ -180,11 +434,14 @@ def create_workflow(current_user):
 
     # 创建第一个节点的记录
     if first_node:
+        first_deadline = data.get('first_node_deadline')
+        if isinstance(first_deadline, str):
+            first_deadline = dt.strptime(first_deadline, '%Y-%m-%d').date()
         record = WorkflowNodeRecord(
             workflow_id=workflow.id,
             node_id=first_node.id,
             status='pending',
-            deadline=data.get('first_node_deadline')
+            deadline=first_deadline
         )
         db.session.add(record)
 

@@ -65,6 +65,12 @@ class CaseStudy(db.Model):
     customer_value = db.Column(db.Text, comment='客户价值')
     tags = db.Column(db.Text, comment='标签JSON数组')
     
+    # 配色方案
+    main_colors = db.Column(db.Text, comment='方案主色JSON数组(最多5个)')
+    auxiliary_colors = db.Column(db.Text, comment='方案辅助色JSON数组(最多5个)')
+    accent_colors = db.Column(db.Text, comment='方案点缀色JSON数组(最多5个)')
+    background_colors = db.Column(db.Text, comment='方案背景色JSON数组(最多6个)')
+    
     # 报价配置
     total_price = db.Column(db.Numeric(12, 2), comment='全案总价')
     deal_budget = db.Column(db.Numeric(12, 2), comment='成交型预算')
@@ -168,6 +174,10 @@ class CaseStudy(db.Model):
             'design_highlights': _fix_garbled(self.design_highlights),
             'customer_value': _fix_garbled(self.customer_value),
             'tags': json.loads(self.tags) if self.tags else None,
+            'main_colors': json.loads(self.main_colors) if self.main_colors else [],
+            'auxiliary_colors': json.loads(self.auxiliary_colors) if self.auxiliary_colors else [],
+            'accent_colors': json.loads(self.accent_colors) if self.accent_colors else [],
+            'background_colors': json.loads(self.background_colors) if self.background_colors else [],
             'total_price': float(self.total_price) if self.total_price else None,
             'deal_budget': float(self.deal_budget) if self.deal_budget else None,
             'package_type': _fix_garbled(self.package_type),
@@ -552,4 +562,47 @@ class CaseOperationLog(db.Model):
             'content': self.content,
             'ip_address': self.ip_address,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class MorandiPalette(db.Model):
+    """莫兰迪色卡表"""
+    __tablename__ = 'morandi_palette'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    group_key = db.Column(db.String(30), nullable=False, comment='色系英文key')
+    group_name = db.Column(db.String(30), nullable=False, comment='色系中文名')
+    name_cn = db.Column(db.String(30), nullable=False, comment='颜色中文名')
+    hex_value = db.Column(db.String(7), nullable=False, comment='HEX色值')
+    pantone_code = db.Column(db.String(30), comment='潘通色号')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'group_key': self.group_key,
+            'group_name': self.group_name,
+            'name_cn': self.name_cn,
+            'hex_value': self.hex_value,
+            'pantone_code': self.pantone_code,
+            'sort_order': self.sort_order,
+        }
+
+
+class PantoneColorMap(db.Model):
+    """潘通色号与RGB映射表"""
+    __tablename__ = 'pantone_color_map'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    pantone_code = db.Column(db.String(30), nullable=False, unique=True, comment='潘通色号')
+    hex_value = db.Column(db.String(7), nullable=False, comment='HEX色值')
+    name_cn = db.Column(db.String(50), comment='颜色中文名')
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'pantone_code': self.pantone_code,
+            'hex_value': self.hex_value,
+            'name_cn': self.name_cn,
         }

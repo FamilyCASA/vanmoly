@@ -165,6 +165,41 @@
       </transition>
     </div>
 
+    <!-- 第三层：颜色筛选色条（暖色→冷色→灰度，hover显示潘通名，点击筛选） -->
+    <div class="color-strip-bar" v-if="colorPalette.length > 0">
+      <div class="color-strip-row">
+        <span class="strip-label">配色</span>
+        <!-- 动态色条：每格宽度 = 100% / 颜色总数 -->
+        <div class="color-strip-track" @mouseleave="hoveredHex = null">
+          <div
+            v-for="color in colorPalette"
+            :key="color.hex"
+            class="color-strip-cell"
+            :style="{
+              backgroundColor: color.hex,
+              width: (1 / colorPalette.length * 100).toFixed(2) + '%',
+              opacity: hoveredHex && hoveredHex !== color.hex ? 0.5 : 1
+            }"
+            :title="color.pantone_name ? color.pantone_name + ' / ' + color.hex : color.hex"
+            @mouseenter="hoveredHex = color.hex"
+            @click="selectColor(color.hex)"
+          >
+            <!-- 当前选中指示 -->
+            <span class="strip-active-dot" v-if="selectedColor === color.hex"></span>
+            <!-- Hover Tooltip -->
+            <div class="strip-tooltip" v-if="hoveredHex === color.hex">
+              <span class="tooltip-hex">{{ color.hex }}</span>
+              <span class="tooltip-pantone" v-if="color.pantone_name">{{ color.pantone_name }}</span>
+              <span class="tooltip-count" v-if="color.count > 0">{{ color.count }}&nbsp;case{{ color.count > 1 ? 's' : '' }}</span>
+            </div>
+          </div>
+        </div>
+        <button class="strip-clear-btn" v-if="selectedColor" @click="clearColorFilter">
+          <el-icon><Close /></el-icon>{{ selectedColor }}
+        </button>
+      </div>
+    </div>
+
     <!-- 全案规划师/设计师展示 -->
     <div class="designer-bar" v-if="featuredCase">
       <div class="designer-section" v-if="featuredCase.planner || featuredCase.designer">
@@ -229,15 +264,13 @@
               </div>
               
               <!-- 色系卡片（蔚来配色风格） -->
-              <div class="color-swatches" v-if="caseItem.colors && caseItem.colors.length">
-                <div 
-                  v-for="(color, idx) in caseItem.colors.slice(0, 4)" 
+              <div class="color-swatches" v-if="getCaseColorDots(caseItem).length > 0">
+                <div
+                  v-for="(hex, idx) in getCaseColorDots(caseItem)"
                   :key="idx"
                   class="swatch"
-                  :style="{ backgroundColor: color.hex }"
-                  :title="color.name"
+                  :style="{ backgroundColor: hex }"
                 ></div>
-                <span class="more-colors" v-if="caseItem.colors.length > 4">+{{ caseItem.colors.length - 4 }}</span>
               </div>
             </div>
           </div>
@@ -316,10 +349,10 @@ const transitions = ['fade', 'slide-left', 'slide-right', 'zoom', 'wipe']
 
 // 服务流程步骤（杂志左侧目录）
 const processSteps = [
+  { name: '转化签约', key: 'conversion' },
   { name: '前期准备', key: 'preparation' },
   { name: '硬装施工', key: 'construction' },
-  { name: '软装收尾', key: 'follow_up' },
-  { name: '交付验收', key: 'delivery' },
+  { name: '软装服务', key: 'soft_service' },
   { name: '售后服务', key: 'after_sales' }
 ]
 const currentProcessStep = ref(0)
@@ -329,11 +362,15 @@ const currentHeroImage = computed(() => {
   return heroImages.value[currentCarouselIndex.value] || featuredCase.value?.cover_image
 })
 
-// 服务流程阶段筛选（绿色呼吸灯 + 可展开树状结构）
+// 服务流程阶段筛选（与数据库 workflow_phase_config 保持一致）
+// 6个阶段全部展示，名称和数量均来自后端
 const workflowPhases = ref([
-  { key: 'preparation',   label: '前期准备阶段', count: 0, phases: ['acquisition', 'conversion', 'preparation'] },
-  { key: 'construction', label: '硬装施工阶段', count: 0, phases: ['construction'] },
-  { key: 'follow_up',     label: '软装收尾阶段', count: 0, phases: ['follow_up'] }
+  { key: 'acquisition',   label: '获客沉淀阶段', count: 0, code: 'acquisition' },
+  { key: 'conversion',    label: '转化签约阶段', count: 0, code: 'conversion' },
+  { key: 'preparation',   label: '前期准备阶段', count: 0, code: 'preparation' },
+  { key: 'construction',  label: '硬装施工阶段', count: 0, code: 'construction' },
+  { key: 'soft_service',  label: '软装服务阶段', count: 0, code: 'soft_service' },
+  { key: 'after_sales',   label: '售后服务阶段', count: 0, code: 'after_sales' }
 ])
 const selectedWorkflowPhase = ref('')
 const expandedPhase = ref('')        // 当前展开的阶段 key
@@ -396,40 +433,44 @@ const clearWorkflowFilter = () => {
 
 // 获取阶段短标签
 const getPhaseShortLabel = (phase) => {
-  const map = { 'acquisition': '获客', 'conversion': '转化', 'preparation': '设计', 'construction': '施工', 'follow_up': '软装', 'delivery': '交付', 'after_sales': '售后' }
+  const map = { 'acquisition': '获客', 'conversion': '签约', 'preparation': '设计', 'construction': '施工', 'soft_service': '软装', 'after_sales': '售后' }
   return map[phase] || phase
 }
 
-// 加载阶段节点数据（从所有真实案例的时间轴中提取该阶段节点）
+// 加载阶段节点数据（从已加载案例的 workflow_progress 获取当前节点名称）
 const fetchPhaseNodes = async (targetPhaseKey) => {
   if (loadingNodes.value) return
   loadingNodes.value = true
   try {
-    // 获取所有真实案例
-    const res = await getPublicCases({ page_size: 200, progress: targetPhaseKey })
-    const items = res?.items || []
-    if (!items.length) { loadingNodes.value = false; return }
-
     const targetPhase = workflowPhases.value.find(p => p.key === targetPhaseKey)
     if (!targetPhase) { loadingNodes.value = false; return }
+    const phaseCode = targetPhase.code || targetPhaseKey
 
-    // 并行获取每个案例的时间轴，收集该阶段节点
+    // 直接从 cases.value 提取各案例的当前进行中节点
     const allNodes = []
     const seen = new Set()
-    await Promise.all(items.slice(0, 20).map(async (c) => {
-      try {
-        const tl = await getWorkflowTimeline(c.id)
-        const nodes = Array.isArray(tl) ? tl : (tl?.items || [])
-        nodes.forEach(n => {
-          if (targetPhase.phases && targetPhase.phases.includes(n.phase) && !seen.has(n.node_name)) {
-            seen.add(n.node_name)
-            allNodes.push({ ...n, caseId: c.id, caseTitle: c.title })
-          }
-        })
-      } catch (e) {}
-    }))
+    for (const c of cases.value) {
+      if (!c.is_real_case) continue
+      const wp = c.workflow_progress
+      if (!wp) continue
+      const curPhase = wp.current_phase
+      if (curPhase !== phaseCode) continue
+      const ongoingNames = wp.ongoing_node_names || []
+      for (const nodeName of ongoingNames) {
+        if (!seen.has(nodeName)) {
+          seen.add(nodeName)
+          allNodes.push({
+            id: nodeName,
+            node_name: nodeName,
+            phase: curPhase,
+            caseId: c.id,
+            caseTitle: c.title
+          })
+        }
+      }
+    }
+
     phaseNodes.value[targetPhaseKey] = allNodes
-    // 同步更新 workflowPhases 中的节点引用
     if (targetPhase) targetPhase._nodes = allNodes
   } catch (e) {
     console.error('加载节点失败', e)
@@ -440,8 +481,30 @@ const fetchPhaseNodes = async (targetPhaseKey) => {
 
 // 筛选条件
 const filters = reactive({
-  atmosphere: ''
+  atmosphere: '',
+  color: ''
 })
+
+// 颜色筛选（色条模式）
+const colorPalette = ref([])  // [{hex, pantone_name, pantone_code, count}]
+const selectedColor = ref('')  // hex string
+const hoveredHex = ref(null)
+
+const selectColor = (hex) => {
+  selectedColor.value = selectedColor.value === hex ? '' : hex
+  filters.color = selectedColor.value
+  pagination.page = 1
+  hasMore.value = true
+  fetchCases()
+}
+
+const clearColorFilter = () => {
+  selectedColor.value = ''
+  filters.color = ''
+  pagination.page = 1
+  hasMore.value = true
+  fetchCases()
+}
 
 // 分页
 const pagination = reactive({
@@ -472,15 +535,23 @@ const fetchFilterOptions = async () => {
         if (found) atm.count = found.count || 0
       })
     }
-    // 服务流程阶段计数（从后端 progress_options 映射）
+    // 服务流程阶段计数（从后端 progress_options 映射到6个阶段）
+    // 后端返回: real_case, designing(acq+conv+prep), construction, soft_service, after_sales
+    // 前端需要拆分 designing 为 acquisition/conversion/preparation 三个独立计数
     if (res.progress_options) {
-      const phaseMap = { 'designing': 'preparation', 'construction': 'construction', 'completed': 'follow_up' }
-      res.progress_options.forEach(opt => {
-        const phaseKey = phaseMap[opt.key]
-        if (phaseKey) {
-          const phase = workflowPhases.value.find(p => p.key === phaseKey)
-          if (phase) phase.count = opt.count || 0
-        }
+      const optMap = {}
+      res.progress_options.forEach(opt => { optMap[opt.key] = opt.count || 0 })
+      
+      // 直接使用后端返回的各阶段计数
+      // designing 是 acquisition+conversion+preparation 的合计，需按比例或查实际数据拆分
+      // 更好的方式：后端直接返回6个阶段的独立计数
+      workflowPhases.value.forEach(p => {
+        if (p.key === 'acquisition') p.count = optMap['acquisition_count'] || 0
+        else if (p.key === 'conversion') p.count = optMap['conversion_count'] || 0
+        else if (p.key === 'preparation') p.count = optMap['preparation_count'] || 0
+        else if (p.key === 'construction') p.count = optMap['construction'] || 0
+        else if (p.key === 'soft_service') p.count = optMap['soft_service'] || 0
+        else if (p.key === 'after_sales') p.count = optMap['after_sales'] || 0
       })
     }
   } catch (error) {
@@ -503,6 +574,25 @@ const selectAtmosphere = (key) => {
 const getAtmosphereLabel = (value) => {
   const atm = atmospheres.find(a => a.value === value)
   return atm ? atm.label : value
+}
+
+// 从4组颜色字段提取色点
+const getCaseColorDots = (caseItem) => {
+  const dots = []
+  const fields = ['main_colors', 'auxiliary_colors', 'accent_colors', 'background_colors']
+  for (const field of fields) {
+    try {
+      let val = caseItem[field]
+      if (!val) continue
+      if (typeof val === 'string') val = JSON.parse(val)
+      if (Array.isArray(val) && val.length > 0 && val[0]) {
+        dots.push(typeof val[0] === 'object' ? val[0].hex : val[0])
+      } else if (typeof val === 'object' && !Array.isArray(val) && val.hex) {
+        dots.push(val.hex)
+      }
+    } catch {}
+  }
+  return dots
 }
 
 // 获取氛围色渐变（封面图不存在时的 fallback）
@@ -541,8 +631,10 @@ const fetchCases = async (isLoadMore = false) => {
       page_size: pagination.page_size,
       ...filters
     }
-    // 服务流程阶段筛选参数
+    // 服务流程阶段筛选参数（直接传阶段code给后端）
     if (selectedWorkflowPhase.value) {
+      const targetPhase = workflowPhases.value.find(p => p.key === selectedWorkflowPhase.value)
+      // 后端 progress 参数: acquisition/conversion/preparation/construction/soft_service/after_sales
       params.progress = selectedWorkflowPhase.value
     }
     const res = await getPublicCases(params)
@@ -689,7 +781,20 @@ const updateHeroImages = (caseItem) => {
 onMounted(() => {
   fetchFilterOptions()
   fetchCases()
+  loadColorGroups()
 })
+
+// 加载颜色索引（暖色→冷色→灰度排序色条）
+const loadColorGroups = async () => {
+  try {
+    const res = await fetch('/api/v3/color-index').then(r => r.json())
+    const d = (res.data || res || {})
+    const colors = Array.isArray(d) ? d : (d.colors || [])
+    colorPalette.value = colors
+  } catch (e) {
+    console.error('loadColorGroups error:', e)
+  }
+}
 
 onUnmounted(() => {
   stopCarousel()
@@ -1336,6 +1441,137 @@ onUnmounted(() => {
 
 .btn-secondary:hover {
   background: rgba(255,255,255,0.25);
+}
+
+/* 颜色筛选色条 */
+.color-strip-bar {
+  background: #fafafa;
+  padding: 20px 60px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.color-strip-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.strip-label {
+  font-size: 13px;
+  color: #888;
+  letter-spacing: 3px;
+  flex-shrink: 0;
+  width: 36px;
+}
+
+.color-strip-track {
+  flex: 1;
+  height: 40px;
+  display: flex;
+  border-radius: 6px;
+  overflow: visible;
+  position: relative;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+.color-strip-cell {
+  position: relative;
+  height: 100%;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  border-right: 1px solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+
+.color-strip-cell:hover {
+  transform: scaleY(1.12);
+  box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+  z-index: 2;
+}
+
+.color-strip-cell:last-child {
+  border-right: none;
+}
+
+.strip-active-dot {
+  position: absolute;
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
+  z-index: 3;
+}
+
+/* Hover Tooltip */
+.strip-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(30,30,30,0.92);
+  color: #fff;
+  padding: 8px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+  z-index: 100;
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.strip-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(30,30,30,0.92);
+}
+
+.tooltip-hex {
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 1px;
+}
+
+.tooltip-pantone {
+  font-size: 12px;
+  color: rgba(255,255,255,0.75);
+}
+
+.tooltip-count {
+  font-size: 11px;
+  color: rgba(255,255,255,0.55);
+  margin-top: 2px;
+}
+
+.strip-clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 14px;
+  border: 1px dashed #c8a97a;
+  border-radius: 20px;
+  background: rgba(200,169,122,0.06);
+  color: #8B5A2B;
+  font-size: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+
+.strip-clear-btn:hover {
+  background: rgba(200,169,122,0.15);
 }
 
 /* 第三层：配置方案展示 */

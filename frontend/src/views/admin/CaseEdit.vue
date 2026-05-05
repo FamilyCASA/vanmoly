@@ -54,6 +54,18 @@
                     </el-select>
                   </el-form-item>
                 </el-col>
+              </el-row>
+
+              <!-- 配色方案 -->
+              <el-row :gutter="24">
+                <el-col :span="24">
+                  <el-form-item label="配色方案">
+                    <morandi-color-picker v-model="caseData.colors" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-row :gutter="24" v-if="false">
                 <el-col :span="8">
                   <el-form-item label="空间类型">
                     <el-select v-model="caseData.space_type" style="width: 100%" clearable placeholder="选择空间">
@@ -812,6 +824,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, View, Upload, ArrowRight, Close } from '@element-plus/icons-vue'
 import ImageCropperUpload from '@/components/ImageCropperUpload.vue'
+import MorandiColorPicker from '@/components/MorandiColorPicker.vue'
 import {
   getCase, createCase, updateCase, publishCase,
   getTimeline, addTimeline, updateTimeline, deleteTimeline as deleteTimelineApi,
@@ -878,7 +891,8 @@ const caseData = reactive({
   sync_mp: false,
   enable_subscription: true,
   enable_notify: true,
-  status: '草稿'
+  status: '草稿',
+  colors: { main: null, auxiliary: null, accent: null, background: null }
 })
 
 // 选项数据
@@ -1130,6 +1144,14 @@ const fetchCaseDetail = async () => {
       }))
     }
     
+    // 解析配色方案
+    caseData.colors = {
+      main: data.main_colors ? (typeof data.main_colors === 'string' ? JSON.parse(data.main_colors) : data.main_colors) : null,
+      auxiliary: data.auxiliary_colors ? (typeof data.auxiliary_colors === 'string' ? JSON.parse(data.auxiliary_colors) : data.auxiliary_colors) : null,
+      accent: data.accent_colors ? (typeof data.accent_colors === 'string' ? JSON.parse(data.accent_colors) : data.accent_colors) : null,
+      background: data.background_colors ? (typeof data.background_colors === 'string' ? JSON.parse(data.background_colors) : data.background_colors) : null
+    }
+
     // 解析造价明细
     if (data.price_detail) {
       try {
@@ -1245,8 +1267,13 @@ const prepareSubmitData = () => {
     if (!url) return url
     return url.replace(/^\/api\/v3/, '')
   }
+  const { colors, ...rest } = caseData
   return {
-    ...caseData,
+    ...rest,
+    main_colors: colors.main ? JSON.stringify(colors.main) : null,
+    auxiliary_colors: colors.auxiliary ? JSON.stringify(colors.auxiliary) : null,
+    accent_colors: colors.accent ? JSON.stringify(colors.accent) : null,
+    background_colors: colors.background ? JSON.stringify(colors.background) : null,
     hero_images: JSON.stringify(heroImageList.value.map(f => stripPrefix(f.url))),
     media: mediaList.value.map(f => ({
       url: stripPrefix(f.url),

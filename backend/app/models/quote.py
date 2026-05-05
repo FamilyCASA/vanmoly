@@ -24,6 +24,14 @@ class Quote(db.Model):
 
     # 封面配置
     cover_config = db.Column(db.JSON, default=dict, comment='封面配置')
+
+    # 报价升级新增字段
+    project_name = db.Column(db.String(200), comment='项目名称')
+    project_address = db.Column(db.String(500), comment='项目地址')
+    house_type = db.Column(db.String(50), comment='户型')
+    related_case_id = db.Column(db.Integer, comment='关联案例ID')
+    contract_no = db.Column(db.String(50), comment='合同编号')
+    cover_template_id = db.Column(db.Integer, comment='封面模板ID')
     # {
     #   template: 'modern/classic/minimal',  // 模板风格
     #   primary_color: '#8B4513',            // 主色调
@@ -98,6 +106,12 @@ class Quote(db.Model):
             'customer_name': self.customer_name,
             'customer_phone': self.customer_phone,
             'cover_config': self.cover_config or {},
+            'project_name': self.project_name,
+            'project_address': self.project_address,
+            'house_type': self.house_type,
+            'related_case_id': self.related_case_id,
+            'contract_no': self.contract_no,
+            'cover_template_id': self.cover_template_id,
             'service_team': self.service_team or [],
             'category_summary': self.category_summary or {},
             'subtotal': float(self.subtotal) if self.subtotal else 0,

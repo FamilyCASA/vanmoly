@@ -9,6 +9,7 @@ from app.models.contract import (
     CONTRACT_TYPES, CONTRACT_STATUS, PAYMENT_PHASES
 )
 from app.models.customer import Customer
+from app.models import Employee as Emp
 from app.routes.auth_routes_v2 import jwt_required_v2
 from datetime import datetime, date
 import io
@@ -1097,5 +1098,58 @@ def get_options(current_user):
             'contract_types': [{'value': v, 'label': l} for v, l in CONTRACT_TYPES],
             'status_list': [{'value': v, 'label': l} for v, l in CONTRACT_STATUS],
             'payment_phases': [{'value': v, 'label': l} for v, l in PAYMENT_PHASES],
+        }
+    })
+
+
+# ========== 员工选择（项目负责人） ==========
+
+@contract_bp.route('/employees-for-team', methods=['GET'])
+@jwt_required_v2
+def get_employees_for_team(current_user):
+    """获取可用于项目负责人的员工列表（按岗位分组）"""
+    employees = Emp.query.filter_by(
+        tenant_id=current_user.get('tenant_id', '0'),
+        is_deleted=False,
+        status='active'
+    ).order_by(Emp.department_id, Emp.position_id, Emp.name).all()
+    
+    result = []
+    for e in employees:
+        result.append({
+            'id': e.id,
+            'name': e.name,
+            'phone': e.phone or '',
+            'title': e.title or '',
+            'position_id': e.position_id,
+            'department_id': e.department_id,
+        })
+    
+    return jsonify({'code': 200, 'data': result})
+
+
+# ========== 模板应用 ==========
+
+@contract_bp.route('/templates/<int:id>/apply', methods=['GET'])
+@jwt_required_v2
+def apply_template(current_user, id):
+    """获取模板的变量数据，用于前端一键填充表单"""
+    template = ContractTemplate.query.get_or_404(id)
+    
+    import json
+    variables = template.variables
+    if isinstance(variables, str):
+        try:
+            variables = json.loads(variables)
+        except:
+            variables = {}
+    
+    return jsonify({
+        'code': 200,
+        'data': {
+            'id': template.id,
+            'name': template.name,
+            'contract_type': template.contract_type,
+            'variables': variables or {},
         }
     })

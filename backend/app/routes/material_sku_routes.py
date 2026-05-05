@@ -19,8 +19,12 @@ material_sku_bp = Blueprint('material_sku', __name__, url_prefix='/api/v3/materi
 @material_sku_bp.route('/categories', methods=['GET'])
 def get_categories():
     """获取分类树（公开接口）"""
-    categories = MaterialCategory.query.filter_by(
-        parent_id=None, is_deleted=False, is_enabled=True
+    from sqlalchemy import or_ as sql_or
+    # 支持 is_deleted=False 和 is_deleted=NULL 两种情况（迁移数据可能为NULL）
+    categories = MaterialCategory.query.filter(
+        MaterialCategory.parent_id == None,
+        sql_or(MaterialCategory.is_deleted == False, MaterialCategory.is_deleted.is_(None)),
+        MaterialCategory.is_enabled == True
     ).order_by(MaterialCategory.sort_order).all()
     return jsonify({
         'code': 200,

@@ -16,6 +16,7 @@ from app.models import (
     CaseNotification, CaseOperationLog,
     CaseWorkflowTimeline
 )
+from app.models.case import MorandiPalette, PantoneColorMap
 from app.models.building import Building
 from app.models.hr import Employee
 from app.models.service_workflow import CustomerWorkflow, WorkflowNode
@@ -54,6 +55,56 @@ def log_operation(case_id, operation, content):
 
 
 # ==================== 案例列表与详情 ====================
+
+
+# ===== 颜色排序辅助函数 =====
+COLOR_SORT_ORDER = {
+    'red': 0, 'orange': 1, 'yellow': 2, 'beige': 3, 'pink': 4,
+    'green': 5, 'blue': 6, 'brown': 7, 'gray': 8
+}
+
+def hex_to_hsl(hex_color):
+    hex_color = hex_color.lstrip('#')
+    if len(hex_color) != 6:
+        return (0, 0, 50)
+    try:
+        r, g, b = int(hex_color[0:2], 16), int(hex_color[2:4], 16), int(hex_color[4:6], 16)
+        r, g, b = r / 255.0, g / 255.0, b / 255.0
+        max_c, min_c = max(r, g, b), min(r, g, b)
+        l = (max_c + min_c) / 2 * 100
+        if max_c == min_c:
+            return (0, 0, l)
+        d = max_c - min_c
+        s = (d / (1 - abs(2*l/100 - 1))) * 100 if (1 - abs(2*l/100 - 1)) > 0 else 0
+        if max_c == r:
+            h = ((g - b) / d) % 6
+        elif max_c == g:
+            h = (b - r) / d + 2
+        else:
+            h = (r - g) / d + 4
+        h = round(h * 60)
+        if h < 0:
+            h += 360
+        return (h, s, l)
+    except:
+        return (0, 0, 50)
+
+def warm_to_cool_sort_key(hex_val):
+    h, s, l = hex_to_hsl(hex_val)
+    if s < 10:
+        return (100, l)
+    if h <= 60 or h >= 300:
+        return (0, -l)
+    elif h <= 120:
+        return (1, h)
+    elif h <= 180:
+        return (2, h)
+    elif h <= 240:
+        return (3, h)
+    elif h <= 300:
+        return (4, h)
+    else:
+        return (5, h)
 
 @case_bp.route('/cases', methods=['GET'])
 @jwt_required_v2
@@ -107,6 +158,34 @@ def get_cases(current_user):
             query = query.filter(CaseStudy.style == style)
         if atmosphere:
             query = query.filter(CaseStudy.atmosphere == atmosphere)
+        
+        # 颜色筛选: 支持 hex 值或色系 key
+        color_filter = request.args.get('color')  # e.g. #E8C5C5 or pink
+        if color_filter:
+            if color_filter.startswith('#'):
+                # 精确匹配 hex 色值
+                color_like = f'%{color_filter}%'
+                query = query.filter(or_(
+                    CaseStudy.main_colors.like(color_like),
+                    CaseStudy.auxiliary_colors.like(color_like),
+                    CaseStudy.accent_colors.like(color_like),
+                    CaseStudy.background_colors.like(color_like)
+                ))
+            else:
+                # 按色系 key 筛选: 找该色系下所有 hex 值
+                palette_colors = MorandiPalette.query.filter_by(group_key=color_filter).all()
+                if palette_colors:
+                    hex_values = [c.hex_value for c in palette_colors]
+                    color_conditions = []
+                    for hv in hex_values:
+                        color_like = f'%{hv}%'
+                        color_conditions.extend([
+                            CaseStudy.main_colors.like(color_like),
+                            CaseStudy.auxiliary_colors.like(color_like),
+                            CaseStudy.accent_colors.like(color_like),
+                            CaseStudy.background_colors.like(color_like)
+                        ])
+                    query = query.filter(or_(*color_conditions))
         if house_type:
             query = query.filter(CaseStudy.house_type == house_type)
         if package_type:
@@ -188,6 +267,20 @@ def create_case(current_user):
         if isinstance(tags_data, list):
             tags_data = json.dumps(tags_data, ensure_ascii=False)
         
+        # 处理颜色字段：前端发送列表，数据库存储JSON字符串 + 数量校验
+        COLOR_LIMITS = {'main_colors': 5, 'auxiliary_colors': 5, 'accent_colors': 5, 'background_colors': 6}
+        color_data = {}
+        for field, limit in COLOR_LIMITS.items():
+            val = data.get(field, [])
+            if isinstance(val, list):
+                if len(val) > limit:
+                    return api_response(400, f'{field} \u6700\u591a\u53ef\u9009{limit}\u4e2a\u989c\u8272')
+                color_data[field] = json.dumps(val, ensure_ascii=False)
+            elif isinstance(val, str):
+                color_data[field] = val
+            else:
+                color_data[field] = '[]'
+        
         case = CaseStudy(
             case_no=case_no,
             title=data.get('title'),
@@ -217,6 +310,10 @@ def create_case(current_user):
             design_highlights=data.get('design_highlights'),
             customer_value=data.get('customer_value'),
             tags=tags_data,
+            main_colors=color_data.get('main_colors', '[]'),
+            auxiliary_colors=color_data.get('auxiliary_colors', '[]'),
+            accent_colors=color_data.get('accent_colors', '[]'),
+            background_colors=color_data.get('background_colors', '[]'),
             total_price=data.get('total_price'),
             deal_budget=data.get('deal_budget'),
             package_type=data.get('package_type'),
@@ -297,6 +394,20 @@ def update_case(current_user, id):
                 case.tags = json.dumps(tags_data, ensure_ascii=False)
             else:
                 case.tags = tags_data
+        
+        # 处理颜色字段
+        COLOR_LIMITS = {'main_colors': 5, 'auxiliary_colors': 5, 'accent_colors': 5, 'background_colors': 6}
+        for field, limit in COLOR_LIMITS.items():
+            if field in data:
+                val = data[field]
+                if isinstance(val, list):
+                    if len(val) > limit:
+                        return api_response(400, f'{field} \u6700\u591a\u53ef\u9009{limit}\u4e2a\u989c\u8272')
+                    setattr(case, field, json.dumps(val, ensure_ascii=False))
+                elif isinstance(val, str):
+                    setattr(case, field, val)
+                else:
+                    setattr(case, field, '[]')
         
         # 处理hero_images：前端发送JSON字符串或列表
         if 'hero_images' in data:
@@ -1015,34 +1126,53 @@ def get_public_cases():
         if atmosphere:
             query = query.filter(CaseStudy.atmosphere == atmosphere)
         
-        # progress filter
+        # 颜色筛选: 支持 hex 值或色系 key
+        color_filter = request.args.get('color')
+        if color_filter:
+            if color_filter.startswith('#'):
+                color_like = f'%{color_filter}%'
+                query = query.filter(or_(
+                    CaseStudy.main_colors.like(color_like),
+                    CaseStudy.auxiliary_colors.like(color_like),
+                    CaseStudy.accent_colors.like(color_like),
+                    CaseStudy.background_colors.like(color_like)
+                ))
+            else:
+                palette_colors = MorandiPalette.query.filter_by(group_key=color_filter).all()
+                if palette_colors:
+                    hex_values = [c.hex_value for c in palette_colors]
+                    color_conditions = []
+                    for hv in hex_values:
+                        color_like = f'%{hv}%'
+                        color_conditions.extend([
+                            CaseStudy.main_colors.like(color_like),
+                            CaseStudy.auxiliary_colors.like(color_like),
+                            CaseStudy.accent_colors.like(color_like),
+                            CaseStudy.background_colors.like(color_like)
+                        ])
+                    query = query.filter(or_(*color_conditions))
+        
+        # progress filter - 支持6个独立阶段 + real_case + designing(兼容旧前端)
         if progress:
             if progress == 'real_case':
                 query = query.filter(CaseStudy.is_real_case == True)
+            elif progress in ('acquisition', 'conversion', 'preparation', 
+                              'construction', 'soft_service', 'after_sales'):
+                # 单阶段筛选：查找该阶段有 ongoing 节点的案例
+                query = query.filter(CaseStudy.is_real_case == True)
+                phase_ids = db.session.query(CaseWorkflowTimeline.case_id).filter(
+                    CaseWorkflowTimeline.status == 'ongoing',
+                    CaseWorkflowTimeline.phase == progress
+                ).subquery()
+                query = query.filter(CaseStudy.id.in_(phase_ids))
             elif progress == 'designing':
-                # Cases whose ongoing node is in acquisition/conversion/preparation
+                # 兼容旧参数：acquisition+conversion+preparation 合计
                 query = query.filter(CaseStudy.is_real_case == True)
                 designing_ids = db.session.query(CaseWorkflowTimeline.case_id).filter(
                     CaseWorkflowTimeline.status == 'ongoing',
                     CaseWorkflowTimeline.phase.in_(['acquisition', 'conversion', 'preparation'])
                 ).subquery()
                 query = query.filter(CaseStudy.id.in_(designing_ids))
-            elif progress == 'construction':
-                # Cases whose ongoing node is in construction phase
-                query = query.filter(CaseStudy.is_real_case == True)
-                const_ids = db.session.query(CaseWorkflowTimeline.case_id).filter(
-                    CaseWorkflowTimeline.status == 'ongoing',
-                    CaseWorkflowTimeline.phase == 'construction'
-                ).subquery()
-                query = query.filter(CaseStudy.id.in_(const_ids))
-            elif progress == 'completed':
-                # Cases whose ongoing node is in follow_up phase
-                query = query.filter(CaseStudy.is_real_case == True)
-                completed_ids = db.session.query(CaseWorkflowTimeline.case_id).filter(
-                    CaseWorkflowTimeline.status == 'ongoing',
-                    CaseWorkflowTimeline.phase == 'follow_up'
-                ).subquery()
-                query = query.filter(CaseStudy.id.in_(completed_ids))
         
         # 排序：精选优先，按发布时间倒序
         query = query.order_by(desc(CaseStudy.is_featured), desc(CaseStudy.publish_time))
@@ -1059,24 +1189,29 @@ def get_public_cases():
                     d['building_name'] = building.name
             # add lightweight workflow progress for list view
             if item.is_real_case:
-                tl_nodes = CaseWorkflowTimeline.query.filter_by(case_id=item.id).all()
+                tl_nodes = CaseWorkflowTimeline.query.filter_by(case_id=item.id).order_by(
+                    CaseWorkflowTimeline.phase_order
+                ).all()
                 if tl_nodes:
                     total = len(tl_nodes)
                     completed = sum(1 for n in tl_nodes if n.status == 'completed')
-                    ongoing = sum(1 for n in tl_nodes if n.status == 'ongoing')
+                    ongoing_nodes = [n for n in tl_nodes if n.status == 'ongoing']
+                    ongoing_count = len(ongoing_nodes)
                     pct = round(completed / total * 100) if total > 0 else 0
                     cur_phase = ''
-                    for n in tl_nodes:
-                        if n.status == 'ongoing':
-                            cur_phase = n.phase
-                            break
-                    if not cur_phase and completed > 0:
+                    ongoing_node_names = []
+                    if ongoing_nodes:
+                        cur_phase = ongoing_nodes[0].phase
+                        ongoing_node_names = [n.node_name for n in ongoing_nodes]
+                    elif completed > 0:
                         last_done = [n for n in tl_nodes if n.status == 'completed'][-1]
                         cur_phase = last_done.phase
                     d['workflow_progress'] = {
                         'progress_pct': pct,
                         'current_phase': cur_phase,
+                        'ongoing_node_names': ongoing_node_names,
                         'completed_nodes': completed,
+                        'ongoing_nodes': ongoing_count,
                         'total_nodes': total
                     }
             items.append(d)
@@ -1291,36 +1426,22 @@ def get_case_filters():
         
         atmospheres = [{'key': a[0], 'count': a[1]} for a in atmospheres_raw if a[0]]
         
-        # progress counts - based on ongoing node's phase_order
+        # progress counts - 返回6个独立阶段的准确计数（基于 ongoing 节点）
         real_case_count = CaseStudy.query.filter_by(
             status='已发布', is_public=True, is_real_case=True
         ).filter(CaseStudy.deleted_at.is_(None)).count()
         
-        # Get ongoing phase_order for each real case
-        # designing: ongoing node in acquisition/conversion/preparation phases
-        designing_cases = db.session.query(
-            CaseWorkflowTimeline.case_id
-        ).filter(
-            CaseWorkflowTimeline.status == 'ongoing',
-            CaseWorkflowTimeline.phase.in_(['acquisition', 'conversion', 'preparation'])
-        ).distinct().count()
-        # construction: ongoing node in construction phase
-        construction_cases = db.session.query(
-            CaseWorkflowTimeline.case_id
-        ).filter(
-            CaseWorkflowTimeline.status == 'ongoing',
-            CaseWorkflowTimeline.phase == 'construction'
-        ).distinct().count()
-        # completed: ongoing node in follow_up AND most nodes completed
-        completed_cases = db.session.query(
-            CaseWorkflowTimeline.case_id
-        ).filter(
-            CaseWorkflowTimeline.status == 'ongoing',
-            CaseWorkflowTimeline.phase == 'follow_up'
-        ).distinct().count()
-        designing_count = designing_cases
-        construction_count = construction_cases
-        completed_count = completed_cases
+        # 各阶段独立计数：统计该阶段有 ongoing 节点的案例数
+        phase_counts = {}
+        for phase_code in ['acquisition', 'conversion', 'preparation', 
+                          'construction', 'soft_service', 'after_sales']:
+            cnt = db.session.query(
+                CaseWorkflowTimeline.case_id
+            ).filter(
+                CaseWorkflowTimeline.status == 'ongoing',
+                CaseWorkflowTimeline.phase == phase_code
+            ).distinct().count()
+            phase_counts[f'{phase_code}_count'] = cnt
         
         return api_response(data={
             'styles': [s[0] for s in styles if s[0]],
@@ -1329,9 +1450,12 @@ def get_case_filters():
             'atmospheres': atmospheres,
             'progress_options': [
                 {'key': 'real_case', 'label': '真实案例', 'count': real_case_count},
-                {'key': 'designing', 'label': '设计中', 'count': designing_count},
-                {'key': 'construction', 'label': '施工中', 'count': construction_count},
-                {'key': 'completed', 'label': '已完工', 'count': completed_count}
+                {'key': 'acquisition_count', 'label': '获客沉淀', 'count': phase_counts.get('acquisition_count', 0)},
+                {'key': 'conversion_count', 'label': '转化签约', 'count': phase_counts.get('conversion_count', 0)},
+                {'key': 'preparation_count', 'label': '前期准备', 'count': phase_counts.get('preparation_count', 0)},
+                {'key': 'construction', 'label': '硬装施工', 'count': phase_counts.get('construction_count', 0)},
+                {'key': 'soft_service', 'label': '软装服务', 'count': phase_counts.get('soft_service_count', 0)},
+                {'key': 'after_sales_count', 'label': '售后服务', 'count': phase_counts.get('after_sales_count', 0)}
             ]
         })
     except Exception as e:
@@ -1574,4 +1698,115 @@ def get_workflow_nodes(current_user):
     except Exception as e:
         import traceback
         return api_response(code=500, message=f'{str(e)}\n{traceback.format_exc()}')
+
+
+
+@case_bp.route('/color-index', methods=['GET'])
+def get_color_index():
+    """获取所有案例色值索引（暖→冷→灰排序），用于前台色条展示
+    返回所有在已发布案例中使用过的色值，以及完整莫兰迪色卡，按暖色→冷色→灰度排序
+    """
+    try:
+        from app.models.case import CaseStudy, MorandiPalette
+        
+        # 1. Get all unique colors from published cases
+        cases = CaseStudy.query.filter_by(status='已发布').all()
+        hex_counts = {}
+        for case in cases:
+            for field in ['main_colors', 'auxiliary_colors', 'accent_colors', 'background_colors']:
+                raw = getattr(case, field, None)
+                if raw and raw not in ('[]', ''):
+                    try:
+                        arr = json.loads(raw)
+                        for item in arr:
+                            if isinstance(item, dict) and item.get('hex'):
+                                h = item['hex'].upper()
+                                hex_counts[h] = hex_counts.get(h, 0) + 1
+                    except:
+                        pass
+        
+        # 2. Get full morandi palette
+        palette = {c.hex_value.upper(): c for c in MorandiPalette.query.all()}
+        
+        # 3. Merge: all palette colors + case colors
+        all_hex = set(list(palette.keys()) + list(hex_counts.keys()))
+        
+        # 4. Sort: warm→cool→gray
+        sorted_hex = sorted(all_hex, key=warm_to_cool_sort_key)
+        
+        # 5. Build result with weight (case frequency) and pantone info
+        result = []
+        for h in sorted_hex:
+            h_upper = h.upper()
+            pantone_name = ''
+            pantone_code = ''
+            if h_upper in palette:
+                pantone_name = palette[h_upper].name_cn or ''
+                pantone_code = palette[h_upper].pantone_code or ''
+            weight = hex_counts.get(h_upper, 0)
+            result.append({
+                'hex': h_upper,
+                'pantone_name': pantone_name,
+                'pantone_code': pantone_code,
+                'count': weight
+            })
+        
+        return api_response(data={'colors': result, 'total': len(result)})
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ========== 色卡与配色 API ==========
+
+@case_bp.route('/morandi-palette', methods=['GET'])
+def get_morandi_palette():
+    """获取莫兰迪色卡数据，按色系分组"""
+    try:
+        colors = MorandiPalette.query.order_by(MorandiPalette.group_key, MorandiPalette.sort_order).all()
+        # 按色系分组
+        groups = {}
+        for c in colors:
+            if c.group_key not in groups:
+                groups[c.group_key] = {
+                    'key': c.group_key,
+                    'name': c.group_name,
+                    'colors': []
+                }
+            groups[c.group_key]['colors'].append(c.to_dict())
+        result = list(groups.values())
+        return api_response(data=result)
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/pantone-colors', methods=['GET'])
+def get_pantone_colors():
+    """获取潘通色号映射表"""
+    try:
+        mappings = PantoneColorMap.query.order_by(PantoneColorMap.pantone_code).all()
+        result = [m.to_dict() for m in mappings]
+        return api_response(data=result)
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/pantone-lookup', methods=['GET'])
+def pantone_lookup():
+    """根据潘通色号查找对应色值"""
+    try:
+        code = request.args.get('code', '').strip()
+        if not code:
+            return api_response(code=400, message='\u8bf7\u63d0\u4f9b\u6f58\u901a\u8272\u53f7')
+        # Try exact match, then with PANTONE prefix, then LIKE partial match
+        mapping = PantoneColorMap.query.filter_by(pantone_code=code).first()
+        if not mapping and not code.upper().startswith('PANTONE'):
+            mapping = PantoneColorMap.query.filter_by(pantone_code='PANTONE ' + code).first()
+        if not mapping:
+            mapping = PantoneColorMap.query.filter(PantoneColorMap.pantone_code.like(f'%{code}%')).first()
+        if mapping:
+            return api_response(data=mapping.to_dict())
+        else:
+            return api_response(code=404, message='\u672a\u627e\u5230\u5bf9\u5e94\u8272\u503c')
+    except Exception as e:
+        return api_response(code=500, message=str(e))
 

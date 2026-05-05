@@ -614,7 +614,49 @@ const filterForm = reactive({
 const options = reactive({
   status_list: [],
   service_roles: [],
-  rooms: [],
+  rooms: [
+    '\u5ba2\u5385',   // Living Room
+    '\u9910\u5385',   // Dining Room
+    '\u4e3b\u536b',   // Master Bedroom
+    '\u6b21\u536b',   // Guest Bedroom
+    '\u513f\u7ae5\u623f',   // Kids\' Room
+    '\u8001\u4eba\u623f',   // Senior Bedroom
+    '\u4e66\u623f/\u5de5\u4f5c\u95f4',  // Study
+    '\u4e2d\u53a8',   // Chinese Kitchen
+    '\u897f\u53a8',   // Western Kitchen
+    '\u5f00\u653e\u5f0f\u53a8\u623f',  // Open Kitchen
+    '\u4e3b\u536b',   // Master Bathroom  (no newline, same as Master Bedroom label)
+    '\u5ba2\u536b',   // Guest Bathroom
+    '\u516c\u536b\uff08\u516c\u5bd3\uff09', // Common Bathroom
+    '\u5e72\u6e7f\u5206\u79bb\u536b\u751f\u95f4',  // Wet-Dry Bathroom
+    '\u7384\u5173',   // Foyer
+    '\u5165\u6237\u82b1\u56ed',  // Entry Garden
+    '\u751f\u6d3b\u9633\u53f0',  // Service Balcony
+    '\u4f11\u95f2\u9633\u53f0',  // Leisure Balcony
+    '\u89c2\u666f\u9633\u53f0',  // View Balcony
+    '\u8fc7\u9053/\u8d70\u5eca',  // Corridor
+    '\u6b65\u5165\u5f0f\u8863\u5e3d\u95f4',  // Walk-in Closet
+    '\u5d4c\u5165\u5f0f\u8863\u5e3d\u95f4',  // Built-in Closet
+    '\u50a8\u85cf\u5ba4/\u6742\u7269\u95f4',  // Storage Room
+    '\u9601\u697c',   // Attic
+    '\u5730\u4e0b\u5ba4',   // Basement
+    '\u5f71\u97f3\u5ba4/\u5bb6\u5ead\u5f71\u9662',  // Home Theater
+    '\u5065\u8eab\u5ba4/\u7470\u4f53\u8ba1\u5ba4',  // Home Gym
+    '\u8336\u5ba4/\u68cb\u724c\u5ba4',  // Tea Room
+    '\u7434\u623f/\u753b\u5ba4',  // Art Studio
+    '\u4fdd\u59c6\u623f',   // Nanny\'s Room
+    '\u513f\u7ae5\u6d3b\u52a8\u533a',  // Kids Play Area
+    '\u8001\u4eba\u62a4\u7406\u95f4',  // Elderly Care Room
+    '\u5ba0\u7269\u623f',   // Pet Room
+    '\u9633\u5149\u623f',   // Sunroom
+    '\u5165\u6237\u82b1\u5385',  // Entry Hall Garden
+    '\u7a7a\u4e2d\u82b1\u56ed',  // Sky Garden
+    '\u9152\u58e2',   // Wine Cellar
+    '\u96ea\u852c\u623f',   // Cigar Room
+    '\u51a5\u60f3\u5ba4',   // Meditation Room
+    '\u79c1\u4eba\u4f1a\u6240',  // Private Clubhouse
+    '\u8bbe\u5907\u95f4',   // Equipment Room
+  ],
   employees: []
 })
 
@@ -1038,11 +1080,29 @@ const viewDetail = (row) => {
 }
 
 const editQuote = (row) => {
-  // 编辑报价
+  // 编辑报价 - 跳转到详情页，后续改造表单支持编辑模式
+  router.push(`/admin/quotes/${row.id}`)
 }
 
-const previewQuote = (row) => {
-  router.push(`/admin/quotes/${row.id}`)
+const previewQuote = async (row) => {
+  try {
+    ElMessage.info('正在生成PDF预览...')
+    const token = localStorage.getItem('token')
+    const response = await fetch(`/api/v3/quotes/${row.id}/pdf-customer`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    })
+    if (!response.ok) throw new Error('PDF生成失败')
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `报价单_${row.quote_no}.pdf`
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('PDF下载成功')
+  } catch (error) {
+    ElMessage.error('PDF预览失败：' + (error.message || '未知错误'))
+  }
 }
 
 const deleteQuote = async (row) => {

@@ -195,13 +195,54 @@ class WorkflowNodeRecord(db.Model):
         }
 
 
-# 阶段定义
+class WorkflowPhaseConfig(db.Model):
+    """阶段配置 - 支持自定义名称和排序"""
+    __tablename__ = 'workflow_phase_config'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    code = db.Column(db.String(50), unique=True, nullable=False, comment='阶段编码')
+    name = db.Column(db.String(100), nullable=False, comment='阶段显示名称')
+    color = db.Column(db.String(20), default='#1890FF', comment='主题色')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    is_enabled = db.Column(db.Boolean, default=True, comment='是否启用')
+    tenant_id = db.Column(db.String(32), default='0', index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        # 统计该阶段下的节点数
+        node_count = WorkflowNode.query.filter_by(
+            phase=self.code, is_enabled=True
+        ).count()
+        return {
+            'id': self.id,
+            'code': self.code,
+            'name': self.name,
+            'color': self.color,
+            'sort_order': self.sort_order,
+            'is_enabled': self.is_enabled,
+            'node_count': node_count,
+        }
+
+
+# 默认阶段定义（用于首次初始化）
+DEFAULT_PHASES = [
+    {'code': 'acquisition', 'name': '获客沉淀', 'color': '#1890FF', 'sort_order': 1},
+    {'code': 'conversion', 'name': '转化签约', 'color': '#52C41A', 'sort_order': 2},
+    {'code': 'preparation', 'name': '前期准备', 'color': '#722ED1', 'sort_order': 3},
+    {'code': 'construction', 'name': '硬装施工', 'color': '#FA8C16', 'sort_order': 4},
+    {'code': 'soft_service', 'name': '软装交付', 'color': '#13C2C2', 'sort_order': 5},
+    {'code': 'after_sales', 'name': '售后服务', 'color': '#EB2F96', 'sort_order': 6},
+]
+
+# 兼容旧代码的 PHASES 别名（运行时应从数据库读取）
 PHASES = [
-    {'code': 'acquisition', 'name': '获客沉淀', 'nodes': '1-8', 'color': '#1890FF'},
-    {'code': 'conversion', 'name': '转化签约', 'nodes': '9-18', 'color': '#52C41A'},
-    {'code': 'preparation', 'name': '前期准备', 'nodes': '19-21', 'color': '#722ED1'},
-    {'code': 'construction', 'name': '硬装施工', 'nodes': '22-43', 'color': '#FA8C16'},
-    {'code': 'follow_up', 'name': '后续阶段', 'nodes': '44-58', 'color': '#13C2C2'},
+    {'code': 'acquisition', 'name': '获客沉淀', 'color': '#1890FF'},
+    {'code': 'conversion', 'name': '转化签约', 'color': '#52C41A'},
+    {'code': 'preparation', 'name': '前期准备', 'color': '#722ED1'},
+    {'code': 'construction', 'name': '硬装施工', 'color': '#FA8C16'},
+    {'code': 'soft_service', 'name': '软装交付', 'color': '#13C2C2'},
+    {'code': 'after_sales', 'name': '售后服务', 'color': '#EB2F96'},
 ]
 
 # 58节点完整定义（用于初始化）
@@ -257,20 +298,22 @@ NODES_DEFINITION = [
     {'code': 'N42', 'name': '硬装中期验收', 'phase': 'construction', 'roles': ['监理', '客户'], 'module': 'customer'},
     {'code': 'N43', 'name': '硬装竣工验收', 'phase': 'construction', 'roles': ['监理', '客户', '总部'], 'module': 'customer'},
 
-    # 后续阶段 (44-58)
-    {'code': 'N44', 'name': '进度款收取', 'phase': 'follow_up', 'roles': ['财务', '销售'], 'module': 'finance', 'finance': 'progress'},
-    {'code': 'N45', 'name': '定制/家具下单', 'phase': 'follow_up', 'roles': ['物料专员'], 'module': 'material'},
-    {'code': 'N46', 'name': '物料入库验收', 'phase': 'follow_up', 'roles': ['物料专员'], 'module': 'material'},
-    {'code': 'N47', 'name': '尾款验证冲账', 'phase': 'follow_up', 'roles': ['财务', '物料'], 'module': 'finance', 'finance': 'final'},
-    {'code': 'N48', 'name': '软装出库配送', 'phase': 'follow_up', 'roles': ['物料专员'], 'module': 'material'},
-    {'code': 'N49', 'name': '家具/软装安装', 'phase': 'follow_up', 'roles': ['安装师傅'], 'module': 'customer'},
-    {'code': 'N50', 'name': '调试检测', 'phase': 'follow_up', 'roles': ['安装师傅'], 'module': 'customer'},
-    {'code': 'N51', 'name': '软装分项验收', 'phase': 'follow_up', 'roles': ['监理', '客户'], 'module': 'customer'},
-    {'code': 'N52', 'name': '全屋整体验收', 'phase': 'follow_up', 'roles': ['规划师', '监理', '客户'], 'module': 'customer'},
-    {'code': 'N53', 'name': '交付资料移交', 'phase': 'follow_up', 'roles': ['销售'], 'module': 'customer'},
-    {'code': 'N54', 'name': '售后工单处理', 'phase': 'follow_up', 'roles': ['售后专员'], 'module': 'customer'},
-    {'code': 'N55', 'name': '客户档案归档', 'phase': 'follow_up', 'roles': ['客服'], 'module': 'customer'},
-    {'code': 'N56', 'name': '生长动画+相册制作', 'phase': 'follow_up', 'roles': ['全案设计师', '规划师'], 'module': 'customer'},
-    {'code': 'N57', 'name': '家访准备与上门', 'phase': 'follow_up', 'roles': ['规划师', '店长'], 'module': 'customer'},
-    {'code': 'N58', 'name': '总结复盘', 'phase': 'follow_up', 'roles': ['团队'], 'module': 'customer'},
+    # 软装交付阶段 (44-53)
+    {'code': 'N44', 'name': '进度款收取', 'phase': 'soft_service', 'roles': ['财务', '销售'], 'module': 'finance', 'finance': 'progress'},
+    {'code': 'N45', 'name': '定制/家具下单', 'phase': 'soft_service', 'roles': ['物料专员'], 'module': 'material'},
+    {'code': 'N46', 'name': '物料入库验收', 'phase': 'soft_service', 'roles': ['物料专员'], 'module': 'material'},
+    {'code': 'N47', 'name': '尾款验证冲账', 'phase': 'soft_service', 'roles': ['财务', '物料'], 'module': 'finance', 'finance': 'final'},
+    {'code': 'N48', 'name': '软装出库配送', 'phase': 'soft_service', 'roles': ['物料专员'], 'module': 'material'},
+    {'code': 'N49', 'name': '家具/软装安装', 'phase': 'soft_service', 'roles': ['安装师傅'], 'module': 'customer'},
+    {'code': 'N50', 'name': '调试检测', 'phase': 'soft_service', 'roles': ['安装师傅'], 'module': 'customer'},
+    {'code': 'N51', 'name': '软装分项验收', 'phase': 'soft_service', 'roles': ['监理', '客户'], 'module': 'customer'},
+    {'code': 'N52', 'name': '全屋整体验收', 'phase': 'soft_service', 'roles': ['规划师', '监理', '客户'], 'module': 'customer'},
+    {'code': 'N53', 'name': '交付资料移交', 'phase': 'soft_service', 'roles': ['销售'], 'module': 'customer'},
+
+    # 售后服务阶段 (54-58)
+    {'code': 'N54', 'name': '售后工单处理', 'phase': 'after_sales', 'roles': ['售后专员'], 'module': 'customer'},
+    {'code': 'N55', 'name': '客户档案归档', 'phase': 'after_sales', 'roles': ['客服'], 'module': 'customer'},
+    {'code': 'N56', 'name': '生长动画+相册制作', 'phase': 'after_sales', 'roles': ['全案设计师', '规划师'], 'module': 'customer'},
+    {'code': 'N57', 'name': '家访准备与上门', 'phase': 'after_sales', 'roles': ['规划师', '店长'], 'module': 'customer'},
+    {'code': 'N58', 'name': '总结复盘', 'phase': 'after_sales', 'roles': ['团队'], 'module': 'customer'},
 ]

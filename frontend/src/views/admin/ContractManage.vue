@@ -466,9 +466,48 @@
             <el-divider content-position="left">报价表附件</el-divider>
             <el-form-item label="选择报价表">
               <el-select v-model="selectedQuoteId" placeholder="选择已有报价表作为附件" clearable style="width:100%" @change="onQuoteSelect">
-                <el-option v-for="q in quoteList" :key="q.id" :label="q.quote_no + ' - ' + q.customer_name + ' (¥' + formatMoney(q.total_amount) + ')'" :value="q.id" />
+                <el-option v-for="q in quoteList" :key="q.id" :label="q.quote_no + ' - ' + q.customer_name + ' (\u00a5' + formatMoney(q.total_amount) + ')'" :value="q.id" />
               </el-select>
             </el-form-item>
+
+            <!-- 费用构成预览（选择报价表后显示） -->
+            <div v-if="quoteFeeBreakdown" class="fee-breakdown-panel">
+              <div class="fee-breakdown-header">
+                <span class="fee-breakdown-title">\ud83d\udcca \u8d39\u7528\u6784\u6210\u8bc6\u522b</span>
+                <el-button type="primary" size="small" @click="applyFeeBreakdown">\u4e00\u952e\u586b\u5145\u5230\u5408\u540c</el-button>
+              </div>
+              <div class="fee-breakdown-grid">
+                <div v-for="(cat, key) in quoteFeeBreakdown.breakdown" :key="key" 
+                     class="fee-category-card" :class="{ 'has-amount': cat.amount > 0, 'zero': cat.amount === 0 }">
+                  <div class="fee-cat-name">{{ cat.name }}</div>
+                  <div class="fee-cat-amount">\u00a5{{ formatMoney(cat.amount) }}</div>
+                  <div class="fee-cat-count">{{ cat.count }} \u9879</div>
+                </div>
+              </div>
+              <div class="fee-total-bar">
+                <span>\u62a5\u4ef7\u5355\u603b\u989d: <strong>\u00a5{{ formatMoney(quoteFeeBreakdown.total_amount) }}</strong></span>
+                <span>(\u5171 {{ quoteFeeBreakdown.item_count }} \u9879\u7269\u6599)</span>
+              </div>
+              <!-- 可展开明细 -->
+              <el-collapse v-model="expandedFeeCategories" style="margin-top:8px;">
+                <el-collapse-item v-for="(cat, key) in quoteFeeBreakdown.breakdown" :key="'detail-'+key" 
+                                   :title="cat.name + ' (' + cat.count + '\u9879)'" :name="'detail-'+key"
+                                   v-if="cat.count > 0">
+                  <el-table :data="(quoteFeeBreakdown.detail_items || {})[key] || []" size="small" border stripe max-height="250">
+                    <el-table-column prop="name" label="\u540d\u79f0" min-width="150" show-overflow-tooltip />
+                    <el-table-column prop="room_name" label="\u623f\u95f4" width="80" />
+                    <el-table-column prop="category_level1" label="\u5206\u7c7b" width="120" />
+                    <el-table-column prop="quantity" label="\u6570\u91cf" width="60" align="right" />
+                    <el-table-column prop="unit_price" label="\u5355\u4ef7" width="90" align="right">
+                      <template #default="{ row }">\u00a5{{ formatMoney(row.unit_price) }}</template>
+                    </el-table-column>
+                    <el-table-column prop="total_price" label="\u91d1\u989d" width="100" align="right">
+                      <template #default="{ row }"><strong>\u00a5{{ formatMoney(row.total_price) }}</strong></template>
+                    </el-table-column>
+                  </el-table>
+                </el-collapse-item>
+              </el-collapse>
+            </div>
             <div v-if="createForm.attachments && createForm.attachments.length" class="attachment-preview">
               <el-tag v-for="(att, idx) in createForm.attachments" :key="idx" closable @close="removeAttachment(idx)">
                 {{ att.name }}
@@ -808,6 +847,8 @@ const options = reactive({ contract_types: [], status_list: [], payment_phases: 
 const customerOptions = ref([])
 const quoteList = ref([])
 const selectedQuoteId = ref(null)
+const quoteFeeBreakdown = ref(null)  // 费用构成数据
+const expandedFeeCategories = ref([])  // 展开的费用明细
 
 const createDialog = reactive({ visible: false, loading: false, isEdit: false, activeTab: 'basic' })
 const detailDrawer = reactive({ visible: false, title: '', contract: null })
@@ -1006,31 +1047,80 @@ const loadQuotes = async (customerId) => {
   }
 }
 
-// 选择报价表作为附件
-const onQuoteSelect = (quoteId) => {
-  if (!quoteId) return
-  const quote = quoteList.value.find(q => q.id === quoteId)
-  if (!quote) return
-  // 添加到附件列表
-  if (!createForm.attachments) createForm.attachments = []
-  // 避免重复添加
-  if (createForm.attachments.some(a => a.quote_id === quoteId)) {
-    ElMessage.warning('该报价表已添加')
+// 选择报价表作为附件 + 自动解析费用构成
+const onQuoteSelect = async (quoteId) => {
+  if (!quoteId) {
+    quoteFeeBreakdown.value = null
     return
   }
-  createForm.attachments.push({
-    name: `报价单-${quote.quote_no}`,
-    type: 'quote',
-    quote_id: quote.id,
-    url: quote.pdf_path || ''
-  })
-  selectedQuoteId.value = null // 重置选择
-  ElMessage.success('报价表已添加为附件')
+  const quote = quoteList.value.find(q => q.id === quoteId)
+  if (!quote) return
+  
+  // 添加到附件列表（原有逻辑）
+  if (!createForm.attachments) createForm.attachments = []
+  if (createForm.attachments.some(a => a.quote_id === quoteId)) {
+    ElMessage.warning('\u8be5\u62a5\u4ef7\u8868\u5df2\u6dfb\u52a0')
+  } else {
+    createForm.attachments.push({
+      name: `\u62a5\u4ef7\u5355-${quote.quote_no}`,
+      type: 'quote',
+      quote_id: quote.id,
+      url: quote.pdf_path || ''
+    })
+  }
+  
+  // 自动解析费用构成
+  try {
+    const res = await request.get(`/quotes/${quoteId}/fee-breakdown`)
+    quoteFeeBreakdown.value = res
+    // 默认展开有金额的分类
+    expandedFeeCategories.value = Object.keys(res.breakdown || {})
+      .filter(k => (res.breakdown || {})[k]?.amount > 0)
+      .map(k => 'detail-' + k)
+  } catch (e) {
+    console.error('\u8d39\u7528\u6784\u6210\u89e3\u6790\u5931\u8d25', e)
+    quoteFeeBreakdown.value = null
+  }
+  
+  selectedQuoteId.value = null
 }
 
 // 删除附件
 const removeAttachment = (index) => {
   createForm.attachments.splice(index, 1)
+}
+
+// 一键填充费用构成到合同表单
+const applyFeeBreakdown = () => {
+  if (!quoteFeeBreakdown.value) return
+  const s = quoteFeeBreakdown.value.contract_suggestion
+  
+  // 填充总金额
+  createForm.total_amount = s.total_amount
+  
+  // 填充分项费用
+  createForm.design_fee = s.design_fee || 0
+  createForm.construction_fee = s.construction_fee || 0
+  createForm.material_fee = s.material_fee || 0
+  createForm.soft_fee = s.soft_fee || 0
+  
+  // 将定制家具和成品家具存入variables（合同模板可引用）
+  if (!createForm.variables) createForm.variables = {}
+  createForm.variables.custom_furniture_fee = s.custom_furniture_fee || 0
+  createForm.variables.furniture_fee = s.furniture_fee || 0
+  createForm.variables.other_fee = s.other_fee || 0
+  
+  // 如果没有付款节点，自动生成默认三阶段付款计划
+  if (!createForm.payment_schedule || createForm.payment_schedule.length === 0) {
+    const total = s.total_amount || 0
+    createForm.payment_schedule = [
+      { phase: 'deposit', phase_name: '\u5b9a\u91d1/\u9996\u671f\u6b3e', node_desc: '\u7b7e\u8ba2\u5408\u540c\u65f6\u652f\u4ed8', percentage: 30, amount: Math.round(total * 0.3 * 100) / 100, planned_date: null },
+      { phase: 'progress', phase_name: '\u4e2d\u671f\u6b3e', node_desc: '\u57fa\u7840\u88c5\u4fee\u5b8c\u5de5\u540e', percentage: 50, amount: Math.round(total * 0.5 * 100) / 100, planned_date: null },
+      { phase: 'final', phase_name: '\u5c3e\u6b3e', node_desc: '\u9879\u76ee\u7ae0\u8282\u6838\u9a8c\u901a\u8fc7\u540e', percentage: 20, amount: Math.round(total * 0.2 * 100) / 100, planned_date: null },
+    ]
+  }
+  
+  ElMessage.success('\u8d39\u7528\u6784\u6210\u5df2\u586b\u5145\uff0c\u8bf7\u6838\u5bf9\u8c03\u6574')
 }
 
 // 重建项目地址
@@ -1442,4 +1532,74 @@ onMounted(() => {
 .contract-detail .section h4 { margin-bottom: 12px; color: #262626; font-weight: 500; border-left: 3px solid #409eff; padding-left: 8px; }
 
 .contract-form :deep(.el-tabs__content) { padding: 16px; }
+
+/* 费用构成预览面板 */
+.fee-breakdown-panel {
+  margin-top: 12px;
+  padding: 16px;
+  background: #fafbfc;
+  border: 1px solid #e4e7ed;
+  border-radius: 8px;
+}
+.fee-breakdown-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+.fee-breakdown-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #303133;
+}
+.fee-breakdown-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.fee-category-card {
+  padding: 10px 12px;
+  background: #fff;
+  border: 1px solid #e4e7ed;
+  border-radius: 6px;
+  text-align: center;
+  transition: all 0.2s;
+}
+.fee-category-card.has-amount {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.fee-category-card.zero {
+  opacity: 0.5;
+}
+.fee-cat-name {
+  font-size: 13px;
+  color: #606266;
+  margin-bottom: 4px;
+}
+.fee-cat-amount {
+  font-size: 16px;
+  font-weight: bold;
+  color: #303133;
+}
+.fee-category-card.has-amount .fee-cat-amount {
+  color: #409eff;
+}
+.fee-cat-count {
+  font-size: 11px;
+  color: #909399;
+  margin-top: 2px;
+}
+.fee-total-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #f0f9eb;
+  border: 1px solid #e1f3d8;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #67c23a;
+}
 </style>

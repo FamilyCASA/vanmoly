@@ -54,7 +54,7 @@ class MaterialCategory(db.Model):
             'sort_order': self.sort_order,
             'is_enabled': self.is_enabled,
             'public_count': public_count,
-            'children': [c.to_dict() for c in self.children if not c.is_deleted] if self.children else []
+            'children': [c.to_dict() for c in (self.children or []) if not c.is_deleted] if (self.children or []) else []
         }
 
 

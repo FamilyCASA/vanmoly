@@ -202,6 +202,12 @@ def create_quote(current_user):
         customer_name=customer.name if customer else None,
         customer_phone=customer.phone if customer else None,
         cover_config=data.get('cover_config', {}),
+        project_name=data.get('project_name'),
+        project_address=data.get('project_address'),
+        house_type=data.get('house_type'),
+        related_case_id=data.get('related_case_id'),
+        contract_no=data.get('contract_no'),
+        cover_template_id=data.get('cover_template_id'),
         service_team=data.get('service_team', []),
         category_summary=data.get('category_summary', {}),
         subtotal=data.get('subtotal', 0),
@@ -283,7 +289,9 @@ def update_quote(current_user, id):
         return jsonify({'code': 400, 'message': '只有草稿状态可以修改'}), 400
 
     fields = [
-        'cover_config', 'service_team', 'category_summary',
+        'cover_config', 'project_name', 'project_address', 'house_type',
+        'related_case_id', 'contract_no', 'cover_template_id',
+        'service_team', 'category_summary',
         'subtotal', 'management_fee', 'management_fee_rate',
         'tax', 'tax_rate', 'total_amount', 'valid_days', 'remark'
     ]
@@ -1624,4 +1632,116 @@ def manual_recalculate(current_user, id):
         'code': 200,
         'message': '重新计算完成',
         'data': quote.to_dict(include_items=True)
+    })
+
+
+# ========== 报价费用构成解析（合同导入用） ==========
+
+# 七大类费用映射规则
+FEE_CATEGORIES = {
+    # key: (中文名, 匹配的category_level1值列表, 对应合同字段)
+    'design_fee':        ('全案服务费',    ['design'],                                     'design_fee'),
+    'hard_material':     ('硬装材料费',    ['hard_material', 'Hard Material'],             'material_fee'),
+    'construction':      ('硬装施工费',    ['construction', 'Construction'],               'construction_fee'),
+    'custom_furniture':  ('全屋定制家具',  ['custom', 'Custom Furniture'],                  None),  # 合并到 material_fee
+    'finished_furniture':('成品家具',      ['furniture', 'Finished Furniture'],             None),  # 合并到 soft_fee
+    'soft_decor':        ('软装饰品',      ['soft', 'Soft Decor'],                         'soft_fee'),
+    'other':             ('其他费用',      [],                                             None),   # 兜底
+}
+
+
+@quote_bp.route('/<int:id>/fee-breakdown', methods=['GET'])
+@jwt_required_v2
+def get_quote_fee_breakdown(current_user, id):
+    """解析报价单的费用构成，按七大类汇总
+    
+    用于合同模块导入报价表时自动识别费用分布
+    返回：
+    - categories: 七大类各自金额和明细
+    - totals: 各合同字段的建议填充值
+    - items: 每个物料项的分类归属
+    """
+    quote = Quote.query.get_or_404(id)
+    items = QuoteItem.query.filter_by(quote_id=id).order_by(QuoteItem.sort_order, QuoteItem.id).all()
+    
+    # 初始化七大类
+    breakdown = {
+        'design_fee':        {'name': '全案服务费',     'amount': 0, 'items': [], 'contract_field': 'design_fee'},
+        'hard_material':     {'name': '硬装材料费',     'amount': 0, 'items': [], 'contract_field': 'material_fee'},
+        'construction':      {'name': '硬装施工费',     'amount': 0, 'items': [], 'contract_field': 'construction_fee'},
+        'custom_furniture':  {'name': '全屋定制家具',   'amount': 0, 'items': [], 'contract_field': 'custom_furniture_fee'},
+        'finished_furniture':{'name': '成品家具',       'amount': 0, 'items': [], 'contract_field': 'furniture_fee'},
+        'soft_decor':        {'name': '软装饰品',       'amount': 0, 'items': [], 'contract_field': 'soft_fee'},
+        'other':             {'name': '其他费用',       'amount': 0, 'items': [], 'contract_field': None},
+    }
+    
+    # 分类映射：category_level1 -> 七大类key
+    cat_mapping = {
+        'design':              'design_fee',
+        'Design':              'design_fee',
+        'hard_material':       'hard_material',
+        'Hard Material':       'hard_material',
+        'construction':        'construction',
+        'Construction':        'construction',
+        'custom':              'custom_furniture',
+        'Custom Furniture':    'custom_furniture',
+        'furniture':           'finished_furniture',
+        'Finished Furniture':  'finished_furniture',
+        'soft':                'soft_decor',
+        'Soft Decor':          'soft_decor',
+        'Soft':                'soft_decor',
+    }
+    
+    total = 0
+    for item in items:
+        price = float(item.total_price or 0)
+        total += price
+        
+        # 确定分类
+        cat_l1 = (item.category_level1 or '').strip()
+        category_key = cat_mapping.get(cat_l1, 'other')
+        
+        item_info = {
+            'id': item.id,
+            'name': item.name,
+            'category_level1': cat_l1,
+            'category_level2': item.category_level2 or '',
+            'room_name': item.room_name or '',
+            'quantity': float(item.quantity or 1),
+            'unit_price': float(item.unit_price or 0),
+            'total_price': price,
+            'assigned_category': category_key,
+        }
+        
+        breakdown[category_key]['items'].append(item_info)
+        breakdown[category_key]['amount'] += price
+    
+    # 四舍五入
+    for k in breakdown:
+        breakdown[k]['amount'] = round(breakdown[k]['amount'], 2)
+    
+    # 计算合同字段建议值（合并策略）
+    contract_suggestion = {
+        'total_amount': round(total, 2),
+        'design_fee': round(breakdown['design_fee']['amount'], 2),
+        'construction_fee': round(breakdown['construction']['amount'] + breakdown['hard_material']['amount'], 2),  # 施工+材料
+        'material_fee': round(breakdown['hard_material']['amount'], 2),  # 单独硬装材料
+        'custom_furniture_fee': round(breakdown['custom_furniture']['amount'], 2),
+        'furniture_fee': round(breakdown['finished_furniture']['amount'], 2),
+        'soft_fee': round(breakdown['soft_decor']['amount'] + breakdown['finished_furniture']['amount'], 2),  # 软装+成品家具
+        'other_fee': round(breakdown['other']['amount'], 2),
+    }
+    
+    return jsonify({
+        'code': 200,
+        'data': {
+            'quote_id': id,
+            'quote_no': quote.quote_no,
+            'customer_name': quote.customer_name,
+            'item_count': len(items),
+            'total_amount': round(total, 2),
+            'breakdown': {k: {'name': v['name'], 'amount': v['amount'], 'count': len(v['items'])} for k, v in breakdown.items()},
+            'detail_items': {k: v['items'] for k, v in breakdown.items() if v['items']},
+            'contract_suggestion': contract_suggestion,
+        }
     })
