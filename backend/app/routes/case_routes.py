@@ -631,7 +631,7 @@ def get_timeline(current_user, id):
 @case_bp.route('/cases/<int:id>/timeline', methods=['POST'])
 @jwt_required_v2
 def add_timeline_node(current_user, id):
-    """添加鏃堕棿鑺傜偣"""
+    """添加时间节点"""
     try:
         case = CaseStudy.query.filter_by(id=id).filter(CaseStudy.deleted_at.is_(None)).first()
         if not case:
@@ -639,9 +639,17 @@ def add_timeline_node(current_user, id):
         
         data = request.get_json()
         
+        # 解析 datetime 字符串（SQLite DateTime 只接受 Python datetime 对象）
+        node_time_str = data.get('node_time')
+        node_time = None
+        if node_time_str:
+            # 支持 ISO 格式带 Z / 不带 Z / 标准格式
+            ts = node_time_str.replace('Z', '+00:00')
+            node_time = datetime.fromisoformat(ts)
+        
         node = CaseTimeline(
             case_id=id,
-            node_time=data.get('node_time'),
+            node_time=node_time,
             title=data.get('title'),
             content=data.get('content'),
             media_urls=data.get('media_urls'),
@@ -669,7 +677,12 @@ def update_timeline_node(current_user, node_id):
         data = request.get_json()
         
         if 'node_time' in data:
-            node.node_time = data['node_time']
+            node_time_str = data['node_time']
+            if node_time_str:
+                ts = node_time_str.replace('Z', '+00:00')
+                node.node_time = datetime.fromisoformat(ts)
+            else:
+                node.node_time = None
         if 'title' in data:
             node.title = data['title']
         if 'content' in data:

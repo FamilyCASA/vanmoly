@@ -21,6 +21,7 @@ from app.models.hr import (
 from app.models.hr_v2 import (
     EmployeeSalary, PerformanceReview, EmployeePoints, PointsTransaction,
     CareerPath, TrainingRecord, EmployeeWelfare,
+    PointsRule, PointsAudit, TeamBuilding, PointsExchange,
 )
 from app.models.frontend_config import (
     PageConfig, ComponentConfig, ResourceConfig,
@@ -73,6 +74,7 @@ __all__ = [
     'EmployeeContract', 'EmployeePerformance',
     'EmployeeSalary', 'PerformanceReview', 'EmployeePoints', 'PointsTransaction',
     'CareerPath', 'TrainingRecord', 'EmployeeWelfare',
+    'PointsRule', 'PointsAudit', 'TeamBuilding', 'PointsExchange',
     # 合同
     'Contract', 'ContractTemplate', 'ContractPayment', 'ContractChange',
     # 楼盘

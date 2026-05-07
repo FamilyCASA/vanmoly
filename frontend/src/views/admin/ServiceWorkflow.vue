@@ -4,22 +4,11 @@
     <div class="page-header">
       <div class="header-left">
         <h2>服务流程</h2>
-        <span class="subtitle">全案服务流程管理（可编辑）</span>
-      </div>
-      <div class="header-right">
-        <el-switch
-          v-model="editMode"
-          active-text="编辑模式"
-          inactive-text="查看模式"
-          style="margin-right: 16px"
-        />
-        <el-button type="primary" @click="showInitDialog" v-if="!hasNodes">
-          <el-icon><Setting /></el-icon> 初始化流程
-        </el-button>
+        <span class="subtitle">全案服务流程管理</span>
       </div>
     </div>
 
-    <!-- 统计卡片 -->
+    <!-- 统计卡片（只读） -->
     <el-row :gutter="16" class="stats-row">
       <el-col :span="4" v-for="phase in phases" :key="phase.code">
         <div
@@ -28,134 +17,65 @@
           :style="{ borderLeftColor: phase.color }"
           @click="selectPhase(phase.code)"
         >
-          <div class="stat-title">
-            <template v-if="editMode">
-              <el-input
-                v-model="phase.name"
-                size="small"
-                class="inline-edit"
-                @blur="updatePhase(phase)"
-                @keyup.enter="$event.target.blur()"
-              />
-            </template>
-            <template v-else>{{ phase.name }}</template>
-          </div>
+          <div class="stat-title">{{ phase.name }}</div>
           <div class="stat-value">{{ phase.node_count || 0 }}</div>
           <div class="stat-nodes">节点</div>
-          <div v-if="editMode" class="phase-color-picker">
-            <el-color-picker
-              v-model="phase.color"
-              size="small"
-              @change="updatePhase(phase)"
-            />
-          </div>
         </div>
       </el-col>
     </el-row>
 
-    <!-- 节点列表 -->
+    <!-- 节点列表（只读） -->
     <el-card shadow="never" v-if="activePhase">
       <template #header>
         <div class="card-header">
           <span>{{ currentPhaseName }} - 节点列表</span>
           <div>
-            <el-radio-group v-model="viewMode" size="small" style="margin-right: 12px">
+            <el-radio-group v-model="viewMode" size="small">
               <el-radio-button value="list">列表</el-radio-button>
               <el-radio-button value="card">卡片</el-radio-button>
             </el-radio-group>
-            <el-button v-if="editMode" type="primary" size="small" @click="addNode">
-              <el-icon><Plus /></el-icon> 新增节点
-            </el-button>
           </div>
         </div>
       </template>
 
-      <!-- 列表视图 -->
+      <!-- 列表视图（只读） -->
       <el-table v-if="viewMode === 'list'" :data="currentNodes" stripe row-key="id">
-        <el-table-column label="排序" width="60" align="center" v-if="editMode">
-          <template #default>
-            <el-icon class="drag-handle"><Rank /></el-icon>
-          </template>
-        </el-table-column>
         <el-table-column label="编码" prop="node_code" width="90">
           <template #default="{ row }">
-            <template v-if="editMode">
-              <el-input v-model="row.node_code" size="small" style="width:80px" @blur="updateNode(row)" />
-            </template>
-            <template v-else>
-              <span class="mono">{{ row.node_code }}</span>
-            </template>
+            <span class="mono">{{ row.node_code }}</span>
           </template>
         </el-table-column>
         <el-table-column label="节点名称" min-width="200">
-          <template #default="{ row }">
-            <template v-if="editMode">
-              <el-input v-model="row.node_name" size="small" @blur="updateNode(row)" @keyup.enter="$event.target.blur()" />
-            </template>
-            <template v-else>{{ row.node_name }}</template>
-          </template>
+          <template #default="{ row }">{{ row.node_name }}</template>
         </el-table-column>
         <el-table-column label="负责角色" width="200">
           <template #default="{ row }">
-            <template v-if="editMode">
-              <el-select
-                v-model="row.responsible_roles"
-                multiple
-                filterable
-                allow-create
-                size="small"
-                style="width:100%"
-                @change="updateNode(row)"
-              >
-                <el-option v-for="r in allRoles" :key="r" :label="r" :value="r" />
-              </el-select>
-            </template>
-            <template v-else>
-              <el-tag v-for="role in row.responsible_roles" :key="role" size="small" class="role-tag">
-                {{ role }}
-              </el-tag>
-            </template>
+            <el-tag v-for="role in row.responsible_roles" :key="role" size="small" class="role-tag">
+              {{ role }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="关联模块" width="120">
           <template #default="{ row }">
-            <template v-if="editMode">
-              <el-select v-model="row.related_module" size="small" clearable @change="updateNode(row)">
-                <el-option v-for="m in moduleOptions" :key="m.value" :label="m.label" :value="m.value" />
-              </el-select>
-            </template>
-            <template v-else>
-              <el-tag v-if="row.related_module" type="info" size="small">
-                {{ moduleLabel(row.related_module) }}
-              </el-tag>
-            </template>
+            <el-tag v-if="row.related_module" type="info" size="small">
+              {{ moduleLabel(row.related_module) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="描述" min-width="160" v-if="editMode">
-          <template #default="{ row }">
-            <el-input v-model="row.description" size="small" placeholder="可选描述" @blur="updateNode(row)" />
-          </template>
-        </el-table-column>
-        <el-table-column label="财务" width="70" align="center" v-if="!editMode">
+        <el-table-column label="财务" width="70" align="center">
           <template #default="{ row }">
             <el-icon v-if="row.finance_trigger" color="#52C41A"><Check /></el-icon>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="140" fixed="right" v-if="editMode">
+        <el-table-column label="操作" width="80" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="editNodeDetail(row)">详情</el-button>
-            <el-button link type="danger" size="small" @click="deleteNode(row)">删除</el-button>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="80" fixed="right" v-if="!editMode">
-          <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="editNodeDetail(row)">详情</el-button>
+            <el-button link type="primary" size="small" @click="viewNodeDetail(row)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <!-- 卡片视图 -->
+      <!-- 卡片视图（只读） -->
       <div v-else class="node-cards">
         <el-card
           v-for="node in currentNodes"
@@ -175,10 +95,6 @@
           </div>
           <div class="node-module" v-if="node.related_module">
             关联: {{ moduleLabel(node.related_module) }}
-          </div>
-          <div v-if="editMode" class="node-actions">
-            <el-button link type="primary" size="small" @click="editNodeDetail(node)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="deleteNode(node)">删除</el-button>
           </div>
         </el-card>
       </div>
@@ -263,27 +179,6 @@
       </div>
     </el-card>
 
-    <!-- 初始化对话框 -->
-    <el-dialog v-model="initDialog.visible" title="初始化服务流程" width="500px">
-      <el-alert
-        description="将创建6阶段58节点全案服务流程，请确认是否继续？"
-        type="warning"
-        show-icon
-        :closable="false"
-      />
-      <div class="phase-preview" style="margin-top:16px">
-        <div v-for="phase in phases" :key="phase.code" class="phase-item">
-          <span class="phase-dot" :style="{ background: phase.color }"></span>
-          <span class="phase-name">{{ phase.name }}</span>
-          <span class="phase-nodes">{{ phase.node_count }} 节点</span>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="initDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="initNodes" :loading="initDialog.loading">确认初始化</el-button>
-      </template>
-    </el-dialog>
-
     <!-- 创建流程对话框 -->
     <el-dialog v-model="createDialog.visible" title="为客户创建流程" width="500px">
       <el-form :model="createForm" label-width="100px">
@@ -310,57 +205,33 @@
       </template>
     </el-dialog>
 
-    <!-- 节点详情对话框 -->
+    <!-- 节点详情对话框（只读） -->
     <el-dialog v-model="nodeDetailDialog.visible" :title="`节点详情 - ${nodeDetailDialog.node?.node_code || ''}`" width="600px">
-      <el-form :model="nodeDetailDialog.node" label-width="100px" v-if="nodeDetailDialog.node">
-        <el-form-item label="节点编码">
-          <el-input v-model="nodeDetailDialog.node.node_code" :disabled="!editMode" />
-        </el-form-item>
-        <el-form-item label="节点名称">
-          <el-input v-model="nodeDetailDialog.node.node_name" :disabled="!editMode" />
-        </el-form-item>
-        <el-form-item label="所属阶段">
-          <el-select v-model="nodeDetailDialog.node.phase" :disabled="!editMode" style="width:100%">
-            <el-option v-for="p in phases" :key="p.code" :label="p.name" :value="p.code" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="负责角色">
-          <el-select v-model="nodeDetailDialog.node.responsible_roles" multiple filterable allow-create :disabled="!editMode" style="width:100%">
-            <el-option v-for="r in allRoles" :key="r" :label="r" :value="r" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="关联模块">
-          <el-select v-model="nodeDetailDialog.node.related_module" clearable :disabled="!editMode" style="width:100%">
-            <el-option v-for="m in moduleOptions" :key="m.value" :label="m.label" :value="m.value" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="描述">
-          <el-input v-model="nodeDetailDialog.node.description" type="textarea" :rows="2" :disabled="!editMode" />
-        </el-form-item>
-        <el-form-item label="财务联动">
-          <el-switch v-model="nodeDetailDialog.node.finance_trigger" :disabled="!editMode" />
-        </el-form-item>
-        <el-form-item label="财务类型" v-if="nodeDetailDialog.node.finance_trigger">
-          <el-select v-model="nodeDetailDialog.node.finance_type" clearable :disabled="!editMode">
-            <el-option label="定金" value="deposit" />
-            <el-option label="首付款" value="first_payment" />
-            <el-option label="进度款" value="progress" />
-            <el-option label="尾款" value="final" />
-            <el-option label="质保金" value="quality" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="输入要求" v-if="editMode">
-          <el-select v-model="nodeDetailDialog.node.input_requirements" multiple filterable allow-create :disabled="!editMode" style="width:100%">
-          </el-select>
-        </el-form-item>
-        <el-form-item label="交付物" v-if="editMode">
-          <el-select v-model="nodeDetailDialog.node.output_deliverables" multiple filterable allow-create :disabled="!editMode" style="width:100%">
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer v-if="editMode">
-        <el-button @click="nodeDetailDialog.visible = false">取消</el-button>
-        <el-button type="primary" @click="saveNodeDetail">保存</el-button>
+      <el-descriptions :column="2" border v-if="nodeDetailDialog.node">
+        <el-descriptions-item label="节点编码">{{ nodeDetailDialog.node.node_code }}</el-descriptions-item>
+        <el-descriptions-item label="节点名称">{{ nodeDetailDialog.node.node_name }}</el-descriptions-item>
+        <el-descriptions-item label="所属阶段">{{ phaseName(nodeDetailDialog.node.phase) }}</el-descriptions-item>
+        <el-descriptions-item label="关联模块">{{ nodeDetailDialog.node.related_module ? moduleLabel(nodeDetailDialog.node.related_module) : '-' }}</el-descriptions-item>
+        <el-descriptions-item label="负责角色" :span="2">
+          <el-tag v-for="role in nodeDetailDialog.node.responsible_roles" :key="role" size="small" class="role-tag">{{ role }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="财务联动">
+          <el-icon v-if="nodeDetailDialog.node.finance_trigger" color="#52C41A"><Check /></el-icon>
+          <span v-else>无</span>
+        </el-descriptions-item>
+        <el-descriptions-item label="财务类型" v-if="nodeDetailDialog.node.finance_trigger">
+          {{ financeTypeLabel(nodeDetailDialog.node.finance_type) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="描述" :span="2">{{ nodeDetailDialog.node.description || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="输入要求" :span="2" v-if="nodeDetailDialog.node.input_requirements?.length">
+          <el-tag v-for="req in nodeDetailDialog.node.input_requirements" :key="req" size="small" type="info" class="role-tag">{{ req }}</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="交付物" :span="2" v-if="nodeDetailDialog.node.output_deliverables?.length">
+          <el-tag v-for="deliv in nodeDetailDialog.node.output_deliverables" :key="deliv" size="small" type="success" class="role-tag">{{ deliv }}</el-tag>
+        </el-descriptions-item>
+      </el-descriptions>
+      <template #footer>
+        <el-button @click="nodeDetailDialog.visible = false">关闭</el-button>
       </template>
     </el-dialog>
 
@@ -409,12 +280,10 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Setting, Plus, Check, ArrowDown, Rank } from '@element-plus/icons-vue'
+import { Plus, Check, ArrowDown } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const loading = ref(false)
-const hasNodes = ref(false)
-const editMode = ref(false)
 const phases = ref([])
 const nodes = ref({})
 const workflows = ref([])
@@ -449,7 +318,6 @@ const currentNodes = computed(() => {
 })
 
 // 对话框
-const initDialog = reactive({ visible: false, loading: false })
 const createDialog = reactive({ visible: false, loading: false })
 const nodeDetailDialog = reactive({ visible: false, node: null })
 const detailDrawer = reactive({ visible: false, title: '', workflow: null, records: [] })
@@ -480,7 +348,6 @@ const loadNodes = async () => {
   try {
     const res = await request.get('/workflows/nodes')
     nodes.value = res || {}
-    hasNodes.value = Object.keys(nodes.value).length > 0
   } catch (e) {
     console.error('加载节点失败', e)
   }
@@ -513,120 +380,20 @@ const loadCustomers = async () => {
   }
 }
 
-// ========== 阶段操作 ==========
+// ========== 阶段操作（只读） ==========
 
 const selectPhase = (code) => {
   activePhase.value = code
 }
 
-const updatePhase = async (phase) => {
-  try {
-    await request.put(`/workflows/phases/${phase.id}`, {
-      name: phase.name,
-      color: phase.color
-    })
-    ElMessage.success('阶段配置已更新')
-  } catch (e) {
-    ElMessage.error('更新失败')
-  }
-}
+// ========== 节点操作（只读） ==========
 
-// ========== 节点操作 ==========
-
-const addNode = async () => {
-  try {
-    const res = await request.post('/workflows/nodes', {
-      node_name: '新节点',
-      phase: activePhase.value,
-      responsible_roles: []
-    })
-    ElMessage.success('节点已添加')
-    loadNodes()
-    loadPhases()  // 刷新节点计数
-  } catch (e) {
-    ElMessage.error('添加失败')
-  }
-}
-
-const updateNode = async (node) => {
-  try {
-    await request.put(`/workflows/nodes/${node.id}`, {
-      node_name: node.node_name,
-      node_code: node.node_code,
-      description: node.description,
-      responsible_roles: node.responsible_roles,
-      related_module: node.related_module,
-      finance_trigger: node.finance_trigger,
-      finance_type: node.finance_type
-    })
-  } catch (e) {
-    ElMessage.error('更新失败')
-  }
-}
-
-const deleteNode = async (node) => {
-  try {
-    await ElMessageBox.confirm(
-      `确定删除节点「${node.node_name}」吗？`,
-      '确认删除',
-      { type: 'warning' }
-    )
-    await request.delete(`/workflows/nodes/${node.id}`)
-    ElMessage.success('已删除')
-    loadNodes()
-    loadPhases()
-  } catch (e) {
-    if (e !== 'cancel') ElMessage.error('删除失败')
-  }
-}
-
-const editNodeDetail = (node) => {
+const viewNodeDetail = (node) => {
   nodeDetailDialog.node = JSON.parse(JSON.stringify(node))
   nodeDetailDialog.visible = true
 }
 
-const saveNodeDetail = async () => {
-  const node = nodeDetailDialog.node
-  try {
-    await request.put(`/workflows/nodes/${node.id}`, {
-      node_name: node.node_name,
-      node_code: node.node_code,
-      phase: node.phase,
-      description: node.description,
-      responsible_roles: node.responsible_roles,
-      related_module: node.related_module,
-      finance_trigger: node.finance_trigger,
-      finance_type: node.finance_type,
-      input_requirements: node.input_requirements,
-      output_deliverables: node.output_deliverables
-    })
-    ElMessage.success('保存成功')
-    nodeDetailDialog.visible = false
-    loadNodes()
-    loadPhases()
-  } catch (e) {
-    ElMessage.error('保存失败')
-  }
-}
-
 // ========== 流程操作 ==========
-
-const showInitDialog = () => { initDialog.visible = true }
-
-const initNodes = async () => {
-  initDialog.loading = true
-  try {
-    await request.post('/workflows/nodes/init')
-    ElMessage.success('初始化成功')
-    initDialog.visible = false
-    loadNodes()
-    loadPhases()
-  } catch (e) {
-    ElMessage.error(e.response?.data?.message || '初始化失败')
-  } finally {
-    initDialog.loading = false
-  }
-}
 
 const openCreateDialog = () => {
   createDialog.visible = true
@@ -700,6 +467,11 @@ const moduleLabel = (mod) => {
   return labels[mod] || mod
 }
 
+const financeTypeLabel = (type) => {
+  const labels = { deposit: '定金', first_payment: '首付款', progress: '进度款', final: '尾款', quality: '质保金' }
+  return labels[type] || type || '-'
+}
+
 const phaseColor = (code) => {
   const phase = phases.value.find(p => p.code === code)
   return phase?.color || '#999'
@@ -770,7 +542,6 @@ onMounted(() => {
 .stat-nodes { font-size: 12px; color: #bfbfbf; margin-top: 4px; }
 
 .phase-color-picker { margin-top: 8px; }
-.inline-edit { width: 100px; }
 
 .card-header { display: flex; justify-content: space-between; align-items: center; }
 .role-tag { margin-right: 4px; margin-bottom: 2px; }
@@ -787,7 +558,6 @@ onMounted(() => {
 .node-name { font-weight: 500; color: #262626; margin-bottom: 8px; }
 .node-roles { margin-bottom: 8px; }
 .node-module { font-size: 12px; color: #bfbfbf; }
-.node-actions { margin-top: 8px; border-top: 1px solid #f0f0f0; padding-top: 8px; }
 
 .workflow-list { margin-top: 24px; }
 .customer-info .customer-name { font-weight: 500; color: #262626; }
@@ -808,6 +578,4 @@ onMounted(() => {
 .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
 .record-header .node-name { font-weight: 500; }
 .record-content { font-size: 13px; color: #595959; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px; }
-
-.drag-handle { cursor: move; color: #bfbfbf; }
 </style>

@@ -13,76 +13,58 @@
         active-text-color="#409EFF"
         :collapse="isCollapse"
       >
-        <!-- 1. 数据看板 - 全局视角，先掌握大盘 -->
+        <!-- 1. 数据看板 -->
         <el-menu-item index="/admin/dashboard">
           <el-icon><DataLine /></el-icon>
           <span>数据看板</span>
         </el-menu-item>
 
-        <!-- 2. 员工管理 - 组织架构是基础，所有业务绑定到人 -->
-        <el-menu-item index="/admin/employees">
-          <el-icon><UserFilled /></el-icon>
-          <span>员工管理</span>
-        </el-menu-item>
-
-        <!-- 3. 分店管理 - 多店架构基础，仅超级管理员可访问 -->
-        <el-menu-item index="/admin/stores">
-          <el-icon><Shop /></el-icon>
-          <span>分店管理</span>
-        </el-menu-item>
-
-        <!-- 4. 楼盘管理 - 先锁死战场，所有线索/客户都要关联楼盘 -->
+        <!-- 2. 楼盘管理 -->
         <el-menu-item index="/admin/buildings">
           <el-icon><OfficeBuilding /></el-icon>
           <span>楼盘管理</span>
         </el-menu-item>
 
-        <!-- 5. 线索管理 - 业务源头，先把机会抓进来 -->
+        <!-- 3. 线索管理 -->
         <el-menu-item index="/admin/leads">
           <el-icon><User /></el-icon>
           <span>线索管理</span>
         </el-menu-item>
 
-        <!-- 6. 客户管理 - 线索转化后的核心池，承接线索→推进成交 -->
+        <!-- 4. 客户管理 -->
         <el-menu-item index="/admin/customers">
           <el-icon><UserFilled /></el-icon>
           <span>客户管理</span>
         </el-menu-item>
 
-        <!-- 7. 案例管理 - 获客工具 + 客户转化辅助，既引流也支撑客户谈单 -->
+        <!-- 5. 案例管理 -->
         <el-menu-item index="/admin/cases">
           <el-icon><Picture /></el-icon>
           <span>案例管理</span>
         </el-menu-item>
 
-        <!-- 8. 方案管理 - 客户跟进→提案环节，推进客户到预算/报价 -->
+        <!-- 6. 方案管理 -->
         <el-menu-item index="/admin/schemes">
           <el-icon><Document /></el-icon>
           <span>方案管理</span>
         </el-menu-item>
 
-        <!-- 9. 报价管理 - 方案之后，决定成交的关键环节 -->
+        <!-- 7. 报价管理 -->
         <el-menu-item index="/admin/quotes">
           <el-icon><Money /></el-icon>
           <span>报价管理</span>
         </el-menu-item>
 
-        <!-- 10. 合同管理 - 报价通过后，锁定成交，进入交付阶段 -->
+        <!-- 8. 合同管理 -->
         <el-menu-item index="/admin/contracts">
           <el-icon><Document /></el-icon>
           <span>合同管理</span>
         </el-menu-item>
 
-        <!-- 11. 服务流程(58节点) - 合同之后，全流程交付管理，核心执行线 -->
+        <!-- 9. 服务流程 -->
         <el-menu-item index="/admin/workflow">
           <el-icon><Connection /></el-icon>
           <span>服务流程</span>
-        </el-menu-item>
-
-        <!-- 12. 物料管理 - 支撑服务流程的供应链，为交付提供保障 -->
-        <el-menu-item index="/admin/materials">
-          <el-icon><Box /></el-icon>
-          <span>物料管理</span>
         </el-menu-item>
 
         <!-- 辅助功能 -->
@@ -90,13 +72,11 @@
           <el-icon><Calendar /></el-icon>
           <span>预约管理</span>
         </el-menu-item>
-        <el-menu-item index="/admin/files">
-          <el-icon><Folder /></el-icon>
-          <span>文件管理</span>
-        </el-menu-item>
-        <el-menu-item index="/admin/frontend">
-          <el-icon><Setting /></el-icon>
-          <span>前端配置</span>
+
+        <!-- 系统设置（集成员工/分店/物料/文件/前端配置/流程模板/分类管理） -->
+        <el-menu-item index="/admin/settings">
+          <el-icon><Tools /></el-icon>
+          <span>系统设置</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -110,244 +90,224 @@
           <span class="breadcrumb">管理后台</span>
         </div>
         <div class="header-right">
-          <el-dropdown @command="handleCommand">
-            <span class="user-info">
-              <el-avatar :size="32" :icon="UserFilled" />
-              <span class="username">{{ userInfo?.name || '管理员' }}</span>
-              <el-icon><ArrowDown /></el-icon>
-            </span>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人中心</el-dropdown-item>
-                <el-dropdown-item command="settings">系统设置</el-dropdown-item>
-                <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <div class="my-btn" @click="myDrawerVisible = true">
+            <el-icon><UserFilled /></el-icon>
+            <span>我的</span>
+          </div>
         </div>
       </el-header>
       <el-main class="main-content">
         <router-view />
       </el-main>
+    </el-container>
 
-      <!-- 系统设置弹窗 -->
-      <el-drawer v-model="settingsVisible" title="系统设置" size="900px" :destroy-on-close="true">
-        <div v-if="!hasSettingsPermission" style="padding:40px;text-align:center;color:#999;">
-          <p>您没有权限访问系统设置</p>
-          <p style="font-size:13px;">仅超级管理员和门店负责人可使用此功能</p>
-        </div>
-        <div v-else>
-          <!-- 分类管理 -->
-          <div class="settings-section">
-            <h3 class="section-title">
-              <el-icon><Folder /></el-icon>
-              物料分类管理
-            </h3>
-            <!-- 操作栏 -->
-            <div class="section-toolbar">
-              <el-button type="primary" @click="categoryDialog.visible = true; categoryDialog.isEdit = false; resetCategoryForm()">
-                <el-icon><Plus /></el-icon> 新建分类
-              </el-button>
-            </div>
-            <!-- 统计卡片 -->
-            <el-row :gutter="16" style="margin-bottom:16px;">
-              <el-col :span="8">
-                <div class="stat-card">
-                  <div class="stat-icon" style="background:#E6F7FF;color:#1890FF;"><el-icon><Folder /></el-icon></div>
-                  <div class="stat-info">
-                    <div class="stat-value">{{ categoryStats.total || 0 }}</div>
-                    <div class="stat-label">总分类</div>
-                  </div>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="stat-card">
-                  <div class="stat-icon" style="background:#F6FFED;color:#52C41A;"><el-icon><FolderOpened /></el-icon></div>
-                  <div class="stat-info">
-                    <div class="stat-value">{{ categoryStats.enabled || 0 }}</div>
-                    <div class="stat-label">已启用</div>
-                  </div>
-                </div>
-              </el-col>
-              <el-col :span="8">
-                <div class="stat-card">
-                  <div class="stat-icon" style="background:#FFF7E6;color:#FA8C16;"><el-icon><Box /></el-icon></div>
-                  <div class="stat-info">
-                    <div class="stat-value">{{ categoryStats.withMaterials || 0 }}</div>
-                    <div class="stat-label">有物料</div>
-                  </div>
-                </div>
-              </el-col>
-            </el-row>
-            <!-- 分类树表格 -->
-            <el-table :data="categoryTree" row-key="id" default-expand-all :tree-props="{ children: 'children' }" v-loading="categoryLoading" size="small">
-              <el-table-column label="分类名称" min-width="180">
-                <template #default="{ row }">
-                  <span class="color-dot" :style="{ background: row.color }"></span>
-                  <span>{{ row.name }}</span>
-                  <el-tag v-if="!row.is_enabled" type="info" size="small" style="margin-left:6px;">已禁用</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="编码" width="100" size="small"><template #default="{ row }"><code>{{ row.code || '-' }}</code></template></el-table-column>
-              <el-table-column label="层级" width="70" align="center" size="small">
-                <template #default="{ row }">
-                  <el-tag size="small" :type="row.level === 1 ? 'primary' : 'success'">{{ row.level }}级</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column label="排序" width="70" align="center" size="small">
-                <template #default="{ row }">{{ row.sort_order }}</template>
-              </el-table-column>
-              <el-table-column label="操作" width="160" size="small">
-                <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                  <el-button link type="primary" size="small" @click="openCategoryDialog(null, row.id)">添加子类</el-button>
-                  <el-button link type="danger" size="small" @click="deleteCategory(row)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
+    <!-- 我的 抽屉 -->
+    <el-drawer
+      v-model="myDrawerVisible"
+      title="我的"
+      direction="rtl"
+      size="380px"
+      :append-to-body="true"
+    >
+      <div class="my-drawer">
+        <!-- 用户卡片 -->
+        <div class="my-user-card">
+          <el-avatar :size="56" :icon="UserFilled" />
+          <div class="my-user-info">
+            <div class="my-user-name">{{ userInfo?.name || '管理员' }}</div>
+            <div class="my-user-role">{{ userInfo?.position || '系统管理员' }}</div>
           </div>
         </div>
-      </el-drawer>
+        <!-- 我的业务 -->
+        <div class="my-section">
+          <div class="my-section-title">
+            <el-icon><Briefcase /></el-icon>
+            <span>我的业务</span>
+          </div>
+          <div class="my-grid">
+            <div class="my-grid-item" @click="goMy('team')">
+              <el-icon :size="22" color="#722ED1"><Share /></el-icon>
+              <span>我的团队</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('buildings')">
+              <el-icon :size="22" color="#13C2C2"><OfficeBuilding /></el-icon>
+              <span>我的楼盘</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('contracts')">
+              <el-icon :size="22" color="#FA8C16"><Document /></el-icon>
+              <span>我的合同</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('quotes')">
+              <el-icon :size="22" color="#52C41A"><Money /></el-icon>
+              <span>我的报价</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('reviews')">
+              <el-icon :size="22" color="#F5222D"><Finished /></el-icon>
+              <span>我的审核</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('leads')">
+              <el-icon :size="22" color="#1890FF"><Promotion /></el-icon>
+              <span>我的线索</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('customers')">
+              <el-icon :size="22" color="#2F54EB"><User /></el-icon>
+              <span>我的客户</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('workflow')">
+              <el-icon :size="22" color="#EB2F96"><Connection /></el-icon>
+              <span>我的服务流程</span>
+            </div>
+          </div>
+        </div>
 
-      <!-- 分类表单对话框 -->
-      <el-dialog v-model="categoryDialog.visible" :title="categoryDialog.isEdit ? '编辑分类' : '新建分类'" width="520px">
-        <el-form ref="categoryFormRef" :model="categoryForm" :rules="categoryRules" label-width="90px">
-          <el-form-item label="上级分类">
-            <el-cascader v-model="categoryForm.parent_id" :options="categoryOptions" :props="{ value:'id', label:'name', checkStrictly:true }" placeholder="作为一级分类" clearable style="width:100%" :disabled="categoryDialog.isEdit" />
-          </el-form-item>
-          <el-form-item label="分类名称" prop="name">
-            <el-input v-model="categoryForm.name" placeholder="请输入分类名称" />
-          </el-form-item>
-          <el-form-item label="分类编码">
-            <el-input v-model="categoryForm.code" placeholder="可选" />
-          </el-form-item>
-          <el-row :gutter="16">
-            <el-col :span="12">
-              <el-form-item label="颜色">
-                <el-color-picker v-model="categoryForm.color" show-alpha />
-              </el-form-item>
-            </el-col>
-            <el-col :span="12">
-              <el-form-item label="排序">
-                <el-input-number v-model="categoryForm.sort_order" :min="0" style="width:100%" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-          <el-form-item label="状态">
-            <el-switch v-model="categoryForm.is_enabled" active-text="启用" inactive-text="禁用" />
-          </el-form-item>
-        </el-form>
-        <template #footer>
-          <el-button @click="categoryDialog.visible = false">取消</el-button>
-          <el-button type="primary" @click="submitCategory" :loading="categoryDialog.loading">确定</el-button>
-        </template>
-      </el-dialog>
-    </el-container>
+        <!-- 安全设置 -->
+        <div class="my-section">
+          <div class="my-section-title">
+            <el-icon><Lock /></el-icon>
+            <span>安全设置</span>
+          </div>
+          <div class="my-list">
+            <div class="my-list-item" @click="showChangePassword">
+              <span>修改登录密码</span>
+              <el-icon><ArrowRight /></el-icon>
+            </div>
+          </div>
+        </div>
+      </div>
+    </el-drawer>
+        <!-- 修改密码弹窗 -->
+    <el-dialog v-model="changePasswordVisible" title="修改登录密码" width="420px" append-to-body>
+      <el-form ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="100px">
+        <el-form-item label="当前密码" prop="oldPassword">
+          <el-input v-model="passwordForm.oldPassword" type="password" show-password placeholder="请输入当前密码" />
+        </el-form-item>
+        <el-form-item label="新密码" prop="newPassword">
+          <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="请输入新密码" />
+        </el-form-item>
+        <el-form-item label="确认新密码" prop="confirmPassword">
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="changePasswordVisible = false">取消</el-button>
+        <el-button type="primary" @click="submitChangePassword">确认修改</el-button>
+      </template>
+    </el-dialog>
+
+    <!-- 我的团队弹窗 -->
+    <el-dialog v-model="teamDialogVisible" title="我的团队" width="600px" append-to-body>
+      <div class="team-header">
+        <el-tag type="primary">{{ teamInfo.department || '未分配部门' }}</el-tag>
+        <el-tag type="success" v-if="teamInfo.store">{{ teamInfo.store }}</el-tag>
+      </div>
+      <el-table :data="teamMembers" stripe size="small" style="margin-top:12px">
+        <el-table-column prop="name" label="姓名" width="100" />
+        <el-table-column prop="position" label="岗位" />
+        <el-table-column prop="phone" label="电话" width="130" />
+        <el-table-column prop="status" label="状态" width="80">
+          <template #default="{ row }">
+            <el-tag :type="row.status === 'active' ? 'success' : 'info'" size="small">{{ row.status === 'active' ? '在职' : '离职' }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
   </el-container>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { DataLine, Picture, User, Calendar, Folder, Setting, Fold, Expand, UserFilled, ArrowDown, Box, Connection, Document, OfficeBuilding, Money, Shop, Plus, FolderOpened } from '@element-plus/icons-vue'
+import {
+  DataLine, Picture, User, Calendar, Folder, Setting, Fold, Expand,
+  UserFilled, Box, Connection, Document, OfficeBuilding,
+  Money, Shop, Tools,Briefcase, Share, Finished, Promotion,
+  Lock, ArrowRight, Monitor
+} from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const router = useRouter()
 const isCollapse = ref(false)
 const userInfo = ref(null)
 
-// 系统设置弹窗
-const settingsVisible = ref(false)
-const hasSettingsPermission = computed(() => {
-  if (!userInfo.value) return false
-  const role = userInfo.value.role || userInfo.value.user_type || ''
-  return ['super_admin', 'store_manager'].includes(role)
+// 我的 抽屉
+const myDrawerVisible = ref(false)
+
+// 团队
+// 团队
+const teamDialogVisible = ref(false)
+const teamInfo = reactive({ department: '', store: '' })
+const teamMembers = ref([])
+
+// 修改密码
+const changePasswordVisible = ref(false)
+const passwordFormRef = ref(null)
+const passwordForm = reactive({
+  oldPassword: '',
+  newPassword: '',
+  confirmPassword: ''
 })
-
-const openSettingsDialog = () => {
-  if (!hasSettingsPermission.value) {
-    ElMessage.warning('您没有权限访问系统设置')
-    return
-  }
-  settingsVisible.value = true
-  loadCategories()
-}
-
-// 分类管理状态
-const categoryLoading = ref(false)
-const categoryTree = ref([])
-const categoryStats = ref({})
-const categoryFormRef = ref(null)
-const categoryDialog = reactive({ visible: false, isEdit: false, loading: false })
-const categoryForm = reactive({ id: null, parent_id: null, name: '', code: '', color: '#8B5A2B', sort_order: 0, is_enabled: true })
-const categoryRules = { name: [{ required: true, message: '请输入分类名称', trigger: 'blur' }] }
-
-const categoryOptions = computed(() => {
-  const flatten = (items) => items.map(item => ({ id: item.id, name: item.name, children: item.children ? flatten(item.children) : [] }))
-  return flatten(categoryTree.value)
-})
-
-const loadCategories = async () => {
-  categoryLoading.value = true
-  try {
-    const res = await request.get('/materials/categories')
-    categoryTree.value = res
-    let total = 0, enabled = 0, withMaterials = 0
-    const count = (items) => items.forEach(item => {
-      total++; if (item.is_enabled) enabled++; if (item.material_count > 0) withMaterials++
-      if (item.children) count(item.children)
-    })
-    count(res)
-    categoryStats.value = { total, enabled, withMaterials }
-  } catch (e) { ElMessage.error('加载分类失败') }
-  finally { categoryLoading.value = false }
-}
-
-const resetCategoryForm = () => Object.assign(categoryForm, { id: null, parent_id: null, name: '', code: '', color: '#8B5A2B', sort_order: 0, is_enabled: true })
-
-const openCategoryDialog = (row = null, parentId = null) => {
-  categoryDialog.isEdit = !!row
-  categoryDialog.visible = true
-  if (row) Object.assign(categoryForm, row)
-  else { resetCategoryForm(); categoryForm.parent_id = parentId }
-}
-
-const submitCategory = async () => {
-  const valid = await categoryFormRef.value?.validate().catch(() => false)
-  if (!valid) return
-  categoryDialog.loading = true
-  try {
-    const data = { ...categoryForm }
-    if (Array.isArray(data.parent_id)) data.parent_id = data.parent_id[data.parent_id.length - 1]
-    if (categoryDialog.isEdit) await request.put(`/materials/categories/${categoryForm.id}`, data)
-    else await request.post('/materials/categories', data)
-    ElMessage.success('操作成功')
-    categoryDialog.visible = false
-    loadCategories()
-  } catch (e) { ElMessage.error(e.response?.data?.message || '操作失败') }
-  finally { categoryDialog.loading = false }
-}
-
-const deleteCategory = async (row) => {
-  await ElMessageBox.confirm('确定删除该分类吗？', '提示', { type: 'warning' })
-  await request.delete(`/materials/categories/${row.id}`)
-  ElMessage.success('删除成功')
-  loadCategories()
+const passwordRules = {
+  oldPassword: [{ required: true, message: '请输入当前密码', trigger: 'blur' }],
+  newPassword: [
+    { required: true, message: '请输入新密码', trigger: 'blur' },
+    { min: 6, message: '密码不少于6位', trigger: 'blur' }
+  ],
+  confirmPassword: [
+    { required: true, message: '请确认新密码', trigger: 'blur' },
+    {
+      validator: (rule, value, callback) => {
+        if (value !== passwordForm.newPassword) {
+          callback(new Error('两次输入密码不一致'))
+        } else {
+          callback()
+        }
+      },
+      trigger: 'blur'
+    }
+  ]
 }
 
 onMounted(() => {
   const userStr = localStorage.getItem('user')
-  if (userStr) userInfo.value = JSON.parse(userStr)
+  if (userStr) {
+    try { userInfo.value = JSON.parse(userStr) } catch {}
+  }
 })
+
+// 加载积分余额
+
+const showChangePassword = () => {
+  changePasswordVisible.value = true
+  passwordForm.oldPassword = ''
+  passwordForm.newPassword = ''
+  passwordForm.confirmPassword = ''
+}
+
+const submitChangePassword = async () => {
+  if (!passwordFormRef.value) return
+  await passwordFormRef.value.validate()
+  try {
+    const res = await request.post('/auth/change-password', {
+      old_password: passwordForm.oldPassword,
+      new_password: passwordForm.newPassword
+    })
+    if (res.data?.ok) {
+      ElMessage.success('密码修改成功，请重新登录')
+      changePasswordVisible.value = false
+      handleLogout()
+    } else {
+      ElMessage.error(res.data?.message || '修改失败')
+    }
+  } catch (e) {
+    ElMessage.error('修改失败：' + (e.response?.data?.message || e.message))
+  }
+}
 
 const handleCommand = (command) => {
   switch (command) {
     case 'profile':
-      ElMessage.info('个人中心功能开发中')
-      break
-    case 'settings':
-      openSettingsDialog()
+      myDrawerVisible.value = true
       break
     case 'logout':
       handleLogout()
@@ -361,7 +321,6 @@ const handleLogout = () => {
     cancelButtonText: '取消',
     type: 'warning'
   }).then(() => {
-    // 清除登录信息
     localStorage.removeItem('token')
     localStorage.removeItem('user')
     ElMessage.success('已退出登录')
@@ -434,6 +393,24 @@ const handleLogout = () => {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 12px;
+}
+
+.my-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 16px;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 14px;
+  color: #409EFF;
+  background: #ecf5ff;
+  transition: all 0.2s;
+}
+
+.my-btn:hover {
+  background: #d9ecff;
 }
 
 .user-info {
@@ -460,68 +437,170 @@ const handleLogout = () => {
   padding: 20px;
 }
 
-/* 系统设置弹窗样式 */
-.settings-section {
-  padding: 0 4px 16px;
+/* 我的抽屉样式 */
+.my-drawer {
+  padding: 0 4px;
 }
 
-.section-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #333;
-  margin: 0 0 12px 0;
+.my-user-card {
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-bottom: 1px solid #eee;
-  padding-bottom: 10px;
+  gap: 16px;
+  padding: 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  color: #fff;
+  margin-bottom: 20px;
 }
 
-.section-toolbar {
+.my-user-name {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.my-user-role {
+  font-size: 13px;
+  opacity: 0.85;
+  margin-top: 4px;
+}
+
+.my-section {
+  margin-bottom: 20px;
+}
+
+.my-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
   margin-bottom: 12px;
 }
 
-.stat-card {
-  background: #fff;
+.my-section-title .el-icon {
+  color: #8B5A2B;
+}
+
+.my-points-card {
+  text-align: center;
   padding: 16px;
+  background: #fffbe6;
   border-radius: 8px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  border: 1px solid #ffe58f;
+  margin-bottom: 8px;
 }
 
-.stat-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-}
-
-.stat-info {
-  flex: 1;
-}
-
-.stat-value {
-  font-size: 20px;
-  font-weight: bold;
-  color: #333;
+.my-points-num {
+  font-size: 32px;
+  font-weight: 700;
+  color: #FA8C16;
   line-height: 1.2;
 }
 
-.stat-label {
+.my-points-label {
   font-size: 12px;
-  color: #999;
+  color: #8c8c8c;
+  margin-top: 4px;
 }
 
-.color-dot {
+.my-points-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.my-points-actions .el-button {
+  flex: 1;
+}
+
+.my-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.my-grid-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 14px 4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #fafafa;
+}
+
+.my-grid-item:hover {
+  background: #f0f0f0;
+  transform: translateY(-1px);
+}
+
+.my-grid-item span {
+  font-size: 12px;
+  color: #595959;
+  white-space: nowrap;
+}
+
+.my-list {
+  border: 1px solid #f0f0f0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.my-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  cursor: pointer;
+  transition: background 0.2s;
+  font-size: 14px;
+  color: #262626;
+}
+
+.my-list-item:hover {
+  background: #f5f5f5;
+}
+
+.my-list-item .el-icon {
+  color: #bfbfbf;
+}
+
+/* 积分汇总 */
+.points-summary {
+  margin-top: 12px;
+  text-align: right;
+  font-size: 14px;
+  color: #595959;
+}
+
+.points-summary strong {
+  color: #FA8C16;
+  font-size: 18px;
+}
+
+/* 排行榜 */
+.rank-badge {
   display: inline-block;
-  width: 14px;
-  height: 14px;
-  border-radius: 3px;
-  margin-right: 6px;
-  vertical-align: middle;
+  width: 24px;
+  height: 24px;
+  line-height: 24px;
+  border-radius: 50%;
+  font-size: 12px;
+  font-weight: 600;
+  background: #f0f0f0;
+  color: #8c8c8c;
+}
+
+.rank-badge.rank-top {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  color: #fff;
+}
+
+/* 团队弹窗 */
+.team-header {
+  display: flex;
+  gap: 8px;
 }
 </style>

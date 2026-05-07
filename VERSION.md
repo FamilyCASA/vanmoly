@@ -415,3 +415,77 @@ Response: 200 OK
 ---
 
 *最后更新: 2026-04-26 16:15*
+---
+
+## v3.0.8 - 系统设置独立页面 + 我的面板（2026-05-06 08:08）
+
+### 版本说明
+- **版本号**: v3.0.8
+- **创建时间**: 2026-05-06 08:08 (GMT+8)
+- **状态**: ✅ 开发完成
+- **标记原因**: 管理后台系统设置从 Drawer 改为独立页面，右上角新增"我的"面板
+
+### 改造内容
+
+#### 1. 系统设置独立页面
+将原来 AdminLayout 内的 Drawer 弹窗改为独立路由 `/admin/settings`，左右分栏布局：
+
+| 组件 | 文件 | 说明 |
+|:---|:---|:---|
+| 设置布局 | `SettingsLayout.vue` | 左侧 280px 功能卡片导航，右侧动态编辑区 |
+| 流程模板管理 | `WorkflowTemplateManage.vue` | 已独立抽取，供 SettingsLayout 调用 |
+| 物料分类管理 | `CategoryManage.vue` | 从 AdminLayout Drawer 提取，独立组件 |
+
+**系统设置 7 个模块**（均集成到 `/admin/settings`）：
+1. 流程模板管理（Connection 图标 / 蓝）
+2. 物料分类管理（Folder 图标 / 绿）
+3. 员工管理（User 图标 / 橙）
+4. 分店管理（Shop 图标 / 紫）
+5. 物料管理（Box 图标 / 青）
+6. 文件管理（FolderOpened 图标 / 红）
+7. 前端配置（Monitor 图标 / 靛）
+
+#### 2. AdminLayout 侧边栏精简
+- 移除 5 个独立菜单项（员工管理 / 分店管理 / 物料管理 / 文件管理 / 前端配置）
+- 统一从 `/admin/settings` 进入
+- router/index.js 移除对应 6 个独立路由
+
+#### 3. 右上角"我的"面板
+- 删除原有用户下拉菜单（个人中心 / 退出登录）
+- 只保留"我的"按钮，点击打开右侧 Drawer
+- Drawer 内容：
+  - 用户卡片（头像 + 姓名 + 岗位）
+  - 我的积分（余额卡片 + 详情弹窗 + 排行榜弹窗）
+  - 我的业务网格（8个快捷入口：团队/楼盘/合同/报价/审核/线索/客户/服务流程）
+  - 安全设置：修改登录密码弹窗
+  - 退出登录按钮（移至抽屉底部）
+
+#### 4. API 路径重复 bug 修复
+- 问题：`request.js` baseURL 为 `/api/v3`，但 AdminLayout.vue 调用写了完整 `/api/employee/...`，拼出来变成 `/api/v3/api/employee/...`
+- 修复：去掉 AdminLayout.vue 中 6 处多余的 `/api/` 前缀
+
+### 文件变更清单
+
+| 操作 | 文件 |
+|:---|:---|
+| 新建 | `frontend/src/views/admin/SettingsLayout.vue` |
+| 新建 | `frontend/src/views/admin/CategoryManage.vue` |
+| 修改 | `frontend/src/views/admin/AdminLayout.vue` |
+| 修改 | `frontend/src/router/index.js` |
+
+### 后端待实现接口（目前返回 404）
+
+| 端点 | 功能 |
+|:---|:---|
+| GET `/api/v3/employee/me/points` | 积分余额 |
+| GET `/api/v3/employee/me/points/detail` | 积分明细 |
+| GET `/api/v3/employee/points/rank` | 积分排行 |
+| GET `/api/v3/employee/me/team` | 我的团队 |
+| POST `/api/v3/auth/change-password` | 修改密码 |
+
+### 备份
+- 自动备份目录：`D:\desktop\VANMOLY-SYS-V3.0\backups\`
+
+---
+
+*最后更新: 2026-05-06 08:36*

@@ -31,8 +31,148 @@
 针对每个房间，依次完成以下物料信息录入，确保每个房间的物料完整无误：
 
 - 房间选择：明确当前录入物料对应的房间（如主卧、客厅、厨房等），后续按房间分类展示在PDF中。
+插入房间名称表：
+|客厅|Living Room|
+|餐厅|Dining Room|
+|主卧|Master Bedroom|
+|次卧|Secondary Bedroom / Guest Bedroom|
+|儿童房|Kids\&\#39; Room / Children\&\#39;s Bedroom|
+|老人房|Elderly Room / Senior Bedroom|
+|书房 / 工作间|Study / Home Office|
+|中厨|Chinese Kitchen|
+|西厨|Western Kitchen|
+|开放式厨房|Open Kitchen|
+|主卫|Master Bathroom|
+|客卫|Guest Bathroom|
+|公卫（住宅内）|Public Bathroom|
+|公卫（公寓）|Common Bathroom|
+|干湿分离卫生间|Wet\-Dry Separate Bathroom|
+|玄关|Foyer / Entryway|
+|入户花园|Entry Garden / Porch Garden|
+|生活阳台|Service Balcony|
+|休闲阳台|Leisure Balcony|
+|观景阳台|View Balcony / Scenic Balcony|
+|过道 / 走廊|Passageway / Corridor|
+|步入式衣帽间|Walk\-in Closet|
+|嵌入式衣帽间|Built\-in Closet|
+|储藏室 / 杂物间|Storage Room / Utility Room|
+|阁楼|Attic / Loft|
+|地下室|Basement|
+|影音室 / 家庭影院|Home Theater / Media Room|
+|健身室 / 瑜伽室|Home Gym / Yoga Room|
+|茶室 / 棋牌室|Tea Room / Chess \&amp; Card Room|
+|琴房 / 画室|Music Room / Art Studio|
+|保姆房|Maid\&\#39;s Room / Nanny\&\#39;s Room|
+|儿童活动区|Kids\&\#39; Play Area / Children\&\#39;s Activity Zone|
+|老人护理间|Elderly Care Room|
+|宠物房|Pet Room|
+|阳光房|Sunroom / Solarium|
+|入户花厅|Entry Hall with Garden / Foyer Garden|
+|空中花园|Sky Garden / Rooftop Garden|
+|酒窖|Wine Cellar|
+|雪茄房|Cigar Room|
+|冥想室|Meditation Room|
+|私人会所|Private Clubhouse|
+|设备间（水电 / 空调）|Equipment Room \(Water/Electricity/Air Conditioning\)|
+|店铺 / 门店|Store / Shop|
+|橱窗展示区|Window Display Area|
+|收银台|Cashier Desk / Checkout Counter|
+|休息区|Rest Area / Lounge Area|
+|试衣间 / 试戴间|Fitting Room / Trial Room|
+|咖啡馆 / 奶茶店 \- 前厅|Café/Milk Tea Shop \- Front Hall|
+|咖啡馆 / 奶茶店 \- 操作间|Café/Milk Tea Shop \- Preparation Area|
+|咖啡馆 / 奶茶店 \- 储物间|Café/Milk Tea Shop \- Storage Room|
+|餐厅 / 火锅店 \- 大堂|Restaurant/Hot Pot Restaurant \- Lobby|
+|餐厅 / 火锅店 \- 包厢|Restaurant/Hot Pot Restaurant \- Private Room|
+|餐厅 / 火锅店 \- 后厨|Restaurant/Hot Pot Restaurant \- Back Kitchen|
+|餐厅 / 火锅店 \- 备餐间|Restaurant/Hot Pot Restaurant \- Pantry|
+|美容美发店 \- 接待区|Beauty Salon \- Reception Area|
+|美容美发店 \- 操作区|Beauty Salon \- Service Area|
+|美容美发店 \- 烫染区|Beauty Salon \- Perm \&amp; Dye Area|
+|美容美发店 \- 洗头区|Beauty Salon \- Shampoo Area|
+|美甲店 / 纹绣店|Nail Salon / Embroidery Studio|
+|宠物店 \- 展示区|Pet Store \- Display Area|
+|宠物店 \- 洗护区|Pet Store \- Grooming \&amp; Washing Area|
+|宠物店 \- 美容区|Pet Store \- Pet Grooming Area|
+|宠物店 \- 寄养区|Pet Store \- Boarding Area|
+|书店 / 文具店 \- 阅读区|Bookstore/Stationery Store \- Reading Area|
+|书店 / 文具店 \- 售卖区|Bookstore/Stationery Store \- Sales Area|
+|前台 / 接待区|Reception Desk / Reception Area|
+|开放办公区|Open Office Area|
+|独立办公室|Private Office|
+|小型会议室|Small Meeting Room|
+|中型会议室|Medium Meeting Room|
+|大型会议室|Large Meeting Room|
+|洽谈室|Negotiation Room / Meeting Room|
+|培训室|Training Room|
+|档案室 / 资料室|Archive Room / Document Room|
+|茶水间|Pantry / Staff Kitchen|
+|员工休息室|Staff Lounge / Rest Room|
+|展厅 / 产品展示区|Exhibition Hall / Product Display Area|
+|样板间|Show Flat / Model Room|
+|开放工位区|Open Workstation Area|
+|总监办公室|Director\&\#39;s Office|
+|总经理办公室|General Manager\&\#39;s Office|
+|财务室|Finance Office / Accounting Office|
+|人力资源部办公室|HR Office / Human Resources Office|
+|部门独立办公室|Department Private Office|
+|视频会议室|Video Conference Room|
+|研讨室|Seminar Room|
+|多功能厅|Multi\-Functional Hall|
+|员工餐厅|Staff Canteen / Employee Restaurant|
+|更衣室|Locker Room / Changing Room|
+|打印室 / 文印室|Printing Room / Copy Room|
+|机房 / 服务器室|Server Room / IT Room|
+|安保室|Security Room|
+|传达室|Gate House / Reception Lodge|
+|电梯厅|Elevator Lobby / Lift Hall|
+|楼梯间|Stairwell / Staircase|
+|小区大堂|Residential Lobby|
+|写字楼大堂|Office Building Lobby|
+|等候区|Waiting Area|
+|公共卫生间|Public Toilet / Restroom|
+|无障碍卫生间|Accessible Bathroom / Disabled Toilet|
+|母婴室|Mother\-and\-Baby Room / Nursing Room|
+|吸烟区|Smoking Area|
+|快递柜区|Courier Cabinet Area / Parcel Locker Area|
+|垃圾投放区|Garbage Disposal Area / Trash Zone|
+|物业办公室|Property Management Office|
+|酒吧 / 清吧 \- 吧台|Bar/Lounge \- Bar Counter|
+|酒吧 / 清吧 \- 卡座|Bar/Lounge \- Booth|
+|酒吧 / 清吧 \- 舞池|Bar/Lounge \- Dance Floor|
+|KTV \- 包厢|KTV \- Private Room|
+|健身房 \- 器械区|Gym \- Equipment Area|
+|健身房 \- 有氧区|Gym \- Cardio Area|
+|健身房 \- 操课室|Gym \- Group Class Studio|
+|健身房 \- 淋浴间|Gym \- Shower Room|
+|瑜伽馆 / 普拉提馆|Yoga Studio / Pilates Studio|
+|桌游馆 / 剧本杀店 \- 游戏区|Board Game/script Murder Shop \- Game Area|
+|桌游馆 / 剧本杀店 \- 换装区|Board Game/script Murder Shop \- Costume Area|
+|影院 \- 放映厅|Cinema \- Auditorium / Screening Hall|
+|影院 \- 售票区|Cinema \- Ticket Counter|
+|影院 \- 零食区|Cinema \- Snack Bar / Concession Stand|
+|诊所 \- 诊疗室|Clinic \- Consultation Room|
+|诊所 \- 输液室|Clinic \- Infusion Room|
+|诊所 \- 药房|Clinic \- Pharmacy|
+|诊所 \- 挂号区|Clinic \- Registration Area|
+|体检中心 \- 检查室|Physical Examination Center \- Examination Room|
+|体检中心 \- 等候区|Physical Examination Center \- Waiting Area|
+|幼儿园 \- 教室|Kindergarten \- Classroom|
+|幼儿园 \- 活动室|Kindergarten \- Activity Room|
+|幼儿园 \- 午睡室|Kindergarten \- Nap Room|
+|幼儿园 \- 食堂|Kindergarten \- Dining Hall|
+|培训机构 \- 教室|Training Institution \- Classroom|
+|培训机构 \- 接待区|Training Institution \- Reception Area|
+|厂房|Factory Building / Workshop|
+|常温仓|Normal Temperature Warehouse|
+|冷藏仓|Refrigerated Warehouse|
+|操作间|Operation Room / Workshop|
+|值班室|Duty Room / On\-Call Room|
+|储物间|Storage Room|
+|传达室|Gate House / Guard House|
 
 - 物料筛选与选择：通过物料筛选功能，快速找到所需物料，确定商品名称、物料名称及物料类别。
+- 重要：同一行实现：筛选（房间）+自定义"商品名称"+筛选物料：通过模糊搜索，下拉菜单（符合关键词的物料名称，包含物料的所有字段，可以输入大类，也可以输入品牌，花色，材料等等关键词）快读定位物料，实现物料筛选功能，自动填充物料名称及物料类别。
 
 - 物料参数录入：必填参数包括数量、单位；可选参数（按需录入）包括定制尺寸、工艺要求；补充参数包括型号、规格、材质、品牌、物料主图、备注，确保物料信息精准可追溯。
 

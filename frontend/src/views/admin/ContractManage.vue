@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="contract-manage">
     <!-- 页面标题 -->
     <div class="page-header">
@@ -231,11 +231,13 @@
               <el-input v-model="createForm.variables.party_b_address" placeholder="乙方注册地址" />
             </el-form-item>
 
-            <el-divider content-position="left">项目负责人信息</el-divider>
+            <el-divider content-position="left">服务团队</el-divider>
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="全案规划师">
-                  <el-input v-model="createForm.variables.planner_name" placeholder="规划师姓名" />
+                  <el-select v-model="createForm.variables.planner_name" placeholder="选择规划师" filterable clearable style="width:100%" @change="val => { const emp = employeeOptions.find(e => e.name === val); fillTeamMember('planner', emp) }">
+                    <el-option v-for="e in employeeOptions" :key="e.id" :label="e.label" :value="e.name" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -247,7 +249,9 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="全案设计师">
-                  <el-input v-model="createForm.variables.designer_name" placeholder="设计师姓名" />
+                  <el-select v-model="createForm.variables.designer_name" placeholder="选择设计师" filterable clearable style="width:100%" @change="val => { const emp = employeeOptions.find(e => e.name === val); fillTeamMember('designer', emp) }">
+                    <el-option v-for="e in employeeOptions" :key="e.id" :label="e.label" :value="e.name" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -259,7 +263,9 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="项目经理">
-                  <el-input v-model="createForm.variables.pm_name" placeholder="项目经理姓名" />
+                  <el-select v-model="createForm.variables.pm_name" placeholder="选择项目经理" filterable clearable style="width:100%" @change="val => { const emp = employeeOptions.find(e => e.name === val); fillTeamMember('pm', emp) }">
+                    <el-option v-for="e in employeeOptions" :key="e.id" :label="e.label" :value="e.name" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -271,7 +277,9 @@
             <el-row :gutter="20">
               <el-col :span="12">
                 <el-form-item label="工程监理">
-                  <el-input v-model="createForm.variables.supervisor_name" placeholder="监理姓名" />
+                  <el-select v-model="createForm.variables.supervisor_name" placeholder="选择监理" filterable clearable style="width:100%" @change="val => { const emp = employeeOptions.find(e => e.name === val); fillTeamMember('supervisor', emp) }">
+                    <el-option v-for="e in employeeOptions" :key="e.id" :label="e.label" :value="e.name" />
+                  </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="12">
@@ -280,6 +288,12 @@
                 </el-form-item>
               </el-col>
             </el-row>
+
+            <el-divider content-position="left">模板操作</el-divider>
+            <div style="margin-bottom:12px">
+              <el-button size="small" @click="templateAction='save'; Object.assign(templateForm, {name:'', contract_type:createForm.contract_type, remark:''}); templateDialogVisible=true">另存为模板</el-button>
+              <el-button size="small" @click="templateAction='import'; templateDialogVisible=true">导入模板</el-button>
+            </div>
           </el-tab-pane>
 
           <!-- Tab 4: 装修信息 -->
@@ -361,45 +375,75 @@
 
           <!-- Tab 5: 费用与付款 -->
           <el-tab-pane label="费用与付款" name="payment">
-            <el-row :gutter="20">
-              <el-col :span="8">
+            <el-row :gutter="20" style="margin-bottom:16px">
+              <el-col :span="16">
                 <el-form-item label="合同总金额" required>
-                  <el-input-number v-model="createForm.total_amount" :min="0" :precision="2" style="width:100%" @change="recalcAllPayments" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="8">
-                <el-form-item label="金额大写">
-                  <el-input v-model="amountInWords" readonly placeholder="自动生成" />
+                  <el-input-number v-model="createForm.total_amount" :min="0" :precision="2" :controls="false" style="width:100%;font-size:18px;font-weight:bold" @change="recalcAllPayments" />
                 </el-form-item>
               </el-col>
               <el-col :span="8">
                 <el-form-item label="增项金额">
-                  <el-input-number v-model="createForm.variables.extra_amount" :min="0" :precision="2" style="width:100%" />
+                  <el-input-number v-model="createForm.variables.extra_amount" :min="0" :precision="2" :controls="false" style="width:100%" />
                 </el-form-item>
               </el-col>
             </el-row>
-            <el-row :gutter="20">
-              <el-col :span="6">
-                <el-form-item label="设计费">
-                  <el-input-number v-model="createForm.design_fee" :min="0" :precision="2" style="width:100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="施工费">
-                  <el-input-number v-model="createForm.construction_fee" :min="0" :precision="2" style="width:100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="材料费">
-                  <el-input-number v-model="createForm.material_fee" :min="0" :precision="2" style="width:100%" />
-                </el-form-item>
-              </el-col>
-              <el-col :span="6">
-                <el-form-item label="软装费">
-                  <el-input-number v-model="createForm.soft_fee" :min="0" :precision="2" style="width:100%" />
-                </el-form-item>
-              </el-col>
-            </el-row>
+            <el-form-item label="金额大写">
+              <el-input :model-value="amountInWords" readonly placeholder="自动生成" />
+            </el-form-item>
+
+            <!-- 细分项目（可选） -->
+            <el-divider content-position="left">
+              <span>细分项目金额</span>
+              <el-button type="primary" size="small" link @click="showBreakdownSelector">
+                <el-icon><Plus /></el-icon> 添加细分项目
+              </el-button>
+            </el-divider>
+            <div v-if="createForm.fee_breakdown.length === 0" style="text-align:center;color:#999;padding:12px 0;">
+              暂无细分项目，点击上方按钮添加
+            </div>
+            <el-table v-else :data="createForm.fee_breakdown" size="small" border stripe>
+              <el-table-column label="细分项目" min-width="180">
+                <template #default="{ row }">{{ row.name }}</template>
+              </el-table-column>
+              <el-table-column label="金额" width="180" align="right">
+                <template #default="{ row }">
+                  <span style="font-weight:600">¥{{ formatMoney(row.amount) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="备注" min-width="150">
+                <template #default="{ row }">
+                  <el-input v-model="row.remark" placeholder="备注（选填）" size="small" />
+                </template>
+              </el-table-column>
+              <el-table-column label="操作" width="80" align="center">
+                <template #default="{ $index }">
+                  <el-button type="danger" link size="small" @click="createForm.fee_breakdown.splice($index, 1)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+            <div v-if="createForm.fee_breakdown.length > 0" style="text-align:right;margin-top:8px;color:#8B5A2B;font-size:13px;">
+              细分合计：
+              <strong>¥{{ formatMoney(createForm.fee_breakdown.reduce((s,r) => s + r.amount, 0)) }}</strong>
+            </div>
+
+            <!-- 细分项目选择器（隐藏式弹窗） -->
+            <el-select
+              ref="breakdownSelectorRef"
+              v-model="selectedBreakdown"
+              placeholder="选择要添加的细分项目"
+              style="position:absolute;opacity:0;pointer-events:none;width:0;height:0;"
+              @change="addBreakdownItem"
+            >
+              <el-option
+                v-for="item in breakdownOptions"
+                :key="item.value"
+                :label="item.label"
+                :value="item.value"
+                :disabled="createForm.fee_breakdown.some(b => b.type === item.value)"
+              />
+            </el-select>
 
             <el-divider content-position="left">收款信息</el-divider>
             <el-row :gutter="20">
@@ -696,7 +740,15 @@
         <div class="detail-actions" style="margin-bottom:12px;display:flex;gap:8px;">
           <el-button type="primary" size="small" @click="previewFullText">全文预览</el-button>
           <el-button size="small" @click="exportContractPdf">导出PDF</el-button>
+          <el-button v-if="!detailEditMode" type="warning" size="small" @click="enterDetailEdit">编辑</el-button>
+          <template v-else>
+            <el-button type="success" size="small" @click="saveDetailEdit" :loading="detailDrawer.loading">保存</el-button>
+            <el-button size="small" @click="cancelDetailEdit">取消</el-button>
+          </template>
         </div>
+
+        <!-- ====== 只读视图 ====== -->
+        <template v-if="!detailEditMode">
         <el-descriptions :column="3" border>
           <el-descriptions-item label="合同编号">{{ detailDrawer.contract.contract_no }}</el-descriptions-item>
           <el-descriptions-item label="客户">{{ detailDrawer.contract.customer?.name }}</el-descriptions-item>
@@ -798,6 +850,54 @@
             <el-descriptions-item label="成品家具">{{ detailDrawer.contract.variables.warranty_finished ? detailDrawer.contract.variables.warranty_finished + ' 年' : '-' }}</el-descriptions-item>
           </el-descriptions>
         </div>
+        </template>
+
+        <!-- ====== 编辑视图 ====== -->
+        <template v-else>
+          <el-form :model="detailEditForm" label-width="100px" style="max-width:800px">
+            <div class="section">
+              <h4>基本信息</h4>
+              <el-form-item label="合同标题"><el-input v-model="detailEditForm.title" /></el-form-item>
+              <el-form-item label="合同金额"><el-input-number v-model="detailEditForm.total_amount" :min="0" style="width:100%" /></el-form-item>
+              <el-row :gutter="12">
+                <el-col :span="12"><el-form-item label="设计费"><el-input-number v-model="detailEditForm.design_fee" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="施工费"><el-input-number v-model="detailEditForm.construction_fee" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="材料费"><el-input-number v-model="detailEditForm.material_fee" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="软装费"><el-input-number v-model="detailEditForm.soft_fee" :min="0" style="width:100%" /></el-form-item></el-col>
+              </el-row>
+            </div>
+            <div class="section" v-if="detailEditForm.variables">
+              <h4>甲方信息</h4>
+              <el-row :gutter="12">
+                <el-col :span="12"><el-form-item label="甲方姓名"><el-input v-model="detailEditForm.variables.party_a_name" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="联系电话"><el-input v-model="detailEditForm.variables.party_a_phone" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="证件号码"><el-input v-model="detailEditForm.variables.party_a_id_card" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="房屋面积(㎡)"><el-input-number v-model="detailEditForm.variables.party_a_area" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="24"><el-form-item label="通讯地址"><el-input v-model="detailEditForm.variables.party_a_address" /></el-form-item></el-col>
+              </el-row>
+            </div>
+            <div class="section" v-if="detailEditForm.variables">
+              <h4>乙方信息</h4>
+              <el-row :gutter="12">
+                <el-col :span="12"><el-form-item label="公司名称"><el-input v-model="detailEditForm.variables.party_b_company" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="信用代码"><el-input v-model="detailEditForm.variables.party_b_credit_code" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="法定代表人"><el-input v-model="detailEditForm.variables.party_b_legal_person" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="公司电话"><el-input v-model="detailEditForm.variables.party_b_phone" /></el-form-item></el-col>
+                <el-col :span="24"><el-form-item label="注册地址"><el-input v-model="detailEditForm.variables.party_b_address" /></el-form-item></el-col>
+              </el-row>
+            </div>
+            <div class="section" v-if="detailEditForm.variables">
+              <h4>装修信息</h4>
+              <el-row :gutter="12">
+                <el-col :span="24"><el-form-item label="项目地址"><el-input v-model="detailEditForm.variables.project_address" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="建筑面积(㎡)"><el-input-number v-model="detailEditForm.variables.construction_area" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="承包方式"><el-select v-model="detailEditForm.variables.contract_method" style="width:100%"><el-option label="全包" value="full"/><el-option label="半包" value="partial"/><el-option label="清包" value="labor"/></el-select></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="工期(天)"><el-input-number v-model="detailEditForm.variables.construction_days" :min="0" style="width:100%" /></el-form-item></el-col>
+                <el-col :span="12"><el-form-item label="效果图(张)"><el-input-number v-model="detailEditForm.variables.rendering_count" :min="0" style="width:100%" /></el-form-item></el-col>
+              </el-row>
+            </div>
+          </el-form>
+        </template>
       </div>
     </el-drawer>
 
@@ -826,6 +926,46 @@
         <el-button type="primary" @click="recordPayment" :loading="payDialog.loading">确认收款</el-button>
       </template>
     </el-dialog>
+
+    <!-- ========== 模板另存/导入弹窗 ========== -->
+    <el-dialog v-model="templateDialogVisible" :title="templateAction === 'save' ? '另存为模板' : '导入模板'" width="500px">
+      <template v-if="templateAction === 'save'">
+        <el-form :model="templateForm" label-width="100px">
+          <el-form-item label="模板名称" required>
+            <el-input v-model="templateForm.name" placeholder="给模板起个名字" />
+          </el-form-item>
+          <el-form-item label="合同类型">
+            <el-select v-model="templateForm.contract_type" style="width:100%">
+              <el-option label="全案合同" value="all_in" />
+              <el-option label="设计合同" value="design" />
+              <el-option label="施工合同" value="construction" />
+              <el-option label="软装合同" value="soft" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="备注">
+            <el-input v-model="templateForm.remark" type="textarea" :rows="2" placeholder="模板说明" />
+          </el-form-item>
+        </el-form>
+      </template>
+      <template v-else>
+        <el-empty v-if="templateOptions.length === 0" description="暂无模板，请先另存" />
+        <div v-else class="template-list">
+          <div v-for="t in templateOptions" :key="t.id" class="template-item" @click="importTemplate(t)">
+            <span class="template-name">{{ t.name }}</span>
+            <el-button type="primary" link size="small">导入</el-button>
+          </div>
+        </div>
+      </template>
+      <template #footer>
+        <template v-if="templateAction === 'save'">
+          <el-button @click="templateDialogVisible = false">取消</el-button>
+          <el-button type="primary" @click="saveAsTemplate">保存模板</el-button>
+        </template>
+        <template v-else>
+          <el-button @click="templateDialogVisible = false">关闭</el-button>
+        </template>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -849,12 +989,32 @@ const quoteList = ref([])
 const selectedQuoteId = ref(null)
 const quoteFeeBreakdown = ref(null)  // 费用构成数据
 const expandedFeeCategories = ref([])  // 展开的费用明细
+const employeeOptions = ref([])  // 员工列表（用于服务团队下拉）
+const templateOptions = ref([])   // 合同模板列表
+const templateDialogVisible = ref(false)  // 另存/导入模板弹窗
+const templateAction = ref('save')        // 'save' | 'import'
+const templateForm = reactive({ name: '', contract_type: '', remark: '' })
 
 const createDialog = reactive({ visible: false, loading: false, isEdit: false, activeTab: 'basic' })
 const detailDrawer = reactive({ visible: false, title: '', contract: null })
+const detailEditMode = ref(false)
+const detailEditForm = reactive({})
 const payDialog = reactive({ visible: false, loading: false })
 
 // 创建表单 - 包含合同范文所有字段
+const breakdownSelectorRef = ref(null)
+const selectedBreakdown = ref('')
+
+const breakdownOptions = [
+  { value: 'design',        label: '全案设计费' },
+  { value: 'hard_material',  label: '硬装主材' },
+  { value: 'construction', label: '硬装施工费用' },
+  { value: 'hard_package',  label: '硬装套餐' },
+  { value: 'custom_furniture', label: '全案定制家居' },
+  { value: 'furniture',      label: '全案成品家具' },
+  { value: 'soft',          label: '全案软装饰品' },
+  { value: 'other_service',  label: '其他全案服务费用' },
+]
 const createForm = reactive({
   customer_id: null,
   contract_type: 'all_in',
@@ -914,6 +1074,8 @@ const createForm = reactive({
     bank_account: '',
     // 增项
     extra_amount: 0,
+    // 细分项目（可点击添加）
+    fee_breakdown: [],
     // 保修
     warranty_base: '',
     warranty_waterproof: '',
@@ -940,6 +1102,8 @@ const createForm = reactive({
     extra_clause_3: '',
     extra_clause_4: '',
     extra_clause_5: '',
+    // 细分项目
+    fee_breakdown: [],
     // 签章
     party_a_sign_date: null,
     party_b_sign_date: null,
@@ -1374,9 +1538,53 @@ const viewDetail = async (row) => {
     detailDrawer.contract = res
     detailDrawer.title = `合同详情 - ${res.contract_no}`
     detailDrawer.visible = true
+    detailEditMode.value = false
   } catch (error) {
     ElMessage.error('加载详情失败')
   }
+}
+
+// ====== 详情编辑模式 ======
+const enterDetailEdit = () => {
+  const c = detailDrawer.contract
+  detailEditForm.id = c.id
+  detailEditForm.title = c.title
+  detailEditForm.contract_type = c.contract_type
+  detailEditForm.total_amount = c.total_amount
+  detailEditForm.design_fee = c.design_fee
+  detailEditForm.construction_fee = c.construction_fee
+  detailEditForm.material_fee = c.material_fee
+  detailEditForm.soft_fee = c.soft_fee
+  detailEditForm.variables = c.variables ? JSON.parse(JSON.stringify(c.variables)) : {}
+  detailEditMode.value = true
+}
+
+const saveDetailEdit = async () => {
+  detailDrawer.loading = true
+  try {
+    const payload = {
+      title: detailEditForm.title,
+      contract_type: detailEditForm.contract_type,
+      total_amount: detailEditForm.total_amount,
+      design_fee: detailEditForm.design_fee,
+      construction_fee: detailEditForm.construction_fee,
+      material_fee: detailEditForm.material_fee,
+      soft_fee: detailEditForm.soft_fee,
+      variables: detailEditForm.variables,
+    }
+    await request.put(`/contracts/${detailEditForm.id}`, payload)
+    ElMessage.success('保存成功')
+    detailEditMode.value = false
+    await viewDetail({ id: detailEditForm.id })
+  } catch (e) {
+    ElMessage.error('保存失败')
+  } finally {
+    detailDrawer.loading = false
+  }
+}
+
+const cancelDetailEdit = () => {
+  detailEditMode.value = false
 }
 
 // ====== 更多操作 ======
@@ -1485,10 +1693,82 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString('zh-CN')
 }
 
+// 加载员工列表（服务团队用）
+async function loadTeamMembers() {
+  try {
+    const res = await request.get('/hr/employees', { params: { pageSize: 500 } })
+    // 响应拦截器已解包，res = { items, total, ... }
+    const list = res?.items || res || []
+    employeeOptions.value = list.map(e => ({
+      id: e.id, name: e.name, phone: e.phone || '',
+      position: e.position_name || e.position || '',
+      label: `${e.name}${e.position_name || e.position ? ' (' + (e.position_name || e.position) + ')' : ''}`
+    }))
+  } catch (e) { console.error('loadTeamMembers error', e) }
+}
+
+// 选中员工后自动填充姓名和电话
+function fillTeamMember(role, emp) {
+  if (!emp) return
+  if (role === 'planner') {
+    createForm.variables.planner_name = emp.name
+    createForm.variables.planner_phone = emp.phone || ''
+  } else if (role === 'designer') {
+    createForm.variables.designer_name = emp.name
+    createForm.variables.designer_phone = emp.phone || ''
+  } else if (role === 'pm') {
+    createForm.variables.pm_name = emp.name
+    createForm.variables.pm_phone = emp.phone || ''
+  } else if (role === 'supervisor') {
+    createForm.variables.supervisor_name = emp.name
+    createForm.variables.supervisor_phone = emp.phone || ''
+  }
+}
+
+// 加载合同模板列表
+async function loadTemplates() {
+  try {
+    const res = await request.get('/contracts/templates', { params: { contract_type: createForm.contract_type } })
+    // 响应拦截器已解包，res 直接是 data 内容
+    const list = res || []
+    templateOptions.value = list.map(t => ({ id: t.id, name: t.name, variables: t.variables || {} }))
+  } catch (e) { console.error('loadTemplates error', e) }
+}
+
+// 导入模板：填充表单变量
+function importTemplate(tmpl) {
+  if (!tmpl) return
+  const vars = tmpl.variables || {}
+  Object.keys(vars).forEach(k => {
+    if (k in createForm.variables) createForm.variables[k] = vars[k]
+  })
+  ElMessage.success('模板已导入')
+  templateDialogVisible.value = false
+}
+
+// 另存为模板
+async function saveAsTemplate() {
+  if (!templateForm.name) { ElMessage.warning('请输入模板名称'); return }
+  try {
+    await request.post('/contracts/templates', {
+      name: templateForm.name,
+      contract_type: createForm.contract_type || templateForm.contract_type,
+      variables: createForm.variables,
+      remark: templateForm.remark
+    })
+    // 响应拦截器已解包，成功直接走到这里
+    ElMessage.success('模板保存成功')
+    templateDialogVisible.value = false
+    loadTemplates()
+  } catch (e) { ElMessage.error('保存失败: ' + (e.message || e)) }
+}
+
 onMounted(() => {
   loadData()
   loadStats()
   loadOptions()
+  loadTeamMembers()
+  loadTemplates()
 })
 </script>
 
@@ -1602,4 +1882,10 @@ onMounted(() => {
   font-size: 14px;
   color: #67c23a;
 }
+
+/* 模板列表 */
+.template-list { display: flex; flex-direction: column; gap: 8px; }
+.template-item { display: flex; align-items: center; justify-content: space-between; padding: 10px 14px; border: 1px solid #ebeef5; border-radius: 6px; cursor: pointer; transition: all 0.2s; }
+.template-item:hover { background: #f5f7fa; border-color: #8b5a2b; }
+.template-name { font-size: 14px; color: #303133; }
 </style>

@@ -267,16 +267,26 @@ def _group_by_room(items):
 
 # ─── Customer item row ───────────────────────────────────────────────────────
 
-def _item_row(it, is_visitor):
-    """Return one data row for an item (customer or visitor version)."""
-    # Custom dimensions
+def _item_row(it, is_visitor, show_ref=True):
+    """Return one data row for an item. show_ref=False hides empty ref columns."""
+    # Custom dimensions — only show if user entered values
     dims = []
+    has_dim = False
     for f, lbl in [('width','W'), ('depth','D'), ('height','H')]:
         v = getattr(it, f, None)
         if v and float(v or 0) > 0:
             dims.append('{}{}'.format(lbl, float(v)))
-    dim_str = '×'.join(dims) if dims else it.spec or ''
+            has_dim = True
 
+    # Only show dimension string if there are actual values, or if show_ref=True
+    if dims:
+        dim_str = '×'.join(dims)
+    elif show_ref:
+        dim_str = it.spec or ''
+    else:
+        dim_str = ''
+
+    # Craft annotation
     craft = ''
     cq = getattr(it, 'craft_quantity', None)
     cc = getattr(it, 'craft_coefficient', None)
@@ -288,51 +298,85 @@ def _item_row(it, is_visitor):
             parts.append('系数{}'.format(float(cc)))
         craft = '×'.join(parts)
 
-    row = [
-        it.name or '',
-        dim_str,
-        it.brand or '',
-        it.unit or '',
-        str(it.quantity or 0),
-    ]
-    if is_visitor:
-        row += [_ymoney(it.total_price)]
+    # Build row based on show_ref
+    if show_ref:
+        # Full row: 名称 | 定制尺寸/规格 | 品牌 | 单位 | 数量 | [单价] | 合计 | 工艺/备注
+        brand_val = it.brand or ''
+        if not brand_val:
+            brand_val = ''
+        row = [
+            it.name or '',
+            dim_str,
+            brand_val,
+            it.unit or '',
+            str(it.quantity or 0),
+        ]
+        if is_visitor:
+            row += [_ymoney(it.total_price)]
+        else:
+            row += [_ymoney(it.unit_price), _ymoney(it.total_price)]
+        if craft:
+            row.append(craft)
+        else:
+            row.append(it.remark or '')
     else:
-        row += [_ymoney(it.unit_price), _ymoney(it.total_price)]
-    if craft:
-        row.append(craft)
-    else:
-        row.append(it.remark or '')
+        # Compact row: 名称 | 规格/尺寸 | 单位 | 数量 | [单价] | 合计 | 工艺/备注
+        row = [
+            it.name or '',
+            dim_str,
+            it.unit or '',
+            str(it.quantity or 0),
+        ]
+        if is_visitor:
+            row += [_ymoney(it.total_price)]
+        else:
+            row += [_ymoney(it.unit_price), _ymoney(it.total_price)]
+        if craft:
+            row.append(craft)
+        else:
+            row.append(it.remark or '')
     return row
 
 
 # ─── Category summary section ────────────────────────────────────────────────
 
-def _cat_headers(is_visitor):
-    if is_visitor:
-        return ['名称', '规格', '品牌', '单位', '数量', '合计', '备注']
-    return ['名称', '定制尺寸', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
+def _cat_headers(is_visitor, show_ref=True):
+    if show_ref:
+        if is_visitor:
+            return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '合计', '工艺/备注']
+        return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
+    else:
+        if is_visitor:
+            return ['名称', '规格/尺寸', '单位', '数量', '合计', '工艺/备注']
+        return ['名称', '规格/尺寸', '单位', '数量', '单价', '合计', '工艺/备注']
 
 
-def _cat_col_widths(is_visitor):
-    if is_visitor:
-        return [40*mm, 30*mm, 22*mm, 14*mm, 14*mm, 22*mm, 18*mm]
-    return [38*mm, 22*mm, 20*mm, 12*mm, 12*mm, 18*mm, 22*mm, 16*mm]
+def _cat_col_widths(is_visitor, show_ref=True):
+    if show_ref:
+        if is_visitor:
+            return [36*mm, 26*mm, 20*mm, 14*mm, 14*mm, 22*mm, 28*mm]
+        return [34*mm, 24*mm, 18*mm, 12*mm, 12*mm, 18*mm, 22*mm, 18*mm]
+    else:
+        if is_visitor:
+            return [40*mm, 32*mm, 16*mm, 14*mm, 22*mm, 36*mm]
+        return [38*mm, 28*mm, 14*mm, 14*mm, 18*mm, 22*mm, 24*mm]
 
 
-def _cat_table(items, is_visitor, styles):
+def _cat_table(items, is_visitor, styles, show_ref=True):
     """Build one category section (header + item rows + subtotal)."""
     data = [_cat_headers(is_visitor)]
     total = Decimal('0')
     for it in items:
-        data.append(_item_row(it, is_visitor))
+        data.append(_item_row(it, is_visitor, show_ref))
         total += Decimal(str(it.total_price or 0))
 
-    # Subtotal row
+    # Subtotal row — span all but last 2 columns
+    n_cols = len(_cat_col_widths(is_visitor, show_ref))
     if is_visitor:
-        data.append(['-- 小计 --', '', '', '', '', _ymoney(total), ''])
+        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 3) + [_ymoney(total), '']
     else:
-        data.append(['-- 小计 --', '', '', '', '', '', _ymoney(total), ''])
+        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 3) + [_ymoney(total), '']
+    data.append(subtotal_row)
 
     cw = _cat_col_widths(is_visitor)
     n_cols = len(cw)
@@ -349,8 +393,8 @@ def _cat_table(items, is_visitor, styles):
         # Subtotal row
         ('FONTNAME',(0,-1),(-1,-1), CN_FONT),
         ('BACKGROUND',(0,-1),(-1,-1), LIGHT_GRAY),
-        ('SPAN',(0,-1),(n_cols-2 if is_visitor else n_cols-3, -1)),
-        ('ALIGN',(n_cols-1 if is_visitor else n_cols-2,-1),(n_cols-1,-1),'RIGHT'),
+        ('SPAN',(0,-1),(-3, -1)),
+        ('ALIGN',(-2,-1),(-1,-1),'RIGHT'),
         ('TEXTCOLOR',(0,-1),(-1,-1), BRAND_BROWN),
     ]
 
@@ -375,7 +419,7 @@ def _cat_table(items, is_visitor, styles):
     return tbl, total
 
 
-def _category_summary_page(story, items, is_visitor, styles):
+def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
     """Build the category summary section (one continuous flow, page-breaks auto)."""
     grouped = _group_by_category(items)
 
@@ -412,7 +456,7 @@ def _category_summary_page(story, items, is_visitor, styles):
             continue
 
         story.append(Paragraph(cat_key, styles['CNSec']))
-        tbl, ct = _cat_table(cat_items, is_visitor, styles)
+        tbl, ct = _cat_table(cat_items, is_visitor, styles, show_ref)
         grand_total += ct
         cat_totals.append((cat_key, ct))
         story.append(tbl)
@@ -443,17 +487,25 @@ def _quote_grand_total(quote, items):
 
 # ─── Room detail section ─────────────────────────────────────────────────────
 
-def _room_headers(is_visitor):
-    if is_visitor:
-        return ['名称', '定制尺寸', '品牌', '单位', '数量', '合计', '备注']
-    return ['名称', '定制尺寸', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
+def _room_headers(is_visitor, show_ref=True):
+    if show_ref:
+        if is_visitor:
+            return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '合计', '工艺/备注']
+        return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
+    else:
+        if is_visitor:
+            return ['名称', '规格/尺寸', '单位', '数量', '合计', '工艺/备注']
+        return ['名称', '规格/尺寸', '单位', '数量', '单价', '合计', '工艺/备注']
 
 
-ROOM_CW_V = [38*mm, 24*mm, 22*mm, 14*mm, 14*mm, 22*mm, 20*mm]
-ROOM_CW_C = [36*mm, 22*mm, 20*mm, 12*mm, 12*mm, 18*mm, 22*mm, 18*mm]
+ROOM_CW_V = [38*mm, 24*mm, 22*mm, 14*mm, 14*mm, 22*mm, 20*mm]   # visitor, show_ref=True (7 cols)
+ROOM_CW_C = [36*mm, 22*mm, 20*mm, 12*mm, 12*mm, 18*mm, 22*mm, 18*mm]   # customer, show_ref=True (8 cols)
+# Non-ref (compact) versions
+ROOM_CW_V_COMPACT = [42*mm, 28*mm, 16*mm, 14*mm, 22*mm, 38*mm]   # visitor, show_ref=False (6 cols)
+ROOM_CW_C_COMPACT = [40*mm, 26*mm, 14*mm, 14*mm, 18*mm, 22*mm, 24*mm]   # customer, show_ref=False (7 cols)
 
 
-def _room_section(story, room_name, items, is_visitor, styles):
+def _room_section(story, room_name, items, is_visitor, styles, show_ref=True):
     """Build one room section with green header."""
     if not items:
         return Decimal('0')
@@ -467,7 +519,7 @@ def _room_section(story, room_name, items, is_visitor, styles):
     hdr_data = [[header_text, '', '', '', '', '']]
     if not is_visitor:
         hdr_data[0].append('')
-    hdr_cw = ROOM_CW_V if is_visitor else ROOM_CW_C
+    hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V_COMPACT if is_visitor else ROOM_CW_C_COMPACT)
 
     hdr_tbl = Table(hdr_data, colWidths=hdr_cw)
     hdr_tbl.setStyle(TableStyle([
@@ -483,9 +535,9 @@ def _room_section(story, room_name, items, is_visitor, styles):
     story.append(hdr_tbl)
 
     # Item rows
-    rows = [_room_headers(is_visitor)]
+    rows = [_room_headers(is_visitor, show_ref)]
     for it in items:
-        rows.append(_item_row(it, is_visitor))
+        rows.append(_item_row(it, is_visitor, show_ref))
 
     tbl = Table(rows, colWidths=hdr_cw, repeatRows=1)
     cmds = [
@@ -504,13 +556,13 @@ def _room_section(story, room_name, items, is_visitor, styles):
     return total
 
 
-def _room_details_page(story, items, is_visitor, styles):
+def _room_details_page(story, items, is_visitor, styles, show_ref=True):
     """Build all room sections in user-specified order."""
     grouped = _group_by_room(items)
     rooms_sorted = sorted(grouped.keys(), key=_room_sort_key)
     grand = Decimal('0')
     for rn in rooms_sorted:
-        t = _room_section(story, rn, grouped[rn], is_visitor, styles)
+        t = _room_section(story, rn, grouped[rn], is_visitor, styles, show_ref)
         grand += t
     return grand
 
@@ -553,12 +605,13 @@ def _principles_page(story, styles, is_visitor):
 
 # ─── Main generator ──────────────────────────────────────────────────────────
 
-def generate_quote_pdf(quote, items, is_visitor=False):
+def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
     """
     Generate a PDF for the given quote.
     quote  : Quote model instance
     items  : list of QuoteItem instances
     is_visitor : True → visitor version (no unit prices)
+    show_ref   : True → show all ref columns (material/brand/color/spec etc.); False → compact view
     Returns: relative path string e.g. 'pdf/quote_xxx_customer_20260505.pdf'
     """
     global quote_obj
@@ -636,7 +689,7 @@ def generate_quote_pdf(quote, items, is_visitor=False):
             continue
 
         story.append(Paragraph(cat_key, styles['CNSec']))
-        tbl, ct = _cat_table(cat_items, is_visitor, styles)
+        tbl, ct = _cat_table(cat_items, is_visitor, styles, show_ref)
         grand_total += ct
         cat_totals_list.append((cat_key, ct))
         story.append(tbl)
@@ -674,7 +727,7 @@ def generate_quote_pdf(quote, items, is_visitor=False):
     def _room_page_header(canvas, doc):
         _page_header_footer(canvas, doc)
 
-    _room_details_page(story, items, is_visitor, styles)
+    _room_details_page(story, items, is_visitor, styles, show_ref)
 
     # ── Final page: Principles ─────────────────────────────────────────────
     def _principles_page_header(canvas, doc):
@@ -689,8 +742,9 @@ def generate_quote_pdf(quote, items, is_visitor=False):
     return 'pdf/{}'.format(fname)
 
 
-def generate_both_pdfs(quote_id):
-    """Generate customer + visitor PDFs; optionally attach to case."""
+def generate_both_pdfs(quote_id, show_ref=True):
+    """Generate customer + visitor PDFs; optionally attach to case.
+    show_ref: True=full ref columns, False=compact view."""
     from app.models.quote import Quote, QuoteItem
     from app.models.case import CaseFile, CaseStudy
     from app import db
@@ -704,8 +758,8 @@ def generate_both_pdfs(quote_id):
     if not items:
         return None
 
-    c_rel = generate_quote_pdf(quote, items, is_visitor=False)
-    v_rel = generate_quote_pdf(quote, items, is_visitor=True)
+    c_rel = generate_quote_pdf(quote, items, is_visitor=False, show_ref=show_ref)
+    v_rel = generate_quote_pdf(quote, items, is_visitor=True, show_ref=show_ref)
 
     result = {'customer_path': c_rel, 'visitor_path': v_rel}
 

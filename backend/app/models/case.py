@@ -127,6 +127,7 @@ class CaseStudy(db.Model):
     is_real_case = db.Column(db.Boolean, default=False, comment='是否真实案例(自动)')
     enable_public_workflow = db.Column(db.Boolean, default=False, comment='是否公开服务流程')
     workflow_id = db.Column(db.Integer, db.ForeignKey('customer_workflow.id'), comment='关联服务流程ID')
+    quote_id = db.Column(db.Integer, comment='关联报价表ID')
     created_by = db.Column(db.Integer, comment='创建人ID')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -205,6 +206,7 @@ class CaseStudy(db.Model):
             'share_count': self.share_count,
             'responsible_id': self.responsible_id,
             'workflow_id': self.workflow_id,
+            'quote_id': self.quote_id,
             'is_real_case': self.is_real_case,
             'enable_public_workflow': self.enable_public_workflow,
             'planner_id': self.planner_id,
@@ -605,4 +607,112 @@ class PantoneColorMap(db.Model):
             'pantone_code': self.pantone_code,
             'hex_value': self.hex_value,
             'name_cn': self.name_cn,
+        }
+
+
+class CasePhase(db.Model):
+    """案例阶段内容表 - V3.2 视觉素材6阶段"""
+    __tablename__ = 'case_phases'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('case_study.id'), nullable=False)
+    phase_number = db.Column(db.Integer, nullable=False, comment='阶段编号1-6')
+    phase_name = db.Column(db.String(50), comment='阶段名称')
+
+    # 阶段1：户型分析
+    layout_images = db.Column(db.Text, comment='户型图JSON数组')
+    layout_analysis = db.Column(db.Text, comment='户型分析文案(富文本)')
+
+    # 阶段2：设计意境
+    mood_images = db.Column(db.Text, comment='意境图JSON数组(≤10张)')
+    mood_text = db.Column(db.Text, comment='客户需求文案(富文本)')
+
+    # 阶段3：平面规划
+    plan_image = db.Column(db.String(500), comment='平面规划图URL')
+    plan_text = db.Column(db.Text, comment='规划文案(富文本)')
+
+    # 阶段4：鸟瞰展示
+    birdview_images = db.Column(db.Text, comment='鸟瞰图JSON数组(≤4张)')
+
+    # 阶段5：效果图首页
+    showcase_images = db.Column(db.Text, comment='设计意向图JSON数组(≤10张)')
+    showcase_title1 = db.Column(db.String(200), comment='一级标题')
+    showcase_title2 = db.Column(db.String(200), comment='二级标题')
+    showcase_text_cn = db.Column(db.Text, comment='中文文案')
+    showcase_text_en = db.Column(db.Text, comment='英文文案')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'case_id': self.case_id,
+            'phase_number': self.phase_number,
+            'phase_name': self.phase_name,
+            'layout_images': json.loads(self.layout_images) if self.layout_images else [],
+            'layout_analysis': self.layout_analysis,
+            'mood_images': json.loads(self.mood_images) if self.mood_images else [],
+            'mood_text': self.mood_text,
+            'plan_image': self.plan_image,
+            'plan_text': self.plan_text,
+            'birdview_images': json.loads(self.birdview_images) if self.birdview_images else [],
+            'showcase_images': json.loads(self.showcase_images) if self.showcase_images else [],
+            'showcase_title1': self.showcase_title1,
+            'showcase_title2': self.showcase_title2,
+            'showcase_text_cn': self.showcase_text_cn,
+            'showcase_text_en': self.showcase_text_en,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class CaseSpaceRendering(db.Model):
+    """空间效果图分组表 - V3.2 阶段6"""
+    __tablename__ = 'case_space_renderings'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('case_study.id'), nullable=False)
+    space_name = db.Column(db.String(100), nullable=False, comment='空间名称')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # 关联效果图列表
+    items = db.relationship('CaseRenderingItem', backref='space', lazy='dynamic',
+                          cascade='all, delete-orphan', order_by='CaseRenderingItem.sort_order')
+
+    def to_dict(self, include_items=True):
+        data = {
+            'id': self.id,
+            'case_id': self.case_id,
+            'space_name': self.space_name,
+            'sort_order': self.sort_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+        if include_items:
+            data['renderings'] = [item.to_dict() for item in self.items]
+        return data
+
+
+class CaseRenderingItem(db.Model):
+    """效果图详情表 - V3.2 阶段6"""
+    __tablename__ = 'case_rendering_items'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    space_id = db.Column(db.Integer, db.ForeignKey('case_space_renderings.id'), nullable=False)
+    image_url = db.Column(db.String(500), nullable=False, comment='图片URL')
+    title = db.Column(db.String(200), comment='标题')
+    description = db.Column(db.Text, comment='简介(富文本)')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'space_id': self.space_id,
+            'image_url': self.image_url,
+            'title': self.title,
+            'description': self.description,
+            'sort_order': self.sort_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
         }

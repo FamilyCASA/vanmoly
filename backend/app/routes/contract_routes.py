@@ -62,7 +62,8 @@ def create_template(current_user):
         content=data.get('content', ''),
         variables=data.get('variables', []),
         is_default=data.get('is_default', False),
-        sort_order=data.get('sort_order', 0)
+        sort_order=data.get('sort_order', 0),
+        remark=data.get('remark', '')
     )
 
     db.session.add(template)
@@ -82,7 +83,7 @@ def update_template(current_user, id):
     template = ContractTemplate.query.get_or_404(id)
     data = request.get_json()
 
-    fields = ['name', 'code', 'contract_type', 'content', 'variables', 'is_default', 'is_enabled']
+    fields = ['name', 'code', 'contract_type', 'content', 'variables', 'is_default', 'is_enabled', 'remark']
     for field in fields:
         if field in data:
             setattr(template, field, data[field])
@@ -94,6 +95,16 @@ def update_template(current_user, id):
         'message': '更新成功',
         'data': template.to_dict()
     })
+
+
+@contract_bp.route('/templates/<int:id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_template(current_user, id):
+    """删除合同模板"""
+    template = ContractTemplate.query.get_or_404(id)
+    template.is_enabled = False
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '删除成功'})
 
 
 # ========== 合同管理 ==========
@@ -722,6 +733,8 @@ def create_contract(current_user):
         payment = ContractPayment(
             contract_id=contract.id,
             phase=item.get('phase'),
+            phase_name=item.get('phase_name', ''),
+            node_desc=item.get('node_desc', ''),
             percentage=item.get('percentage', 0),
             amount=item.get('amount', 0),
             planned_date=planned_date,

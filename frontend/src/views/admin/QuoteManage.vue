@@ -158,7 +158,9 @@
                     class="cover-uploader"
                     action="/api/v3/upload/image"
                     :show-file-list="false"
+                    :headers="uploadHeaders"
                     :on-success="handleCoverUpload"
+                    :on-error="handleUploadError"
                   >
                     <img v-if="form.cover_config.background_image" :src="form.cover_config.background_image" class="cover-image" />
                     <el-icon v-else class="cover-uploader-icon"><Plus /></el-icon>
@@ -170,7 +172,9 @@
                     class="logo-uploader"
                     action="/api/v3/upload/image"
                     :show-file-list="false"
+                    :headers="uploadHeaders"
                     :on-success="handleLogoUpload"
+                    :on-error="handleUploadError"
                   >
                     <img v-if="form.cover_config.logo" :src="form.cover_config.logo" class="logo-image" />
                     <el-icon v-else class="logo-uploader-icon"><Plus /></el-icon>
@@ -362,123 +366,182 @@
         </el-card>
       </div>
 
-      <!-- 步骤4: 物料详单 -->
+      <!-- 步骤4: 物料详单（空间分组结构） -->
       <div v-show="activeStep === 3" class="step-content">
-        <el-card>
+        <!-- 空间分组卡片 -->
+        <div v-for="(space, spaceIdx) in form.spaces" :key="space.id" class="space-card">
+          <el-card>
+            <template #header>
+              <div class="space-header">
+                <div class="space-title">
+                  <el-input v-model="space.room_name" placeholder="空间名称（如：主卧）" style="width:120px" />
+                  <el-input v-model="space.product_name" placeholder="商品名称（如：7门衣柜）" style="width:180px;margin-left:8px" />
+                </div>
+                <div class="space-actions">
+                  <span class="space-total">本空间合计: ¥{{ formatMoney(calculateSpaceTotal(space)) }}</span>
+                  <el-button type="danger" link size="small" @click="removeSpace(spaceIdx)">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </div>
+              </div>
+            </template>
+
+            <el-table :data="space.children" border row-key="id" size="small" class="material-detail-table">
+                          <!-- 序号列 -->
+              <el-table-column label="序号" width="50" align="center">
+                <template #default="{ $index }">{{ $index + 1 }}</template>
+              </el-table-column>
+
+              <!-- 物料筛选列 -->
+              <el-table-column label="物料筛选" min-width="200" class-name="material-picker-col">
+                <template #default="{ row, $index }">
+                  <div class="material-picker-cell" @click="openPickerForRow(spaceIdx, $index)">
+                    <template v-if="row.sku_id || row.name">
+                      <el-icon color="#67C23A"><Box /></el-icon>
+                      <span class="picker-cell-text">{{ row.name }}</span>
+                    </template>
+                    <template v-else>
+                      <el-icon color="#c0c4cc"><Plus /></el-icon>
+                      <span class="picker-cell-placeholder">点击选择</span>
+                    </template>
+                  </div>
+                </template>
+              </el-table-column>
+
+              <!-- 引用参数列（PDF导出时显示） -->
+              <el-table-column v-show="isExportPdf" label="物料属性" width="100">
+                <template #default="{ row }"><el-input v-model="row.material_attr" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="材料" width="80">
+                <template #default="{ row }"><el-input v-model="row.material" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="花色" width="70">
+                <template #default="{ row }"><el-input v-model="row.color" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="品牌" width="80">
+                <template #default="{ row }"><el-input v-model="row.brand" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="型号" width="80">
+                <template #default="{ row }"><el-input v-model="row.model" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="等级" width="60">
+                <template #default="{ row }"><el-input v-model="row.grade" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="规格" width="100">
+                <template #default="{ row }"><el-input v-model="row.spec" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="参考图片" width="70" align="center">
+                <template #default="{ row }">
+                  <el-image v-if="row.image" :src="row.image" style="width:32px;height:32px;border-radius:4px;" fit="cover" />
+                  <span v-else style="color:#c0c4cc;font-size:12px;">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="产地" width="60">
+                <template #default="{ row }"><el-input v-model="row.origin" size="small" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="长" width="60">
+                <template #default="{ row }"><el-input-number v-model="row.width" :min="0" size="small" style="width:50px" controls-position="right" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="深" width="60">
+                <template #default="{ row }"><el-input-number v-model="row.depth" :min="0" size="small" style="width:50px" controls-position="right" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="高" width="60">
+                <template #default="{ row }"><el-input-number v-model="row.height" :min="0" size="small" style="width:50px" controls-position="right" /></template>
+              </el-table-column>
+              <el-table-column v-show="isExportPdf" label="计量值" width="70">
+                <template #default="{ row }"><el-input-number v-model="row.measurement_value" :min="0" :precision="2" size="small" style="width:60px" controls-position="right" /></template>
+              </el-table-column>
+
+              <!-- 核心列（始终显示） -->
+              <el-table-column label="数量" width="60" align="center">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.quantity" :min="0" :precision="2" size="small" style="width:50px" controls-position="right" @change="calculateTotal" />
+                </template>
+              </el-table-column>
+              <el-table-column label="工艺" width="90">
+                <template #default="{ row }"><el-input v-model="row.craft_type" size="small" placeholder="工艺" /></template>
+              </el-table-column>
+              <el-table-column label="系数" width="60" align="center">
+                <template #default="{ row }"><el-input-number v-model="row.craft_coefficient" :min="0" :precision="2" size="small" style="width:50px" controls-position="right" /></template>
+              </el-table-column>
+              <el-table-column label="单价" width="80" align="right">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.unit_price" :min="0" :precision="2" size="small" style="width:70px" controls-position="right" @change="calculateTotal" />
+                </template>
+              </el-table-column>
+              <el-table-column label="工艺价" width="80" align="right">
+                <template #default="{ row }">
+                  <el-input-number v-model="row.craft_price" :min="0" :precision="2" size="small" style="width:70px" controls-position="right" @change="calculateTotal" />
+                </template>
+              </el-table-column>
+              <el-table-column label="单位" width="60" align="center">
+                <template #default="{ row }"><el-input v-model="row.unit" size="small" style="width:50px" /></template>
+              </el-table-column>
+              <el-table-column label="金额" width="90" align="right" class-name="amount-col">
+                <template #default="{ row }"><span class="item-total">¥{{ formatMoney(row.total_price) }}</span></template>
+              </el-table-column>
+              <el-table-column label="备注" min-width="100">
+                <template #default="{ row }"><el-input v-model="row.remark" size="small" /></template>
+              </el-table-column>
+              <el-table-column label="操作" width="50" align="center">
+                <template #default="{ $index }">
+                  <el-button type="danger" link size="small" @click="space.children.splice($index, 1); calculateTotal()">
+                    <el-icon><Delete /></el-icon>
+                  </el-button>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </div>
+
+        <!-- 添加空间按钮 -->
+        <el-button type="primary" @click="addSpace" style="margin: 12px 0">
+          <el-icon><Plus /></el-icon> 添加空间
+        </el-button>
+
+        <!-- 物料备选框 -->
+        <el-card class="material-picker-card">
           <template #header>
             <div class="card-header">
-              <span>物料详单</span>
-              <div>
-                <el-button type="primary" size="small" @click="showImportDialog = true">
-                  <el-icon><Download /></el-icon> 从物料库导入
-                </el-button>
-                <el-button type="success" size="small" @click="addItem">
-                  <el-icon><Plus /></el-icon> 手动添加
-                </el-button>
-              </div>
+              <span>📦 物料备选</span>
+              <el-input v-model="materialSearchKeyword" placeholder="搜索物料" clearable style="width:200px" @keyup.enter="searchMaterials" @clear="searchMaterials">
+                <template #prefix><el-icon><Search /></el-icon></template>
+              </el-input>
             </div>
           </template>
 
-          <el-table :data="form.items" border row-key="id" default-expand-all>
-            <el-table-column type="expand">
-              <template #default="{ row }">
-                <el-form :model="row" label-width="80px" inline>
-                  <el-form-item label="规格">
-                    <el-input v-model="row.spec" placeholder="规格" />
-                  </el-form-item>
-                  <el-form-item label="品牌">
-                    <el-input v-model="row.brand" placeholder="品牌" />
-                  </el-form-item>
-                  <el-form-item label="单位">
-                    <el-input v-model="row.unit" placeholder="单位" style="width: 80px" />
-                  </el-form-item>
-                  <el-form-item label="工艺">
-                    <el-input v-model="row.craft_type" placeholder="工艺类型" />
-                  </el-form-item>
-                  <el-form-item label="工艺费">
-                    <el-input-number v-model="row.craft_price" :min="0" :precision="2" />
-                  </el-form-item>
-                  <el-divider content-position="left">定制尺寸</el-divider>
-                  <el-form-item label="宽(mm)">
-                    <el-input-number v-model="row.width" :min="0" :precision="0" placeholder="宽度" style="width: 120px" @change="calculateMeasurement(row)" />
-                  </el-form-item>
-                  <el-form-item label="深(mm)">
-                    <el-input-number v-model="row.depth" :min="0" :precision="0" placeholder="深度" style="width: 120px" @change="calculateMeasurement(row)" />
-                  </el-form-item>
-                  <el-form-item label="高(mm)">
-                    <el-input-number v-model="row.height" :min="0" :precision="0" placeholder="高度" style="width: 120px" @change="calculateMeasurement(row)" />
-                  </el-form-item>
-                  <el-form-item label="计量值">
-                    <el-input-number v-model="row.measurement_value" :min="0" :precision="4" style="width: 120px" />
-                  </el-form-item>
-                  <el-divider content-position="left">工艺系数</el-divider>
-                  <el-form-item label="工艺数量">
-                    <el-input-number v-model="row.craft_quantity" :min="0" :precision="2" style="width: 120px" />
-                  </el-form-item>
-                  <el-form-item label="工艺系数">
-                    <el-input-number v-model="row.craft_coefficient" :min="0" :precision="2" style="width: 120px" />
-                  </el-form-item>
-                </el-form>
-              </template>
-            </el-table-column>
+          <el-tabs v-model="activeCategoryTab" @tab-change="onCategoryTabChange" type="card">
+            <el-tab-pane v-for="cat in categoryTree" :key="cat.id" :label="cat.name" :name="cat.id" />
+          </el-tabs>
 
-            <el-table-column label="房间" width="120">
-              <template #default="{ row }">
-                <el-select v-model="row.room_name" size="small">
-                  <el-option v-for="r in options.rooms" :key="r" :label="r" :value="r" />
-                </el-select>
-              </template>
-            </el-table-column>
+          <div class="sub-category-bar">
+            <el-select v-model="activeSubCategory" placeholder="全部二级分类" clearable style="width:160px" @change="onSubCategoryChange">
+              <el-option v-for="sub in currentSubCategories" :key="sub.id" :label="sub.name" :value="sub.id" />
+            </el-select>
+            <el-button type="primary" @click="searchMaterials" :loading="materialSearchLoading">
+              <el-icon><Search /></el-icon> 搜索
+            </el-button>
+          </div>
 
-            <el-table-column label="分类" width="200">
-              <template #default="{ row }">
-                <el-cascader
-                  :model-value="getItemCategory(row)"
-                  @update:model-value="(val) => setItemCategory(row, val)"
-                  :options="categoryOptions"
-                  :props="{ checkStrictly: true }"
-                  size="small"
-                  style="width: 100%"
-                />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="名称" min-width="200">
-              <template #default="{ row }">
-                <el-input v-model="row.name" size="small" />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="数量" width="100">
-              <template #default="{ row }">
-                <el-input-number v-model="row.quantity" :min="0" :precision="2" size="small" style="width: 90px" @change="calculateItemTotal(row)" />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="单价" width="120">
-              <template #default="{ row }">
-                <el-input-number v-model="row.unit_price" :min="0" :precision="2" size="small" style="width: 110px" @change="calculateItemTotal(row)" />
-              </template>
-            </el-table-column>
-
-            <el-table-column label="总价" width="120">
-              <template #default="{ row }">
-                <span class="item-total">¥{{ formatMoney(row.total_price) }}</span>
-              </template>
-            </el-table-column>
-
-            <el-table-column label="操作" width="80">
-              <template #default="{ $index }">
-                <el-button type="danger" link size="small" @click="removeItem($index)">
-                  <el-icon><Delete /></el-icon>
-                </el-button>
-              </template>
-            </el-table-column>
-          </el-table>
+          <div v-loading="materialSearchLoading" class="material-grid">
+            <div v-for="m in materialSearchResults" :key="m.id" class="material-card" @click="addMaterialToQuote(m)">
+              <div class="material-card-img">
+                <img v-if="m.images?.[0] || m.image" :src="m.images?.[0] || m.image" />
+                <el-icon v-else :size="32" color="#c0c4cc"><Box /></el-icon>
+              </div>
+              <div class="material-card-info">
+                <div class="material-card-name" :title="m.name">{{ m.name }}</div>
+                <div class="material-card-meta">
+                  <span v-if="m.brand">{{ m.brand }}</span>
+                  <span v-if="m.spec || m.specification">{{ m.spec || m.specification }}</span>
+                </div>
+                <div class="material-card-price">¥{{ m.sale_price || m.base_price || 0 }}</div>
+              </div>
+            </div>
+            <el-empty v-if="!materialSearchLoading && materialSearchResults.length === 0" description="暂无物料" />
+          </div>
         </el-card>
-      </div>
-
-      <!-- 步骤5: 签字确认 -->
+      </div> -->
       <div v-show="activeStep === 4" class="step-content">
         <el-row :gutter="24">
           <el-col :span="12">
@@ -519,7 +582,18 @@
                     class="signature-uploader"
                     action="/api/v3/upload/image"
                     :show-file-list="false"
-                    :on-success="(res) => form.signature_seal = res.url"
+                    :headers="uploadHeaders"
+                    :on-success="(res) => {
+                      const url = res.data?.file_url || res.data?.url || res.file_url || res.url
+                      if (url) {
+                        form.signature_seal = url
+                        ElMessage.success('公章上传成功')
+                      } else {
+                        ElMessage.error('上传响应格式异常')
+                        console.error('Upload response:', res)
+                      }
+                    }"
+                    :on-error="handleUploadError"
                   >
                     <img v-if="form.signature_seal" :src="form.signature_seal" class="signature-image" />
                     <div v-else class="signature-placeholder">
@@ -592,9 +666,9 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, FullScreen, Download, Delete, Edit, Stamp, DocumentCopy } from '@element-plus/icons-vue'
+import { Plus, FullScreen, Download, Delete, Edit, Stamp, DocumentCopy, Search } from '@element-plus/icons-vue'
 import request from '@/utils/request'
-// import MaterialSelector from '@/components/MaterialSelector.vue'
+import MaterialSelector from '@/components/MaterialSelector.vue'
 import SignaturePad from '@/components/SignaturePad.vue'
 
 const loading = ref(false)
@@ -604,7 +678,157 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const activeStep = ref(0)
+const isExportPdf = ref(false)  // PDF导出时为true，控制引用参数列显示
 const showImportDialog = ref(false)
+
+// 物料分类树（从后端动态加载）
+const categoryTree = ref([])  // [{id, name, code, children:[{id, name, code}]}]
+const activeCategoryTab = ref(null)  // 当前选中的一级分类id
+const activeSubCategory = ref(null)  // 当前选中的二级分类id
+const materialSearchKeyword = ref('')
+const materialSearchResults = ref([])
+const materialSearchLoading = ref(false)
+const pickerTargetIndex = ref(null)  // 当前正在选择物料的行索引
+const pickerSpaceIdx = ref(null)      // 当前正在选择物料的空间索引
+
+// 加载分类树
+const loadCategoryTree = async () => {
+  try {
+    const res = await request.get('/materials/categories')
+    const tree = Array.isArray(res) ? res : (res.data || [])
+    categoryTree.value = tree
+    if (tree.length > 0 && !activeCategoryTab.value) {
+      activeCategoryTab.value = tree[0].id
+    }
+  } catch (e) {
+    console.error('加载分类树失败', e)
+  }
+}
+
+// 当前一级分类下的二级分类列表
+const currentSubCategories = computed(() => {
+  const parent = categoryTree.value.find(c => c.id === activeCategoryTab.value)
+  return parent?.children || []
+})
+
+// 搜索物料（大类+二级分类+模糊搜索）
+const searchMaterials = async () => {
+  materialSearchLoading.value = true
+  try {
+    const params = { page: 1, page_size: 50 }
+    if (materialSearchKeyword.value.trim()) {
+      params.keyword = materialSearchKeyword.value.trim()
+    }
+    // 按二级分类搜索
+    if (activeSubCategory.value) {
+      params.category_id = activeSubCategory.value
+    } else if (activeCategoryTab.value) {
+      // 一级分类：搜索其下所有二级分类的物料
+      const parent = categoryTree.value.find(c => c.id === activeCategoryTab.value)
+      if (parent?.children?.length) {
+        params.category_ids = parent.children.map(c => c.id).join(',')
+      } else {
+        params.category_id = activeCategoryTab.value
+      }
+    }
+    const res = await request.get('/materials', { params })
+    materialSearchResults.value = res.items || res.data?.items || []
+  } catch (e) {
+    console.error('搜索物料失败', e)
+    materialSearchResults.value = []
+  } finally {
+    materialSearchLoading.value = false
+  }
+}
+
+// 点击物料卡片直接添加到报价
+const addMaterialToQuote = (m) => {
+  const rowData = {
+    id: genId(),
+    sku_id: m.id,
+    name: m.name,
+    spec: m.spec || m.specification || '',
+    material_attr: m.material_attr || m.attr || '',
+    material: m.material || '',
+    color: m.color || '',
+    brand: m.brand || '',
+    model: m.model || '',
+    grade: m.grade || '',
+    origin: m.origin || '',
+    unit: m.unit || '项',
+    quantity: 1,
+    unit_price: m.sale_price || m.base_price || 0,
+    total_price: m.sale_price || m.base_price || 0,
+    image: m.images?.[0] || m.image || m.reference_image || '',
+    category_level1: activeCategoryTab.value,
+    category_level2: activeSubCategory.value || '',
+    category_level3: '',
+    item_type: 'product',
+    remark: '',
+    width: null,
+    depth: null,
+    height: null,
+    measurement_value: 1,
+    craft_type: '',
+    craft_coefficient: 1,
+    craft_price: 0
+  }
+  
+  // 空间分组模式
+  if (pickerSpaceIdx.value !== null && form.spaces[pickerSpaceIdx.value]) {
+    const space = form.spaces[pickerSpaceIdx.value]
+    if (pickerTargetIndex.value !== null && pickerTargetIndex.value < space.children.length) {
+      // 填充到目标行
+      const target = space.children[pickerTargetIndex.value]
+      Object.assign(target, rowData)
+      ElMessage.success(`已填充: ${m.name}`)
+    } else {
+      // 追加到空间
+      space.children.push(rowData)
+      ElMessage.success(`已添加到 ${space.room_name || '空间'}: ${m.name}`)
+    }
+    pickerSpaceIdx.value = null
+    pickerTargetIndex.value = null
+    calculateTotal()
+    return
+  }
+  
+  // 兼容旧模式（扁平 items）
+  if (pickerTargetIndex.value !== null && pickerTargetIndex.value < form.items.length) {
+    const target = form.items[pickerTargetIndex.value]
+    Object.assign(target, rowData, { room_name: target.room_name })
+    ElMessage.success(`已填充: ${m.name}`)
+    pickerTargetIndex.value = null
+  } else {
+    rowData.room_name = '客厅'
+    form.items.push(rowData)
+    ElMessage.success(`已添加: ${m.name}`)
+  }
+  calculateTotal()
+}
+
+// 点击行的物料筛选单元格，打开备选框并标记当前行
+const openPickerForRow = (spaceIdx, childIdx) => {
+  pickerSpaceIdx.value = spaceIdx
+  pickerTargetIndex.value = childIdx
+  // 滚动到备选框区域
+  const el = document.querySelector('.material-picker-card')
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+  }
+}
+
+// 切换一级分类Tab时自动搜索
+const onCategoryTabChange = (tabId) => {
+  activeCategoryTab.value = tabId
+  activeSubCategory.value = null
+  searchMaterials()
+}
+
+// 切换二级分类时自动搜索
+const onSubCategoryChange = () => {
+  searchMaterials()
+}
 
 const filterForm = reactive({
   keyword: '',
@@ -695,6 +919,7 @@ const form = reactive({
   tax_rate: 6,
   total_amount: 0,
   items: [],
+  spaces: [],  // 空间分组结构 [{id, room_name, product_name, category_id, children:[]}]
   signature_customer: '',
   signature_planner: '',
   signature_manager: '',
@@ -710,28 +935,25 @@ const signatureDialog = reactive({
 
 const signaturePadRef = ref(null)
 
-// 分类列表
-const categoryList = computed(() => [
-  { key: 'hard_material', label: '硬装主材', enabled: true },
-  { key: 'construction', label: '施工服务', enabled: true },
-  { key: 'installation', label: '安装服务', enabled: true },
-  { key: 'delivery', label: '配送服务', enabled: true },
-  { key: 'moving', label: '搬运服务', enabled: true },
-  { key: 'design', label: '设计服务', enabled: true },
-  { key: 'custom', label: '全屋定制', enabled: true },
-  { key: 'furniture', label: '成品家具', enabled: true },
-  { key: 'soft', label: '软装饰品', enabled: true },
-  { key: 'equipment', label: '电气设备', enabled: true },
-  { key: 'smart_home', label: '智能家居', enabled: false },
-  { key: 'other', label: '其他', enabled: false },
-])
+// 分类列表（从分类树派生）
+const categoryList = computed(() => {
+  return categoryTree.value.map(c => ({
+    key: c.code,
+    id: c.id,
+    label: c.name,
+    enabled: true
+  }))
+})
 
-// 分类选项（级联选择器用）
+// 分类选项（级联选择器用，带二级分类）
 const categoryOptions = computed(() => {
-  return categoryList.value.map(cat => ({
-    value: cat.key,
-    label: cat.label,
-    children: []
+  return categoryTree.value.map(cat => ({
+    value: cat.id,
+    label: cat.name,
+    children: (cat.children || []).map(sub => ({
+      value: sub.id,
+      label: sub.name
+    }))
   }))
 })
 
@@ -870,12 +1092,36 @@ const getCoverPreviewStyle = () => {
   return style
 }
 
+const uploadHeaders = computed(() => {
+  const token = localStorage.getItem('token')
+  return token ? { 'Authorization': `Bearer ${token}` } : {}
+})
+
 const handleCoverUpload = (res) => {
-  form.cover_config.background_image = res.url
+  const url = res.data?.file_url || res.data?.url || res.file_url || res.url
+  if (url) {
+    form.cover_config.background_image = url
+    ElMessage.success('背景图片上传成功')
+  } else {
+    ElMessage.error('上传响应格式异常')
+    console.error('Upload response:', res)
+  }
 }
 
 const handleLogoUpload = (res) => {
-  form.cover_config.logo = res.url
+  const url = res.data?.file_url || res.data?.url || res.file_url || res.url
+  if (url) {
+    form.cover_config.logo = url
+    ElMessage.success('Logo上传成功')
+  } else {
+    ElMessage.error('上传响应格式异常')
+    console.error('Upload response:', res)
+  }
+}
+
+const handleUploadError = (error) => {
+  ElMessage.error('上传失败：' + (error?.message || '未知错误'))
+  console.error('Upload error:', error)
 }
 
 // 团队相关
@@ -930,21 +1176,33 @@ const autoCalculate = () => {
 }
 
 const calculateTotal = () => {
-  // 计算小计
-  let subtotal = 0
-  Object.values(form.category_summary).forEach(cat => {
-    subtotal += (cat.amount || 0)
-  })
-  form.subtotal = subtotal
+  // 优先计算 spaces 分组模式
+  if (form.spaces.length > 0) {
+    let subtotal = 0
+    form.spaces.forEach(space => {
+      space.children.forEach(item => {
+        item.total_price = (item.quantity || 0) * (item.unit_price || 0) + (item.craft_price || 0)
+        subtotal += item.total_price
+      })
+    })
+    form.subtotal = subtotal
+  } else {
+    // 兼容旧模式：从 category_summary 计算
+    let subtotal = 0
+    Object.values(form.category_summary).forEach(cat => {
+      subtotal += (cat.amount || 0)
+    })
+    form.subtotal = subtotal
+  }
 
   // 计算管理费
-  form.management_fee = subtotal * (form.management_fee_rate / 100)
+  form.management_fee = form.subtotal * (form.management_fee_rate / 100)
 
   // 计算税费
-  form.tax = (subtotal + form.management_fee) * (form.tax_rate / 100)
+  form.tax = (form.subtotal + form.management_fee) * (form.tax_rate / 100)
 
   // 计算总价
-  form.total_amount = subtotal + form.management_fee + form.tax
+  form.total_amount = form.subtotal + form.management_fee + form.tax
 }
 
 // 物料项相关 - 获取分类数组（用于级联选择器）
@@ -1000,6 +1258,64 @@ const calculateMeasurement = (item) => {
 
 const removeItem = (index) => {
   form.items.splice(index, 1)
+}
+
+// === 空间分组方法 ===
+const genId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6)
+
+const addSpace = () => {
+  form.spaces.push({
+    id: genId(),
+    room_name: '',
+    product_name: '',
+    category_id: null,
+    children: []
+  })
+}
+
+const removeSpace = (index) => {
+  form.spaces.splice(index, 1)
+  calculateTotal()
+}
+
+const calculateSpaceTotal = (space) => {
+  return (space.children || []).reduce((sum, item) => sum + (item.total_price || 0), 0)
+}
+
+const addMaterialToSpace = (space, m) => {
+  const rowData = {
+    id: genId(),
+    sku_id: m.id,
+    name: m.name,
+    spec: m.spec || m.specification || '',
+    material_attr: m.material_attr || m.attr || '',
+    material: m.material || '',
+    color: m.color || '',
+    brand: m.brand || '',
+    model: m.model || '',
+    grade: m.grade || '',
+    origin: m.origin || '',
+    unit: m.unit || '项',
+    quantity: 1,
+    unit_price: m.sale_price || m.base_price || 0,
+    total_price: m.sale_price || m.base_price || 0,
+    image: m.images?.[0] || m.image || m.reference_image || '',
+    category_level1: activeCategoryTab.value,
+    category_level2: activeSubCategory.value || '',
+    category_level3: '',
+    item_type: 'product',
+    remark: '',
+    width: null,
+    depth: null,
+    height: null,
+    measurement_value: 1,
+    craft_type: '',
+    craft_coefficient: 1,
+    craft_price: 0
+  }
+  space.children.push(rowData)
+  calculateTotal()
+  ElMessage.success(`已添加: ${m.name}`)
 }
 
 const calculateItemTotal = (item) => {
@@ -1087,8 +1403,10 @@ const editQuote = (row) => {
 const previewQuote = async (row) => {
   try {
     ElMessage.info('正在生成PDF预览...')
+    isExportPdf.value = true
     const token = localStorage.getItem('token')
-    const response = await fetch(`/api/v3/quotes/${row.id}/pdf-customer`, {
+    // 生成紧凑版预览（show_ref=false），按需展开引用参数列
+    const response = await fetch(`/api/v3/quotes/${row.id}/pdf-preview?show_ref=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
     if (!response.ok) throw new Error('PDF生成失败')
@@ -1099,9 +1417,11 @@ const previewQuote = async (row) => {
     a.download = `报价单_${row.quote_no}.pdf`
     a.click()
     window.URL.revokeObjectURL(url)
-    ElMessage.success('PDF下载成功')
+    ElMessage.success('PDF预览生成成功')
   } catch (error) {
     ElMessage.error('PDF预览失败：' + (error.message || '未知错误'))
+  } finally {
+    isExportPdf.value = false
   }
 }
 
@@ -1155,6 +1475,7 @@ onMounted(() => {
   loadStats()
   loadOptions()
   loadTemplates()
+  loadCategoryTree()
 
   // 初始化分类汇总
   categoryList.value.forEach(cat => {
@@ -1569,6 +1890,70 @@ onMounted(() => {
 .dialog-footer {
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 12px;
 }
+
+.dialog-footer .selected-tip {
+  flex: 1;
+  color: #666;
+}
+
+/* 筛选表单 */
+.filter-form {
+  margin-bottom: 16px;
+}
+
+/* ========== material detail table (Excel style) ========== */
+.material-detail-table { font-size: 13px; }
+.material-detail-table th { background-color: #f5f7fa !important; color: #303133; font-weight: 600; font-size: 12px; padding: 6px 4px !important; }
+.material-detail-table td { padding: 4px 4px !important; vertical-align: middle; }
+
+/* material picker column - green clickable cell */
+.material-picker-col .cell { padding: 0 !important; }
+.material-picker-cell {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 10px; cursor: pointer; border-radius: 4px;
+  transition: all 0.2s ease; min-height: 32px;
+  background-color: #f0f9eb; border: 1px solid #e1f3d8;
+  width: 100%; box-sizing: border-box;
+}
+.material-picker-cell:hover { background-color: #e1f3d8; border-color: #67C23A; box-shadow: 0 0 0 2px rgba(103,194,58,0.15); }
+.material-picker-cell.active { background-color: #67C23A; border-color: #529b2e; box-shadow: 0 0 0 2px rgba(103,194,58,0.3); }
+.material-picker-cell.active .picker-cell-text,
+.material-picker-cell.active .picker-cell-placeholder { color: #fff; }
+.picker-cell-text { color: #303133; font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; }
+.picker-cell-placeholder { color: #909399; font-size: 12px; }
+
+/* amount column - red */
+.amount-col .item-total { color: #F56C6C; font-weight: 600; font-size: 13px; }
+
+/* material picker card */
+.material-picker-card { margin-top: 16px; border: 2px solid #E6A23C; }
+.material-picker-card :deep(.el-card__header) { background-color: #fdf6ec; border-bottom: 1px solid #E6A23C; }
+
+.material-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 10px; max-height: 300px; overflow-y: auto; padding: 8px 0;
+}
+.material-card {
+  border: 1px solid #ebeef5; border-radius: 8px; padding: 10px; cursor: pointer;
+  transition: all 0.2s; display: flex; flex-direction: column;
+  align-items: center; gap: 6px;
+}
+.material-card:hover { border-color: #409EFF; box-shadow: 0 2px 10px rgba(64,158,255,0.15); transform: translateY(-1px); }
+.material-card-img { width: 60px; height: 60px; border-radius: 6px; overflow: hidden; display: flex; align-items: center; justify-content: center; background: #f5f7fa; }
+.material-card-img img { width: 100%; height: 100%; object-fit: cover; }
+.material-card-info { text-align: center; width: 100%; }
+.material-card-name { font-size: 12px; color: #303133; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.3; }
+.material-card-meta { font-size: 11px; color: #909399; display: flex; justify-content: center; gap: 6px; }
+.material-card-price { color: #F56C6C; font-size: 13px; font-weight: 600; }
+.sub-category-bar { display: flex; gap: 10px; align-items: center; margin: 10px 0; }
+
+/* 空间分组卡片 */
+.space-card { margin-bottom: 16px; }
+.space-header { display: flex; justify-content: space-between; align-items: center; }
+.space-title { display: flex; align-items: center; }
+.space-actions { display: flex; align-items: center; gap: 12px; }
+.space-total { font-size: 14px; color: #F56C6C; font-weight: 600; }
 </style>

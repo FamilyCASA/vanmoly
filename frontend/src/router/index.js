@@ -135,16 +135,10 @@ const routes = [
         meta: { title: '预约管理' }
       },
       {
-        path: 'files',
-        name: 'AdminFiles',
-        component: () => import('@/views/admin/FileManage.vue'),
-        meta: { title: '文件管理' }
-      },
-      {
-        path: 'frontend',
-        name: 'AdminFrontend',
-        component: () => import('@/views/admin/FrontendConfig.vue'),
-        meta: { title: '前端配置' }
+        path: 'settings',
+        name: 'AdminSettings',
+        component: () => import('@/views/admin/SettingsLayout.vue'),
+        meta: { title: '系统设置' }
       },
       {
         path: 'customers',
@@ -165,28 +159,10 @@ const routes = [
         meta: { title: '服务流程' }
       },
       {
-        path: 'materials',
-        name: 'AdminMaterials',
-        component: () => import('@/views/admin/MaterialManageV2.vue'),
-        meta: { title: '物料管理 V2' }
-      },
-      {
-        path: 'categories',
-        name: 'AdminCategories',
-        component: () => import('@/views/admin/CategoryManage.vue'),
-        meta: { title: '分类管理' }
-      },
-      {
         path: 'suppliers',
         name: 'AdminSuppliers',
         component: () => import('@/views/admin/SupplierManage.vue'),
         meta: { title: '供应商管理' }
-      },
-      {
-        path: 'employees',
-        name: 'AdminEmployees',
-        component: () => import('@/views/admin/HRManageV2.vue'),
-        meta: { title: '人力资源 V2' }
       },
       {
         path: 'contracts',
@@ -229,12 +205,6 @@ const routes = [
         name: 'AdminUsers',
         component: () => import('@/views/admin/UserManageV2.vue'),
         meta: { title: '用户权限' }
-      },
-      {
-        path: 'stores',
-        name: 'AdminStores',
-        component: () => import('@/views/admin/StoreManage.vue'),
-        meta: { title: '分店管理' }
       }
     ]
   },

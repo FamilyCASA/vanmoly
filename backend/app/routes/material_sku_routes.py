@@ -109,7 +109,9 @@ def get_materials():
     page = request.args.get('page', 1, type=int)
     page_size = request.args.get('page_size', 20, type=int)
     keyword = request.args.get('keyword', '').strip()
-    category_id = request.args.get('category_id', type=int)
+    category_id = request.args.get('category_id', '')
+    # 支持逗号分隔的多个 category_id（一级分类搜索其下所有二级分类）
+    category_ids_raw = request.args.get('category_ids', '')
     status = request.args.get('status', 'active').strip()
     low_stock = request.args.get('low_stock', type=bool)
 
@@ -128,7 +130,20 @@ def get_materials():
         )
 
     if category_id:
-        query = query.filter_by(category_id=category_id)
+        try:
+            cid = int(category_id)
+            query = query.filter_by(category_id=cid)
+        except ValueError:
+            pass
+
+    if category_ids_raw:
+        # 支持逗号分隔的多个ID，用于一级分类搜索其下所有二级分类的物料
+        try:
+            cids = [int(x.strip()) for x in category_ids_raw.split(',') if x.strip()]
+            if cids:
+                query = query.filter(MaterialSKU.category_id.in_(cids))
+        except ValueError:
+            pass
 
     if low_stock:
         query = query.filter(MaterialSKU.stock_quantity <= MaterialSKU.stock_warning)

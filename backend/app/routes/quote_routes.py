@@ -390,7 +390,7 @@ def confirm_quote(current_user, id):
     pdf_result = None
     try:
         from app.utils.pdf_generator import generate_both_pdfs
-        pdf_result = generate_both_pdfs(id)
+        pdf_result = generate_both_pdfs(id, show_ref=True)
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -493,6 +493,38 @@ def download_pdf(current_user, id):
     return send_from_directory(pdf_dir, file_path.name, as_attachment=True)
 
 
+@quote_bp.route('/<int:id>/pdf-preview', methods=['GET'])
+@jwt_required_v2
+def pdf_preview(current_user, id):
+    """生成报价PDF预览（支持紧凑/完整两种视图）
+    Query param: show_ref=true(完整)/false(紧凑，默认true)
+    """
+    from flask import request, send_from_directory
+    from pathlib import Path
+
+    quote = Quote.query.get_or_404(id)
+    show_ref = request.args.get('show_ref', 'true').lower() != 'false'
+
+    try:
+        from app.models.quote import QuoteItem
+        items = QuoteItem.query.filter_by(quote_id=id).order_by(
+            QuoteItem.category_level1, QuoteItem.sort_order
+        ).all()
+        if not items:
+            return jsonify({'code': 400, 'message': 'No items found'}), 400
+
+        from app.utils.pdf_generator import generate_quote_pdf
+        rel_path = generate_quote_pdf(quote, items, is_visitor=False, show_ref=show_ref)
+
+        upload_root = Path(__file__).parent.parent.parent / 'upload'
+        pdf_dir = upload_root / 'pdf'
+        fname = rel_path.replace('pdf/', '')
+        return send_from_directory(pdf_dir, fname, as_attachment=True)
+    except Exception as e:
+        import traceback; traceback.print_exc()
+        return jsonify({'code': 500, 'message': str(e)}), 500
+
+
 @quote_bp.route('/<int:id>/pdf-customer', methods=['GET'])
 @jwt_required_v2
 def download_pdf_customer(current_user, id):
@@ -527,7 +559,9 @@ def generate_pdf(current_user, id):
 
     try:
         from app.utils.pdf_generator import generate_both_pdfs
-        pdf_result = generate_both_pdfs(id)
+        from flask import request
+        show_ref = request.args.get('show_ref', 'true').lower() != 'false'
+        pdf_result = generate_both_pdfs(id, show_ref=show_ref)
     except Exception as e:
         import traceback
         traceback.print_exc()

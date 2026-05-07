@@ -7,7 +7,8 @@ from app import db
 from app.models.hr import Department, Position, Employee
 from app.models.hr_v2 import (
     EmployeeSalary, PerformanceReview, EmployeePoints, PointsTransaction,
-    CareerPath, TrainingRecord, EmployeeWelfare
+    CareerPath, TrainingRecord, EmployeeWelfare,
+    PointsRule, PointsAudit, TeamBuilding, PointsExchange
 )
 from app.routes.auth_routes_v2 import jwt_required_v2, hash_password, DEFAULT_PASSWORD
 from datetime import datetime
@@ -603,4 +604,697 @@ def restore_employee_account(current_user, id):
     return jsonify({
         'code': 200,
         'message': '账号已恢复，默认密码: ' + DEFAULT_PASSWORD
+    })
+# ========== 我的面板 - 积分/团队 ==========
+
+@hr_v2_bp.route('/me/points', methods=['GET'])
+@jwt_required_v2
+def get_my_points(current_user):
+    """当前用户积分余额"""
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+
+    account = EmployeePoints.query.filter_by(employee_id=emp_id).first()
+    if not account:
+        account = EmployeePoints(employee_id=emp_id)
+        db.session.add(account)
+        db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': account.to_dict()
+    })
+
+
+@hr_v2_bp.route('/me/points/detail', methods=['GET'])
+@jwt_required_v2
+def get_my_points_detail(current_user):
+    """当前用户积分明细列表"""
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+
+    query = PointsTransaction.query.filter_by(employee_id=emp_id).order_by(
+        PointsTransaction.created_at.desc()
+    )
+    pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': {
+            'items': [t.to_dict() for t in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size
+        }
+    })
+
+
+@hr_v2_bp.route('/points/rank', methods=['GET'])
+@jwt_required_v2
+def get_points_rank(current_user):
+    """积分排行榜（当前租户）"""
+    tenant_id = current_user.get('tenant_id', '0')
+    limit = request.args.get('limit', 20, type=int)
+
+    ranks = db.session.query(
+        EmployeePoints, Employee
+    ).join(Employee, EmployeePoints.employee_id == Employee.id).filter(
+        Employee.tenant_id == tenant_id,
+        Employee.is_deleted == False
+    ).order_by(EmployeePoints.current_points.desc()).limit(limit).all()
+
+    result = []
+    for i, (points, emp) in enumerate(ranks):
+        d = points.to_dict()
+        d['rank'] = i + 1
+        d['employee_name'] = emp.name
+        d['position'] = emp.position
+        result.append(d)
+
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': result
+    })
+
+
+@hr_v2_bp.route('/me/team', methods=['GET'])
+@jwt_required_v2
+def get_my_team(current_user):
+    """当前用户的团队信息（部门/门店/成员）"""
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+
+    emp = Employee.query.get(emp_id)
+    if not emp:
+        return jsonify({'code': 404, 'message': '员工不存在'}), 404
+
+    dept_name = ''
+    if emp.department_id:
+        dept = Department.query.get(emp.department_id)
+        if dept:
+            dept_name = dept.name
+
+    store_name = ''
+    if emp.store_id:
+        from app.models.auth_v2 import Store
+        store = Store.query.get(emp.store_id)
+        if store:
+            store_name = store.name
+
+    members_query = Employee.query.filter(
+        Employee.department_id == emp.department_id,
+        Employee.status.in_(['active', 'probation']),
+        Employee.is_deleted == False
+    )
+    members = [{
+        'id': e.id,
+        'name': e.name,
+        'position': e.position,
+        'phone': e.phone
+    } for e in members_query.all()]
+
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': {
+            'department': dept_name,
+            'store': store_name,
+            'members': members
+        }
+    })# ========== 积分规则管理 ==========
+
+@hr_v2_bp.route('/points/rules', methods=['GET'])
+@jwt_required_v2
+def get_points_rules(current_user):
+    """获取积分规则列表"""
+    tenant_id = current_user.get('tenant_id', 'default')
+    category = request.args.get('category')
+    is_active = request.args.get('is_active')
+    
+    query = PointsRule.query.filter_by(tenant_id=tenant_id)
+    
+    if category:
+        query = query.filter_by(category=category)
+    if is_active is not None:
+        query = query.filter_by(is_active=(is_active == 'true'))
+    
+    rules = query.order_by(PointsRule.category, PointsRule.id).all()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': [r.to_dict() for r in rules]
+    })
+
+
+@hr_v2_bp.route('/points/rules', methods=['POST'])
+@jwt_required_v2
+def create_points_rule(current_user):
+    """创建积分规则"""
+    data = request.get_json()
+    
+    # 检查 action_key 唯一性
+    existing = PointsRule.query.filter_by(action_key=data['action_key']).first()
+    if existing:
+        return jsonify({'code': 400, 'message': '动作标识已存在'}), 400
+    
+    rule = PointsRule(
+        tenant_id=current_user.get('tenant_id', 'default'),
+        action_key=data['action_key'],
+        action_name=data['action_name'],
+        category=data['category'],
+        description=data.get('description'),
+        points=data.get('points', 0),
+        points_type=data.get('points_type', 'earn'),
+        unit=data.get('unit', '次'),
+        high_value_enabled=data.get('high_value_enabled', False),
+        thresholds=data.get('thresholds', []),
+        is_active=data.get('is_active', True),
+        is_auditable=data.get('is_auditable', True),
+        requires_proof=data.get('requires_proof', False),
+        related_table=data.get('related_table'),
+        related_action=data.get('related_action'),
+        allowed_roles=data.get('allowed_roles', []),
+        excluded_roles=data.get('excluded_roles', []),
+        created_by=current_user.get('employee_id')
+    )
+    
+    db.session.add(rule)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '规则创建成功',
+        'data': rule.to_dict()
+    })
+
+
+@hr_v2_bp.route('/points/rules/<int:rule_id>', methods=['PUT'])
+@jwt_required_v2
+def update_points_rule(current_user, rule_id):
+    """更新积分规则"""
+    rule = PointsRule.query.get(rule_id)
+    if not rule:
+        return jsonify({'code': 404, 'message': '规则不存在'}), 404
+    
+    data = request.get_json()
+    
+    # 检查 action_key 唯一性（如果修改了）
+    if 'action_key' in data and data['action_key'] != rule.action_key:
+        existing = PointsRule.query.filter_by(action_key=data['action_key']).first()
+        if existing:
+            return jsonify({'code': 400, 'message': '动作标识已存在'}), 400
+        rule.action_key = data['action_key']
+    
+    # 更新字段
+    for field in ['action_name', 'category', 'description', 'points', 'points_type',
+                  'unit', 'high_value_enabled', 'thresholds', 'is_active', 'is_auditable',
+                  'requires_proof', 'related_table', 'related_action', 'allowed_roles', 'excluded_roles']:
+        if field in data:
+            setattr(rule, field, data[field])
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '规则更新成功',
+        'data': rule.to_dict()
+    })
+
+
+@hr_v2_bp.route('/points/rules/<int:rule_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_points_rule(current_user, rule_id):
+    """删除积分规则"""
+    rule = PointsRule.query.get(rule_id)
+    if not rule:
+        return jsonify({'code': 404, 'message': '规则不存在'}), 404
+    
+    db.session.delete(rule)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '规则删除成功'
+    })
+
+
+# ========== 积分审核 ==========
+
+@hr_v2_bp.route('/points/audit', methods=['GET'])
+@jwt_required_v2
+def get_points_audits(current_user):
+    """获取积分审核列表（管理员查看待审核）"""
+    tenant_id = current_user.get('tenant_id', 'default')
+    status = request.args.get('status', 'pending')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    
+    query = PointsAudit.query
+    
+    if status:
+        query = query.filter_by(status=status)
+    
+    # TODO: 根据权限过滤（团队负责人只能看本团队）
+    
+    total = query.count()
+    audits = query.order_by(PointsAudit.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': {
+            'items': [a.to_dict() for a in audits],
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        }
+    })
+
+
+@hr_v2_bp.route('/points/audit', methods=['POST'])
+@jwt_required_v2
+def submit_points_audit(current_user):
+    """提交积分审核申请"""
+    data = request.get_json()
+    
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+    
+    emp = Employee.query.get(emp_id)
+    if not emp:
+        return jsonify({'code': 404, 'message': '员工不存在'}), 404
+    
+    # 查找规则
+    rule = PointsRule.query.filter_by(action_key=data['action_key']).first()
+    if not rule:
+        return jsonify({'code': 404, 'message': '积分规则不存在'}), 404
+    
+    if not rule.is_active:
+        return jsonify({'code': 400, 'message': '该规则已停用'}), 400
+    
+    # 计算积分（支持高客单叠加）
+    points = rule.points
+    if rule.high_value_enabled and 'contract_amount' in data:
+        amount = data['contract_amount']
+        for th in sorted(rule.thresholds or [], key=lambda x: x.get('min', 0)):
+            if th.get('min', 0) <= amount < th.get('max', float('inf')):
+                points += th.get('bonus', 0)
+                break
+    
+    audit = PointsAudit(
+        employee_id=emp_id,
+        employee_name=emp.name,
+        action_key=rule.action_key,
+        action_name=rule.action_name,
+        category=rule.category,
+        points_applied=points,
+        proof_url=data.get('proof_url'),
+        remark=data.get('remark'),
+        related_table=data.get('related_table'),
+        related_id=data.get('related_id'),
+        status='pending'
+    )
+    
+    db.session.add(audit)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '积分申请已提交',
+        'data': audit.to_dict()
+    })
+
+
+@hr_v2_bp.route('/points/audit/<int:audit_id>/approve', methods=['POST'])
+@jwt_required_v2
+def approve_points_audit(current_user, audit_id):
+    """审核通过积分申请"""
+    audit = PointsAudit.query.get(audit_id)
+    if not audit:
+        return jsonify({'code': 404, 'message': '审核记录不存在'}), 404
+    
+    if audit.status != 'pending':
+        return jsonify({'code': 400, 'message': '该申请已处理'}), 400
+    
+    emp_id = current_user.get('employee_id')
+    emp = Employee.query.get(emp_id) if emp_id else None
+    
+    # 更新审核状态
+    audit.status = 'approved'
+    audit.audited_by = emp_id
+    audit.audited_by_name = emp.name if emp else None
+    audit.audited_at = datetime.utcnow()
+    
+    # 发放积分
+    account = EmployeePoints.query.filter_by(employee_id=audit.employee_id).first()
+    if not account:
+        account = EmployeePoints(employee_id=audit.employee_id)
+        db.session.add(account)
+    
+    # 增加积分
+    account.current_points = float(account.current_points) + audit.points_applied
+    account.total_earned = float(account.total_earned) + audit.points_applied
+    account.update_level()
+    
+    # 记录流水
+    trans = PointsTransaction(
+        employee_id=audit.employee_id,
+        type='earn',
+        points=audit.points_applied,
+        balance_after=account.current_points,
+        source_type='audit',
+        source_id=audit.id,
+        description=f'{audit.action_name}（审核通过）',
+        created_by=emp_id
+    )
+    db.session.add(trans)
+    
+    audit.points_granted = True
+    audit.points_granted_at = datetime.utcnow()
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '审核通过，积分已发放',
+        'data': audit.to_dict()
+    })
+
+
+@hr_v2_bp.route('/points/audit/<int:audit_id>/reject', methods=['POST'])
+@jwt_required_v2
+def reject_points_audit(current_user, audit_id):
+    """审核驳回积分申请"""
+    audit = PointsAudit.query.get(audit_id)
+    if not audit:
+        return jsonify({'code': 404, 'message': '审核记录不存在'}), 404
+    
+    if audit.status != 'pending':
+        return jsonify({'code': 400, 'message': '该申请已处理'}), 400
+    
+    data = request.get_json()
+    reject_reason = data.get('reject_reason', '')
+    
+    if not reject_reason:
+        return jsonify({'code': 400, 'message': '驳回原因必填'}), 400
+    
+    emp_id = current_user.get('employee_id')
+    emp = Employee.query.get(emp_id) if emp_id else None
+    
+    audit.status = 'rejected'
+    audit.audited_by = emp_id
+    audit.audited_by_name = emp.name if emp else None
+    audit.audited_at = datetime.utcnow()
+    audit.reject_reason = reject_reason
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '审核已驳回',
+        'data': audit.to_dict()
+    })
+
+
+# ========== 团队团建 ==========
+
+@hr_v2_bp.route('/team-building', methods=['GET'])
+@jwt_required_v2
+def get_team_buildings(current_user):
+    """获取团建申请列表"""
+    tenant_id = current_user.get('tenant_id', 'default')
+    status = request.args.get('status')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    
+    query = TeamBuilding.query.filter_by(tenant_id=tenant_id)
+    
+    if status:
+        query = query.filter_by(status=status)
+    
+    total = query.count()
+    items = query.order_by(TeamBuilding.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': {
+            'items': [i.to_dict() for i in items],
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        }
+    })
+
+
+@hr_v2_bp.route('/team-building', methods=['POST'])
+@jwt_required_v2
+def create_team_building(current_user):
+    """发起团建申请"""
+    data = request.get_json()
+    
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+    
+    emp = Employee.query.get(emp_id)
+    if not emp:
+        return jsonify({'code': 404, 'message': '员工不存在'}), 404
+    
+    member_count = data.get('member_count', 4)
+    
+    # 计算所需积分和基金
+    # 公式：所需积分 = 100000 + (人数-4) × 20000
+    # 团建基金 = 10000 + (人数-4) × 1000
+    total_points = 100000 + (member_count - 4) * 20000
+    fund_amount = 10000 + (member_count - 4) * 1000
+    max_reimbursement = fund_amount * 1.5
+    
+    tb = TeamBuilding(
+        tenant_id=current_user.get('tenant_id', 'default'),
+        team_name=data.get('team_name', f'{emp.name}团队'),
+        leader_id=emp_id,
+        leader_name=emp.name,
+        member_count=member_count,
+        total_points_required=total_points,
+        fund_amount=fund_amount,
+        max_reimbursement=max_reimbursement,
+        member_list=data.get('member_list', []),
+        status='voting'
+    )
+    
+    db.session.add(tb)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '团建申请已创建',
+        'data': tb.to_dict()
+    })
+
+
+@hr_v2_bp.route('/team-building/<int:tb_id>/vote', methods=['POST'])
+@jwt_required_v2
+def vote_team_building(current_user, tb_id):
+    """团建投票（参与/不参与）"""
+    tb = TeamBuilding.query.get(tb_id)
+    if not tb:
+        return jsonify({'code': 404, 'message': '团建申请不存在'}), 404
+    
+    if tb.status != 'voting':
+        return jsonify({'code': 400, 'message': '当前状态不允许投票'}), 400
+    
+    data = request.get_json()
+    emp_id = current_user.get('employee_id')
+    agree = data.get('agree', True)
+    
+    if agree:
+        if emp_id not in (tb.member_agree or []):
+            tb.member_agree = (tb.member_agree or []) + [emp_id]
+        if emp_id in (tb.member_refuse or []):
+            tb.member_refuse = [x for x in tb.member_refuse if x != emp_id]
+    else:
+        if emp_id not in (tb.member_refuse or []):
+            tb.member_refuse = (tb.member_refuse or []) + [emp_id]
+        if emp_id in (tb.member_agree or []):
+            tb.member_agree = [x for x in tb.member_agree if x != emp_id]
+    
+    # 检查是否全员投票完成
+    all_members = [m.get('id') for m in (tb.member_list or [])]
+    voted = set(tb.member_agree or []) | set(tb.member_refuse or [])
+    if all(m in voted for m in all_members):
+        # 检查是否有人不参与
+        if tb.member_refuse:
+            tb.is_incomplete = True
+        tb.status = 'pending'  # 进入待审核
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '投票成功',
+        'data': tb.to_dict()
+    })
+
+
+# ========== 积分兑换 ==========
+
+@hr_v2_bp.route('/points/exchange', methods=['GET'])
+@jwt_required_v2
+def get_points_exchanges(current_user):
+    """获取积分兑换记录"""
+    emp_id = current_user.get('employee_id')
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    
+    query = PointsExchange.query
+    if emp_id:
+        query = query.filter_by(employee_id=emp_id)
+    
+    total = query.count()
+    items = query.order_by(PointsExchange.created_at.desc()).offset((page - 1) * page_size).limit(page_size).all()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': 'success',
+        'data': {
+            'items': [i.to_dict() for i in items],
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        }
+    })
+
+
+@hr_v2_bp.route('/points/exchange', methods=['POST'])
+@jwt_required_v2
+def submit_points_exchange(current_user):
+    """提交积分兑换"""
+    data = request.get_json()
+    
+    emp_id = current_user.get('employee_id')
+    if not emp_id:
+        return jsonify({'code': 400, 'message': '未绑定员工账号'}), 400
+    
+    emp = Employee.query.get(emp_id)
+    if not emp:
+        return jsonify({'code': 404, 'message': '员工不存在'}), 404
+    
+    exchange_type = data.get('exchange_type', 'cash')
+    
+    # 获取积分账户
+    account = EmployeePoints.query.filter_by(employee_id=emp_id).first()
+    if not account:
+        return jsonify({'code': 400, 'message': '积分账户不存在'}), 400
+    
+    if exchange_type == 'cash':
+        # 现金兑换
+        points_spent = data.get('points_spent', 0)
+        if points_spent <= 0:
+            return jsonify({'code': 400, 'message': '兑换积分必须大于0'}), 400
+        
+        if float(account.current_points) < points_spent:
+            return jsonify({'code': 400, 'message': '可用积分不足'}), 400
+        
+        # 兑换比例：100积分 = 1元
+        exchange_rate = 0.01
+        cash_amount = points_spent * exchange_rate
+        
+        exchange = PointsExchange(
+            employee_id=emp_id,
+            employee_name=emp.name,
+            exchange_type='cash',
+            points_spent=points_spent,
+            cash_amount=cash_amount,
+            exchange_rate=exchange_rate,
+            status='approved'
+        )
+        
+    elif exchange_type == 'leave':
+        # 带薪假兑换
+        days_off = data.get('days_off', 1)
+        points_required_per_day = 2000  # 10000积分=5天 → 2000/天
+        points_spent = days_off * points_required_per_day
+        
+        if float(account.current_points) < points_spent:
+            return jsonify({'code': 400, 'message': '可用积分不足'}), 400
+        
+        # 检查年内已用次数（每人每年限兑1次）
+        year_start = datetime.utcnow().replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+        yearly_used = PointsExchange.query.filter(
+            PointsExchange.employee_id == emp_id,
+            PointsExchange.exchange_type == 'leave',
+            PointsExchange.created_at >= year_start,
+            PointsExchange.status == 'approved'
+        ).count()
+        
+        if yearly_used >= 1:
+            return jsonify({'code': 400, 'message': '每年仅限兑换1次带薪假'}), 400
+        
+        exchange = PointsExchange(
+            employee_id=emp_id,
+            employee_name=emp.name,
+            exchange_type='leave',
+            points_spent=points_spent,
+            days_off=days_off,
+            points_required_per_day=points_required_per_day,
+            yearly_limit_used=yearly_used + 1,
+            status='approved'
+        )
+    else:
+        return jsonify({'code': 400, 'message': '不支持的兑换类型'}), 400
+    
+    # 扣减积分
+    account.current_points = float(account.current_points) - exchange.points_spent
+    account.total_used = float(account.total_used) + exchange.points_spent
+    account.update_level()
+    
+    # 记录流水
+    trans = PointsTransaction(
+        employee_id=emp_id,
+        type='use',
+        points=-exchange.points_spent,
+        balance_after=account.current_points,
+        source_type='exchange',
+        source_id=exchange.id,
+        description=f'积分兑换（{"现金" if exchange_type == "cash" else "带薪假"}）',
+        created_by=emp_id
+    )
+    
+    db.session.add(exchange)
+    db.session.add(trans)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'ok': True,
+        'message': '兑换成功',
+        'data': exchange.to_dict()
     })

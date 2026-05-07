@@ -25,6 +25,7 @@ class ContractTemplate(db.Model):
     is_default = db.Column(db.Boolean, default=False, comment='是否默认')
     is_enabled = db.Column(db.Boolean, default=True)
     sort_order = db.Column(db.Integer, default=0)
+    remark = db.Column(db.String(500), default='', comment='备注')
 
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -39,6 +40,7 @@ class ContractTemplate(db.Model):
             'variables': self.variables or [],
             'is_default': self.is_default,
             'is_enabled': self.is_enabled,
+            'remark': self.remark or '',
         }
 
 
@@ -151,6 +153,8 @@ class ContractPayment(db.Model):
 
     # 付款信息
     phase = db.Column(db.String(50), comment='付款阶段')
+    phase_name = db.Column(db.String(100), comment='阶段名称')
+    node_desc = db.Column(db.String(200), comment='节点说明')
     # deposit(定金)/first(首付款)/progress(进度款)/final(尾款)/quality(质保金)
 
     percentage = db.Column(db.Numeric(5, 2), comment='占比%')
@@ -178,6 +182,8 @@ class ContractPayment(db.Model):
             'id': self.id,
             'contract_id': self.contract_id,
             'phase': self.phase,
+            'phase_name': self.phase_name or '',
+            'node_desc': self.node_desc or '',
             'percentage': float(self.percentage) if self.percentage else 0,
             'amount': float(self.amount) if self.amount else 0,
             'status': self.status,

@@ -362,3 +362,272 @@ class EmployeeWelfare(db.Model):
             'granted_at': self.granted_at.isoformat() if self.granted_at else None,
             'status': self.status
         }
+"""
+人力资源 V2 扩展模型 - 积分系统升级（2026-05-06）
+基于 hr_v2.py 末尾追加，不修改已有模型
+"""
+
+class PointsRule(db.Model):
+    """积分规则配置"""
+    __tablename__ = 'points_rule'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # 归属
+    tenant_id = db.Column(db.String(50), default='default', comment='租户ID')
+
+    # 规则基本信息
+    action_key = db.Column(db.String(50), unique=True, nullable=False, comment='动作唯一标识')
+    action_name = db.Column(db.String(100), nullable=False, comment='动作名称')
+    category = db.Column(db.String(30), nullable=False, comment='获客/转化/成交/施工/售后')
+    description = db.Column(db.String(200), comment='规则说明')
+
+    # 积分配置
+    points = db.Column(db.Integer, nullable=False, default=0, comment='基础积分')
+    points_type = db.Column(db.String(20), default='earn', comment='earn获取/use消费/exchange兑换')
+    unit = db.Column(db.String(20), default='次', comment='单位：次/条/人/单')
+
+    # 高客单叠加（成交类专有）
+    high_value_enabled = db.Column(db.Boolean, default=False, comment='是否启用高客单叠加')
+    thresholds = db.Column(db.JSON, default=list, comment='高客单阈值配置 [{"min":50000,"max":100000,"bonus":300}]')
+
+    # 状态
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+    is_auditable = db.Column(db.Boolean, default=True, comment='是否需审核')
+    requires_proof = db.Column(db.Boolean, default=False, comment='是否需上传凭证')
+
+    # 关联（灵活关联到任意业务表）
+    related_table = db.Column(db.String(50), comment='关联业务表:leads/customers/contracts等')
+    related_action = db.Column(db.String(50), comment='关联动作:created/updated/paid等')
+
+    # 可选：指定哪些角色可执行此动作获得积分
+    allowed_roles = db.Column(db.JSON, default=list, comment='允许执行的角色列表')
+    excluded_roles = db.Column(db.JSON, default=list, comment='排除的角色列表')
+
+    created_by = db.Column(db.Integer, comment='创建人')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'action_key': self.action_key,
+            'action_name': self.action_name,
+            'category': self.category,
+            'description': self.description,
+            'points': self.points,
+            'points_type': self.points_type,
+            'unit': self.unit,
+            'high_value_enabled': self.high_value_enabled,
+            'thresholds': self.thresholds or [],
+            'is_active': self.is_active,
+            'is_auditable': self.is_auditable,
+            'requires_proof': self.requires_proof,
+            'related_table': self.related_table,
+            'related_action': self.related_action,
+            'allowed_roles': self.allowed_roles or [],
+            'excluded_roles': self.excluded_roles or [],
+            'created_by': self.created_by,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None
+        }
+
+
+class PointsAudit(db.Model):
+    """积分审核记录"""
+    __tablename__ = 'points_audit'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # 申请人
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    employee_name = db.Column(db.String(50), comment='申请人姓名(冗余)')
+
+    # 申请信息
+    action_key = db.Column(db.String(50), nullable=False, comment='动作标识')
+    action_name = db.Column(db.String(100), nullable=False, comment='动作名称')
+    category = db.Column(db.String(30), comment='分类')
+    points_applied = db.Column(db.Integer, nullable=False, comment='申请积分')
+    proof_url = db.Column(db.String(500), comment='凭证URL')
+    remark = db.Column(db.Text, comment='申请备注')
+
+    # 关联业务
+    related_table = db.Column(db.String(50), comment='关联表')
+    related_id = db.Column(db.Integer, comment='关联记录ID')
+
+    # 审核
+    status = db.Column(db.String(20), default='pending', comment='pending待审核/approved已通过/rejected已驳回/cancelled已取消')
+    audited_by = db.Column(db.Integer, db.ForeignKey('employee.id'), comment='审核人')
+    audited_by_name = db.Column(db.String(50), comment='审核人姓名')
+    audited_at = db.Column(db.DateTime, comment='审核时间')
+    reject_reason = db.Column(db.String(200), comment='驳回原因')
+
+    # 积分是否已发放
+    points_granted = db.Column(db.Boolean, default=False, comment='积分是否已发放')
+    points_granted_at = db.Column(db.DateTime, comment='积分发放时间')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'employee_name': self.employee_name,
+            'action_key': self.action_key,
+            'action_name': self.action_name,
+            'category': self.category,
+            'points_applied': self.points_applied,
+            'proof_url': self.proof_url,
+            'remark': self.remark,
+            'related_table': self.related_table,
+            'related_id': self.related_id,
+            'status': self.status,
+            'audited_by': self.audited_by,
+            'audited_by_name': self.audited_by_name,
+            'audited_at': self.audited_at.isoformat() if self.audited_at else None,
+            'reject_reason': self.reject_reason,
+            'points_granted': self.points_granted,
+            'points_granted_at': self.points_granted_at.isoformat() if self.points_granted_at else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class TeamBuilding(db.Model):
+    """团队团建申请"""
+    __tablename__ = 'team_building'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+
+    # 基本信息
+    tenant_id = db.Column(db.String(50), default='default', comment='租户ID')
+    team_name = db.Column(db.String(100), nullable=False, comment='团队名称')
+    leader_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False, comment='负责人')
+    leader_name = db.Column(db.String(50), comment='负责人姓名')
+    member_count = db.Column(db.Integer, nullable=False, comment='团队人数')
+
+    # 积分计算
+    total_points_required = db.Column(db.Integer, nullable=False, comment='所需总积分')
+    fund_amount = db.Column(db.Numeric(10, 2), nullable=False, comment='团建基金')
+    max_reimbursement = db.Column(db.Numeric(10, 2), nullable=False, comment='最高可报销')
+    actual_cost = db.Column(db.Numeric(10, 2), default=0, comment='实际花费')
+    status = db.Column(db.String(20), default='voting', comment='voting投票中/pending待审核/approved已通过/rejected已驳回/completed已完成/rejected_reimburse报销拒绝')
+
+    # 成员投票
+    member_list = db.Column(db.JSON, default=list, comment='全体成员列表 [{"id":1,"name":"张三"}]')
+    member_agree = db.Column(db.JSON, default=list, comment='同意成员ID列表')
+    member_refuse = db.Column(db.JSON, default=list, comment='拒绝成员ID列表')
+    is_incomplete = db.Column(db.Boolean, default=False, comment='团队不完整标记')
+
+    # 积分扣除（审核通过后填写）
+    deduction_list = db.Column(db.JSON, default=list, comment='每人扣积分明细 [{"employee_id":1,"name":"张三","points":5000}]')
+
+    # 团建资料（完成后上传）
+    video_url = db.Column(db.String(500), comment='视频链接')
+    image_urls = db.Column(db.JSON, default=list, comment='现场照片列表')
+    bill_urls = db.Column(db.JSON, default=list, comment='消费清单+发票')
+    evaluation_stats = db.Column(db.JSON, default=dict, comment='匿名评价统计 {"satisfied":8,"neutral":1,"unsatisfied":0}')
+
+    # 报销
+    reimbursement_status = db.Column(db.String(20), default='none', comment='none未申请/pending待审核/approved已报销/rejected已拒绝')
+    reimbursement_amount = db.Column(db.Numeric(10, 2), default=0, comment='实报金额')
+    reimbursement_remark = db.Column(db.String(200), comment='报销备注')
+
+    # 不满意处理
+    unsatisfied_count = db.Column(db.Integer, default=0, comment='不满意人数')
+
+    # 审核
+    approved_by = db.Column(db.Integer, db.ForeignKey('employee.id'), comment='审核人')
+    approved_by_name = db.Column(db.String(50), comment='审核人姓名')
+    approved_at = db.Column(db.DateTime, comment='审核时间')
+    reject_reason = db.Column(db.String(200), comment='驳回原因')
+
+    # 评分（完成后）
+    team_rating = db.Column(db.Numeric(2, 1), comment='团队评分1-5')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'team_name': self.team_name,
+            'leader_id': self.leader_id,
+            'leader_name': self.leader_name,
+            'member_count': self.member_count,
+            'total_points_required': self.total_points_required,
+            'fund_amount': float(self.fund_amount),
+            'max_reimbursement': float(self.max_reimbursement),
+            'actual_cost': float(self.actual_cost),
+            'status': self.status,
+            'member_list': self.member_list or [],
+            'member_agree': self.member_agree or [],
+            'member_refuse': self.member_refuse or [],
+            'is_incomplete': self.is_incomplete,
+            'deduction_list': self.deduction_list or [],
+            'video_url': self.video_url,
+            'image_urls': self.image_urls or [],
+            'bill_urls': self.bill_urls or [],
+            'evaluation_stats': self.evaluation_stats or {},
+            'reimbursement_status': self.reimbursement_status,
+            'reimbursement_amount': float(self.reimbursement_amount) if self.reimbursement_amount else 0,
+            'reimbursement_remark': self.reimbursement_remark,
+            'unsatisfied_count': self.unsatisfied_count,
+            'approved_by': self.approved_by,
+            'approved_by_name': self.approved_by_name,
+            'approved_at': self.approved_at.isoformat() if self.approved_at else None,
+            'reject_reason': self.reject_reason,
+            'team_rating': float(self.team_rating) if self.team_rating else None,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+
+class PointsExchange(db.Model):
+    """积分兑换记录（现金/假期）"""
+    __tablename__ = 'points_exchange'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    employee_id = db.Column(db.Integer, db.ForeignKey('employee.id'), nullable=False)
+    employee_name = db.Column(db.String(50), comment='员工姓名')
+
+    exchange_type = db.Column(db.String(20), nullable=False, comment='cash现金/leave带薪假')
+
+    # 现金兑换
+    points_spent = db.Column(db.Integer, nullable=False, comment='消耗积分')
+    cash_amount = db.Column(db.Numeric(10, 2), comment='兑换现金金额')
+    exchange_rate = db.Column(db.Numeric(6, 2), comment='兑换比例')
+
+    # 带薪假兑换
+    days_off = db.Column(db.Integer, comment='兑换天数')
+    points_required_per_day = db.Column(db.Integer, default=2000, comment='每天所需积分')
+    yearly_limit_used = db.Column(db.Integer, default=0, comment='年内已用次数')
+
+    status = db.Column(db.String(20), default='approved', comment='pending/approved/rejected')
+    audited_by = db.Column(db.Integer, comment='审核人')
+    audited_at = db.Column(db.DateTime, comment='审核时间')
+    reject_reason = db.Column(db.String(200), comment='驳回原因')
+
+    remark = db.Column(db.String(200), comment='备注')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'employee_id': self.employee_id,
+            'employee_name': self.employee_name,
+            'exchange_type': self.exchange_type,
+            'points_spent': self.points_spent,
+            'cash_amount': float(self.cash_amount) if self.cash_amount else None,
+            'exchange_rate': float(self.exchange_rate) if self.exchange_rate else None,
+            'days_off': self.days_off,
+            'points_required_per_day': self.points_required_per_day,
+            'yearly_limit_used': self.yearly_limit_used,
+            'status': self.status,
+            'audited_by': self.audited_by,
+            'audited_at': self.audited_at.isoformat() if self.audited_at else None,
+            'reject_reason': self.reject_reason,
+            'remark': self.remark,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
