@@ -69,7 +69,8 @@ def get_positions(current_user):
 
     query = Position.query.filter_by(
         tenant_id=current_user.get('tenant_id', '0'),
-        is_enabled=True
+        is_active=True,
+        is_deleted=False,
     )
 
     if department_id:

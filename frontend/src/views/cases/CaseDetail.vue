@@ -99,32 +99,7 @@
                 </div>
               </div>
 
-              <!-- 文案内容 -->
-              <div class="content-section" v-if="caseDetail.design_concept">
-                <h3 class="section-title">设计理念</h3>
-                <div class="content-text">{{ caseDetail.design_concept }}</div>
-              </div>
-
-              <div class="content-section" v-if="caseDetail.whole_house_plan">
-                <h3 class="section-title">全屋规划</h3>
-                <div class="content-text">{{ caseDetail.whole_house_plan }}</div>
-              </div>
-
-              <div class="content-section" v-if="caseDetail.customer_requirements">
-                <h3 class="section-title">客户需求</h3>
-                <div class="content-text">{{ caseDetail.customer_requirements }}</div>
-              </div>
-
-              <div class="content-section" v-if="caseDetail.design_highlights">
-                <h3 class="section-title">设计亮点</h3>
-                <div class="content-text">{{ caseDetail.design_highlights }}</div>
-              </div>
-
-              <div class="content-section" v-if="caseDetail.customer_value">
-                <h3 class="section-title">客户价值</h3>
-                <div class="content-text">{{ caseDetail.customer_value }}</div>
-              </div>
-
+              
               <!-- 时间轴 -->
               <div class="timeline-section" v-if="timelineList.length > 0">
                 <h3 class="section-title">施工进度</h3>

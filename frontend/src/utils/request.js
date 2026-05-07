@@ -24,6 +24,7 @@ request.interceptors.request.use(
     // 公开接口列表（不需要 token 的）
     const publicPaths = [
       '/cases/featured',
+      '/public/cases',
       '/leads/public',
       '/auth/login',
       '/auth/register'

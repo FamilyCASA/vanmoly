@@ -91,13 +91,7 @@
       </view>
     </view>
 
-    <!-- 设计理念 -->
-    <view class="concept-section" wx:if="{{caseDetail.design_concept}}">
-      <view class="container">
-        <text class="section-title">设计理念</text>
-        <text class="concept-text">{{caseDetail.design_concept}}</text>
-      </view>
-    </view>
+    
 
     <!-- 图片画廊 -->
     <view class="gallery-section" wx:if="{{mediaList.length > 0}}">
@@ -134,13 +128,7 @@
       </view>
     </view>
 
-    <!-- 设计亮点 -->
-    <view class="highlights-section" wx:if="{{caseDetail.design_highlights}}">
-      <view class="container">
-        <text class="section-title">设计亮点</text>
-        <text class="highlights-text">{{caseDetail.design_highlights}}</text>
-      </view>
-    </view>
+    
 
     <!-- 施工时间轴 -->
     <view class="timeline-section" wx:if="{{timelineList.length > 0}}">

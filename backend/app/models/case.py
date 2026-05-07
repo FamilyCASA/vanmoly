@@ -56,14 +56,7 @@ class CaseStudy(db.Model):
     cover_image = db.Column(db.String(500), comment='封面图URL')
     vr_link = db.Column(db.String(500), comment='360VR链接')
     
-    # 文案内容
-    description = db.Column(db.Text, comment='案例简介')
-    design_concept = db.Column(db.Text, comment='设计理念')
-    whole_house_plan = db.Column(db.Text, comment='全屋规划')
-    customer_requirements = db.Column(db.Text, comment='客户需求')
-    design_highlights = db.Column(db.Text, comment='设计亮点')
-    customer_value = db.Column(db.Text, comment='客户价值')
-    tags = db.Column(db.Text, comment='标签JSON数组')
+   
     
     # 配色方案
     main_colors = db.Column(db.Text, comment='方案主色JSON数组(最多5个)')
@@ -168,13 +161,6 @@ class CaseStudy(db.Model):
             'customer_id': self.customer_id,
             'cover_image': self.cover_image,
             'vr_link': self.vr_link,
-            'description': _fix_garbled(self.description),
-            'design_concept': _fix_garbled(self.design_concept),
-            'whole_house_plan': _fix_garbled(self.whole_house_plan),
-            'customer_requirements': _fix_garbled(self.customer_requirements),
-            'design_highlights': _fix_garbled(self.design_highlights),
-            'customer_value': _fix_garbled(self.customer_value),
-            'tags': json.loads(self.tags) if self.tags else None,
             'main_colors': json.loads(self.main_colors) if self.main_colors else [],
             'auxiliary_colors': json.loads(self.auxiliary_colors) if self.auxiliary_colors else [],
             'accent_colors': json.loads(self.accent_colors) if self.accent_colors else [],

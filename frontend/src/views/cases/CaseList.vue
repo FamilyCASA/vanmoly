@@ -3,19 +3,7 @@
     <!-- 统一导航栏 -->
     <Navbar />
 
-    <!-- 第一层：氛围选择Tab（蔚来车型Tab风格） -->
-    <div class="atmosphere-tabs">
-      <div 
-        v-for="atm in atmospheres" 
-        :key="atm.key"
-        class="tab-item"
-        :class="{ active: filters.atmosphere === atm.value }"
-        @click="selectAtmosphere(atm.key)"
-      >
-        <span class="tab-label">{{ atm.label }}</span>
-        <span class="tab-count" v-if="atm.count">{{ atm.count }}</span>
-      </div>
-    </div>
+    
 
     <!-- 全屏英雄区（杂志封面风格） -->
     <header class="hero-section" v-if="featuredCase">
@@ -24,8 +12,8 @@
         <transition :name="carouselTransition" mode="out-in">
           <div :key="currentCarouselIndex" class="hero-slide">
             <img 
-              v-if="hasValidCoverImage(currentHeroImage)" 
-              :src="currentHeroImage" 
+              v-if="currentHeroImage" 
+              :src="resolveImageUrl(currentHeroImage)" 
               :alt="featuredCase.title" 
               loading="lazy" 
               @error="e => handleImageError(e, featuredCase.atmosphere)"
@@ -165,6 +153,21 @@
       </transition>
     </div>
 
+<!-- 第一层：氛围选择Tab（蔚来车型Tab风格） -->
+    <div class="atmosphere-tabs">
+      <div 
+        v-for="atm in atmospheres" 
+        :key="atm.key"
+        class="tab-item"
+        :class="{ active: filters.atmosphere === atm.value }"
+        @click="selectAtmosphere(atm.key)"
+      >
+        <span class="tab-label">{{ atm.label }}</span>
+        <span class="tab-count" v-if="atm.count">{{ atm.count }}</span>
+      </div>
+    </div>
+
+
     <!-- 第三层：颜色筛选色条（暖色→冷色→灰度，hover显示潘通名，点击筛选） -->
     <div class="color-strip-bar" v-if="colorPalette.length > 0">
       <div class="color-strip-row">
@@ -200,25 +203,7 @@
       </div>
     </div>
 
-    <!-- 全案规划师/设计师展示 -->
-    <div class="designer-bar" v-if="featuredCase">
-      <div class="designer-section" v-if="featuredCase.planner || featuredCase.designer">
-        <div class="designer-item" v-if="featuredCase.planner" @click="showDesignerInfo(featuredCase.planner, 'planner')">
-          <div class="designer-label">全案规划师</div>
-          <div class="designer-name">{{ featuredCase.planner.name || '待分配' }}</div>
-          <div class="designer-arrow"><el-icon><ArrowRight /></el-icon></div>
-        </div>
-        <div class="designer-divider" v-if="featuredCase.planner && featuredCase.designer"></div>
-        <div class="designer-item" v-if="featuredCase.designer" @click="showDesignerInfo(featuredCase.designer, 'designer')">
-          <div class="designer-label">全案设计师</div>
-          <div class="designer-name">{{ featuredCase.designer.name || '待分配' }}</div>
-          <div class="designer-arrow"><el-icon><ArrowRight /></el-icon></div>
-        </div>
-      </div>
-      <div class="designer-placeholder" v-else>
-        <span>专业团队为您量身定制</span>
-      </div>
-    </div>
+    
 
     <!-- 第三层：配置方案展示（理想i8版本选择风格） -->
     <div class="section-title">
@@ -226,51 +211,38 @@
       <p>每个案例包含多种空间配置方案，满足不同需求</p>
     </div>
 
-    <!-- 案例网格（蔚来卡片风格） -->
-    <div class="case-grid">
+        <!-- 案例瀑布流（杂志封面风格） -->
+    <div class="case-waterfall">
       <div
-        v-for="(caseItem, index) in cases"
+        v-for="caseItem in cases"
         :key="caseItem.id"
-        class="case-card"
-        :class="{ large: index % 6 === 0 }"
+        class="waterfall-card"
         @click="goToDetail(caseItem.id)"
       >
-        <div class="card-image-wrapper">
-          <img 
-            v-if="hasValidCoverImage(caseItem.cover_image)" 
-            :src="caseItem.cover_image" 
+        <!-- 图片全图展示 -->
+        <div class="wf-image-wrap">
+          <img
+            v-if="hasValidCoverImage(caseItem)"
+            :src="getCoverImage(caseItem)"
             :alt="caseItem.title"
             loading="lazy"
+            @error="e => handleImageError(e, caseItem.atmosphere)"
           >
-          <div v-else class="no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
-            <span>{{ getAtmosphereLabel(caseItem.atmosphere) }}</span>
+          <div v-else class="wf-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
+            <span>{{ caseItem.title }}</span>
           </div>
-          
-          <!-- 氛围标签 -->
-          <div class="card-badge" v-if="caseItem.atmosphere">
-            {{ getAtmosphereLabel(caseItem.atmosphere) }}
-          </div>
-          
-          <!-- 悬浮信息层 -->
-          <div class="card-overlay">
-            <div class="card-info">
-              <h3 class="card-title">{{ caseItem.title }}</h3>
-              
-              <!-- 参数化展示（理想i8风格） -->
-              <div class="card-specs">
-                <span class="spec">{{ caseItem.area }}㎡</span>
-                <span class="spec">{{ caseItem.house_type }}</span>
-                <span class="spec price">¥{{ formatPrice(caseItem.total_price) }}</span>
-              </div>
-              
-              <!-- 色系卡片（蔚来配色风格） -->
-              <div class="color-swatches" v-if="getCaseColorDots(caseItem).length > 0">
-                <div
-                  v-for="(hex, idx) in getCaseColorDots(caseItem)"
-                  :key="idx"
-                  class="swatch"
-                  :style="{ backgroundColor: hex }"
-                ></div>
+
+          <!-- 杂志封面文字覆盖层（始终可见） -->
+          <div class="wf-overlay">
+            <!-- 顶部：氛围标签 -->
+            <div class="wf-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</div>
+            <!-- 底部：案例名称 + 参数 -->
+            <div class="wf-bottom">
+              <div class="wf-title">{{ caseItem.title }}</div>
+              <div class="wf-meta">
+                <span v-if="caseItem.house_type">{{ caseItem.house_type }}</span>
+                <span v-if="caseItem.area">{{ caseItem.area }}㎡</span>
+                <span v-if="caseItem.city">{{ caseItem.city }}</span>
               </div>
             </div>
           </div>
@@ -608,13 +580,44 @@ const getAtmosphereGradient = (atmosphere) => {
   return gradients[atmosphere] || 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'
 }
 
-// 检查图片 URL 是否有效（简单判断）
+// 后端基础 URL（图片服务地址）
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
+
+// 解析图片 URL（处理相对路径）
+const resolveImageUrl = (url) => {
+  if (!url) return null
+  if (url.startsWith('http://') || url.startsWith('https://')) {
+    return url
+  }
+  // 去掉可能存在的前缀 /api/v3
+  let path = url
+  if (path.startsWith('/api/v3')) {
+    path = path.slice(7)  // 去掉 /api/v3，保留 /upload/...
+  }
+  if (!path.startsWith('/')) path = '/' + path
+  // 相对路径，拼接 base URL
+  const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
+  return base + path
+}
+
+// 检查图片 URL 是否有效
+const hasValidCoverImage = (caseItem) => {
+  const coverImage = caseItem?.cover_image
+  return coverImage && typeof coverImage === 'string' && 
+         coverImage.length > 0 && 
+         !coverImage.includes('null') && 
+         !coverImage.includes('undefined')
+}
+
+// 获取封面图片 URL
+const getCoverImage = (caseItem) => {
+  if (!hasValidCoverImage(caseItem)) return null
+  return resolveImageUrl(caseItem.cover_image)
+}
+
 const handleImageError = (event, atmosphere) => {
   event.target.style.display = 'none'
   event.target.nextElementSibling && (event.target.nextElementSibling.style.display = 'block')
-}
-const hasValidCoverImage = (coverImage) => {
-  return coverImage && coverImage.length > 0 && !coverImage.includes('null') && !coverImage.includes('undefined')
 }
 
 // 获取案例列表
@@ -763,15 +766,22 @@ const goToSlide = (idx) => {
 // 更新 Hero 图片列表
 const updateHeroImages = (caseItem) => {
   const images = []
-  // 主图
-  if (caseItem.cover_image && hasValidCoverImage(caseItem.cover_image)) {
-    images.push(caseItem.cover_image)
-  }
-  // 辅助图（最多再加4张）
-  if (caseItem.gallery && Array.isArray(caseItem.gallery)) {
-    caseItem.gallery.slice(0, 4).forEach(img => {
+  // 优先用 hero_images（精选 API 返回的轮播图数组）
+  if (caseItem.hero_images && Array.isArray(caseItem.hero_images) && caseItem.hero_images.length > 0) {
+    caseItem.hero_images.forEach(img => {
       if (img && !images.includes(img)) images.push(img)
     })
+  } else {
+    // 其次用 cover_image
+    if (hasValidCoverImage(caseItem)) {
+      images.push(caseItem.cover_image)
+    }
+    // 再用 gallery
+    if (caseItem.gallery && Array.isArray(caseItem.gallery)) {
+      caseItem.gallery.slice(0, 4).forEach(img => {
+        if (img && !images.includes(img)) images.push(img)
+      })
+    }
   }
   heroImages.value = images
   currentCarouselIndex.value = 0
@@ -1595,103 +1605,139 @@ onUnmounted(() => {
 }
 
 /* 案例网格（蔚来卡片风格） */
-.case-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 2px;
+/* ── 瀑布流网格（杂志封面风格）── */
+.case-waterfall {
+  columns: 3;
+  column-gap: 6px;
   padding: 0 60px 80px;
-  background: #f5f5f5;
+  background: #f0ede8;
 }
 
-.case-card {
+@media (max-width: 1200px) {
+  .case-waterfall { columns: 2; padding: 0 24px 60px; }
+}
+@media (max-width: 640px) {
+  .case-waterfall { columns: 1; padding: 0 12px 40px; }
+}
+
+/* 每张卡片 */
+.waterfall-card {
+  break-inside: avoid;
+  margin-bottom: 6px;
   position: relative;
-  aspect-ratio: 4/3;
-  overflow: hidden;
   cursor: pointer;
-  background: #fff;
+  overflow: hidden;
+  display: block;
 }
 
-.case-card.large {
-  grid-column: span 2;
-  grid-row: span 2;
-  aspect-ratio: auto;
-}
-
-.card-image-wrapper {
+/* 图片容器：自然高度 */
+.wf-image-wrap {
   position: relative;
   width: 100%;
-  height: 100%;
+  overflow: hidden;
 }
 
-.card-image-wrapper img {
+.wf-image-wrap img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
-  transition: transform 0.6s ease;
+  height: auto;
+  display: block;
+  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
 }
 
-.case-card:hover .card-image-wrapper img {
-  transform: scale(1.05);
+.waterfall-card:hover .wf-image-wrap img {
+  transform: scale(1.04);
 }
 
-.no-image {
+/* 无图占位 */
+.wf-no-image {
   width: 100%;
-  height: 100%;
+  aspect-ratio: 3/4;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #ccc;
-  font-size: 14px;
-  background: #f8f8f8;
-}
-
-.card-badge {
-  position: absolute;
-  top: 20px;
-  left: 20px;
-  padding: 8px 16px;
-  background: rgba(255,255,255,0.95);
-  font-size: 13px;
-  color: #1a1a1a;
+  color: rgba(255,255,255,0.7);
+  font-size: 16px;
   letter-spacing: 2px;
-  z-index: 3;
 }
 
-.card-overlay {
+/* 杂志封面覆盖层 */
+.wf-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, rgba(0,0,0,0.3) 50%, transparent 100%);
   display: flex;
-  align-items: flex-end;
-  padding: 32px;
-  opacity: 0;
-  transition: opacity 0.4s ease;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.45) 0%,
+    transparent 35%,
+    transparent 50%,
+    rgba(0,0,0,0.72) 100%
+  );
+  transition: background 0.4s ease;
 }
 
-.case-card:hover .card-overlay {
-  opacity: 1;
+.waterfall-card:hover .wf-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.55) 0%,
+    transparent 30%,
+    transparent 45%,
+    rgba(0,0,0,0.85) 100%
+  );
 }
 
-.card-info {
+/* 顶部：氛围标签 */
+.wf-atmosphere {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 5px 12px;
+  border-radius: 2px;
+}
+
+/* 底部文字区 */
+.wf-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 案例名称：杂志封面大字 */
+.wf-title {
+  font-size: clamp(22px, 3.5vw, 38px);
+  font-weight: 700;
   color: #fff;
-  width: 100%;
+  line-height: 1.15;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  word-break: break-all;
 }
 
-.card-title {
-  font-size: 20px;
-  font-weight: 400;
-  margin-bottom: 12px;
-  letter-spacing: 2px;
-}
-
-/* 参数化展示（理想i8风格） */
-.card-specs {
+/* 参数行 */
+.wf-meta {
   display: flex;
-  gap: 16px;
-  margin-bottom: 16px;
+  gap: 10px;
   flex-wrap: wrap;
 }
 
+.wf-meta span {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 1px;
+  background: rgba(255,255,255,0.12);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
+
+/* ── 旧 card-specs（保留兼容）── */
 .card-specs .spec {
   font-size: 14px;
   opacity: 0.9;

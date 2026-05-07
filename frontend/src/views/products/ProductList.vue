@@ -6,20 +6,20 @@
     <section class="hero">
       <div class="hero-text">
         <p class="hero-eyebrow">D&B 帝标|设记家 · 产品中心</p>
-        <h1 class="hero-title">装修不用再为<br>"踩坑"焦虑</h1>
+        <h1 class="hero-title">选品不用再为<br>"踩坑"焦虑</h1>
         <div class="hero-value-points">
           <div class="value-point">
             <span class="vp-icon">🔍</span>
             <div class="vp-content">
               <strong>怕套路？</strong>
-              <span>每款产品都有「身份证」，来源、规格、价格全透明</span>
+              <span>每款产品都有「身份证」，全网一口价</span>
             </div>
           </div>
           <div class="value-point">
             <span class="vp-icon">🎯</span>
             <div class="vp-content">
               <strong>怕翻车？</strong>
-              <span>全案团队全程跟进，从设计到落地，还原度看得见</span>
+              <span>全案服务团队全程跟进，从规划设计到落地，还原度看得见</span>
             </div>
           </div>
           <div class="value-point">

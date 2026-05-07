@@ -273,11 +273,7 @@
   font-size: 20px;
 }
 
-/* 设计理念 */
-.concept-section {
-  padding: 50px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
+
 
 .section-title {
   display: block;
@@ -396,11 +392,7 @@
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* 设计亮点 */
-.highlights-section {
-  padding: 50px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
+
 
 .highlights-text {
   display: block;

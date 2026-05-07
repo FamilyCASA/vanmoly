@@ -283,36 +283,10 @@
             </div>
 
             <div class="media-section">
-              <h4>效果图图集 <span style="color: #999; font-size: 13px;">（{{ mediaList.length }} 张）</span></h4>
-              <div class="image-upload-grid">
-                <div
-                  v-for="(img, idx) in mediaList"
-                  :key="img.uid || idx"
-                  class="uploaded-image-card"
-                  @click="openImageDescDialog(mediaList, idx, 'gallery')"
-                >
-                  <img :src="img.url" alt="效果图" />
-                  <div class="img-card-overlay">
-                    <span class="img-desc-badge" v-if="img.description">已填简介</span>
-                    <span class="img-desc-badge empty" v-else>添加简介</span>
-                    <el-icon class="img-delete-btn" @click.stop="handleMediaRemoveByIndex(idx)"><Close /></el-icon>
-                  </div>
-                </div>
-                <div class="upload-trigger-card" @click="triggerGalleryUpload">
-                  <el-icon><Plus /></el-icon>
-                  <span>上传图片</span>
-                </div>
-              </div>
-              <el-upload
-                ref="galleryUploadRef"
-                :action="uploadUrl"
-                :headers="uploadHeaders"
-                list-type="text"
-                :show-file-list="false"
-                :on-success="handleMediaSuccess"
-                :before-upload="beforeImageUpload"
-                multiple
-                style="display: none;"
+              <h4>效果图图集（6阶段）</h4>
+              <CasePhaseEditor 
+                :case-id="caseId"
+                :quote-id="caseData.quote_id"
               />
             </div>
 
@@ -334,39 +308,6 @@
                 </template>
               </el-input>
             </div>
-          </el-tab-pane>
-
-          <!-- 文案内容 -->
-          <el-tab-pane label="文案内容" name="content">
-            <el-form :model="caseData" label-position="top" class="edit-form">
-              <el-form-item label="设计理念">
-                <el-input v-model="caseData.design_concept" type="textarea" :rows="6" placeholder="描述设计理念..." />
-              </el-form-item>
-
-              <el-form-item label="全屋规划">
-                <el-input v-model="caseData.whole_house_plan" type="textarea" :rows="6" placeholder="描述全屋空间规划..." />
-              </el-form-item>
-
-              <el-form-item label="客户需求">
-                <el-input v-model="caseData.customer_requirements" type="textarea" :rows="4" placeholder="记录客户原始需求..." />
-              </el-form-item>
-
-              <el-form-item label="设计亮点">
-                <el-input v-model="caseData.design_highlights" type="textarea" :rows="4" placeholder="描述设计亮点..." />
-              </el-form-item>
-
-              <el-form-item label="客户价值">
-                <el-input v-model="caseData.customer_value" type="textarea" :rows="4" placeholder="描述为客户创造的价值..." />
-              </el-form-item>
-
-              <el-form-item label="收纳规划方案">
-                <el-input v-model="caseData.storage_plan" type="textarea" :rows="4" placeholder="描述设记家精细化收纳规划，如玄关+厨房双收纳体系..." />
-              </el-form-item>
-
-              <el-form-item label="全案落地执行细节">
-                <el-input v-model="caseData.execution_detail" type="textarea" :rows="4" placeholder="描述全案落地执行的特色与细节..." />
-              </el-form-item>
-            </el-form>
           </el-tab-pane>
 
           <!-- 报价配置 -->
@@ -825,6 +766,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, View, Upload, ArrowRight, Close } from '@element-plus/icons-vue'
 import ImageCropperUpload from '@/components/ImageCropperUpload.vue'
 import MorandiColorPicker from '@/components/MorandiColorPicker.vue'
+import CasePhaseEditor from '@/components/case/CasePhaseEditor.vue'
 import {
   getCase, createCase, updateCase, publishCase,
   getTimeline, addTimeline, updateTimeline, deleteTimeline as deleteTimelineApi,
@@ -841,7 +783,7 @@ const router = useRouter()
 
 // 状态
 const isEdit = computed(() => !!route.params.id)
-const caseId = computed(() => route.params.id)
+const caseId = computed(() => parseInt(route.params.id))
 const activeTab = ref('basic')
 const saving = ref(false)
 const publishing = ref(false)

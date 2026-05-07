@@ -13,7 +13,7 @@ from werkzeug.utils import secure_filename
 FILE_CONFIG = {
     'image': {
         'extensions': ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg'],
-        'max_size': 10 * 1024 * 1024,  # 10MB
+        'max_size': 30 * 1024 * 1024,  # 30MB (增大以支持高分辨率图片)
         'folder': 'images',
         'mime_types': ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/bmp', 'image/svg+xml']
     },

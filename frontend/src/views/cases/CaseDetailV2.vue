@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <div class="case-detail-v2">
     <!-- 固定导航栏（滚动后显示） -->
     <nav class="fixed-nav" :class="{ visible: showFixedNav }">
@@ -29,22 +29,34 @@
     <div v-else-if="caseDetail" class="case-content">
       <!-- Hero 全屏区域 -->
       <section class="hero-section">
-        <!-- 轮播英雄图 -->
+        <!-- 轮播英雄图 - Ken Burns 缩放 -->
         <div v-if="heroImages.length > 0" class="hero-carousel">
-          <transition name="fade" mode="out-in">
-            <img :key="currentHeroIndex" :src="heroImages[currentHeroIndex].url" :alt="caseDetail.title">
-          </transition>
+          <div
+            v-for="(img, idx) in heroImages"
+            :key="idx"
+            class="hero-slide"
+            :class="{ active: idx === currentHeroIndex, prev: idx === prevHeroIndex }"
+          >
+            <img :src="img.url" :alt="caseDetail.title" />
+          </div>
           <div class="hero-gradient"></div>
           <!-- 轮播指示器 -->
           <div class="carousel-indicators" v-if="heroImages.length > 1">
-            <span 
- v-for="(img, idx) in heroImages" 
-              :key="idx" 
-              class="indicator" 
+            <span
+              v-for="(img, idx) in heroImages"
+              :key="idx"
+              class="indicator"
               :class="{ active: idx === currentHeroIndex }"
-              @click="currentHeroIndex = idx"
+              @click="goToHero(idx)"
             ></span>
           </div>
+          <!-- 左右切换 -->
+          <button v-if="heroImages.length > 1" class="carousel-arrow left" @click="prevHero">
+            <el-icon><ArrowLeft /></el-icon>
+          </button>
+          <button v-if="heroImages.length > 1" class="carousel-arrow right" @click="nextHero">
+            <el-icon><ArrowRight /></el-icon>
+          </button>
         </div>
         <!-- 单图降级 -->
         <div v-else class="hero-bg">
@@ -69,7 +81,7 @@
             <h1 class="case-title">{{ caseDetail.title }}</h1>
             
             <p class="case-subtitle" v-if="caseDetail.subtitle || caseDetail.style">
-              {{ caseDetail.subtitle || `${caseDetail.style} · ${caseDetail.area}㎡` }}
+              {{ caseDetail.subtitle || (caseDetail.style + ' · ' + (caseDetail.area || '') + '㎡') }}
             </p>
             
             <div class="case-tags">
@@ -81,6 +93,23 @@
                 <span class="tag-dot" :class="getProgressClass(caseDetail.workflow_progress)"></span>
                 {{ caseDetail.workflow_progress.current_phase || '进行中' }} · {{ caseDetail.workflow_progress.progress_pct }}%
               </span>
+            </div>
+
+            <!-- 预算金额 -->
+            <div class="hero-budget" v-if="caseDetail.deal_budget || caseDetail.total_price || caseDetail.quote_info">
+              <div class="budget-item" @click="openQuotePreview">
+                <span class="budget-label">
+                  <span v-if="caseDetail.is_real_case">真实案例</span>
+                  <span v-else>参考造价</span>
+                </span>
+                <span class="budget-value">
+                  <span class="budget-unit">¥</span>
+                  {{ caseDetail.quote_info ? formatWan(caseDetail.quote_info.total_amount) : formatWan(caseDetail.deal_budget || caseDetail.total_price) }}
+                </span>
+                <span class="budget-arrow">
+                  <el-icon><ArrowRight /></el-icon>
+                </span>
+              </div>
             </div>
           </div>
           
@@ -117,59 +146,178 @@
               <span class="label">全案总价</span>
               <span class="value price">¥{{ formatPrice(caseDetail.total_price) }}</span>
             </div>
+            <div class="overview-item budget" v-if="caseDetail.deal_budget || caseDetail.quote_info" @click="openQuotePreview">
+              <span class="label">参考造价</span>
+              <span class="value price clickable">
+                <span v-if="caseDetail.quote_info">{{ formatWan(caseDetail.quote_info.total_amount) }}</span>
+                <span v-else>{{ formatWan(caseDetail.deal_budget) }}</span>
+                <el-icon><ArrowRight /></el-icon>
+              </span>
+            </div>
           </div>
         </div>
       </section>
 
-      <!-- 设计理念 -->
-      <section class="concept-section" v-if="caseDetail.design_concept">
+      <!-- 分类Tab导航 -->
+      <section class="category-tabs-section" ref="contentRef">
         <div class="container">
-          <h2 class="section-title">设计理念</h2>
-          <p class="concept-text">{{ caseDetail.design_concept }}</p>
+          <div class="category-tabs">
+            <button
+              v-for="cat in categories"
+              :key="cat.key"
+              class="category-tab"
+              :class="{ active: activeCategory === cat.key }"
+              @click="activeCategory = cat.key"
+            >
+              {{ cat.label }}
+            </button>
+          </div>
         </div>
       </section>
 
-      <!-- 图片画廊 -->
-      <section class="gallery-section" v-if="galleryList.length > 0">
+      <!-- 6阶段内容展示 -->
+      <section class="phase-content-section">
         <div class="container">
-          <h2 class="section-title">案例图集</h2>
 
-          <!-- 杂志风格：有描述的图片 -->
-          <div class="magazine-gallery" v-if="describedImages.length > 0">
-            <div
-              v-for="(item, index) in describedImages"
-              :key="'desc-'+index"
-              class="magazine-card"
-              :style="{ '--img-color': item.extractedColor || '#8B5A2B' }"
-              @click="openImagePreview(findMediaIndex(item))"
-            >
-              <div class="mag-img-wrapper">
-                <img :src="item.url" :alt="item.description" loading="lazy" @load="extractColor($event, item)">
-                <div class="mag-overlay">
-                  <el-icon><ZoomIn /></el-icon>
+          <!-- 户型分析 - 上图下文布局 -->
+          <div v-if="activeCategory === 'layout'" class="phase-panel layout-analysis-stacked">
+            <template v-if="phase1.layout_images?.length || phase1.layout_analysis">
+              <div v-if="phase1.layout_images?.length" class="layout-image-stack">
+                <div
+                  v-for="(img, idx) in phase1.layout_images"
+                  :key="idx"
+                  class="layout-floorplan-card"
+                  @click="openImagePreview(idx, phase1.layout_images)"
+                >
+                  <img :src="resolveImgUrl(img)" alt="户型图" />
+                  <div class="img-overlay"><el-icon><ZoomIn /></el-icon></div>
                 </div>
               </div>
-              <div class="mag-caption" v-if="item.description">
-                <p class="mag-text" v-html="formatDropCap(item.description)"></p>
+              <div v-if="phase1.layout_analysis" class="layout-text-block">
+                <h3 class="layout-title">原始户型</h3>
+                <div class="layout-analysis-content rich-text" v-html="phase1.layout_analysis"></div>
+              </div>
+              <el-empty v-else-if="!phase1.layout_analysis" description="暂无户型分析内容" :image-size="80" />
+            </template>
+            <el-empty v-else description="暂无户型分析内容" />
+          </div>
+
+          <!-- 设计意境 -->
+          <div v-if="activeCategory === 'mood'" class="phase-panel">
+            <div v-if="resolveImgList(phase2.mood_images).length" class="phase-magazine-layout">
+              <div
+                v-for="(img, idx) in resolveImgList(phase2.mood_images)"
+                :key="idx"
+                class="magazine-card"
+                :class="{ 'large': idx % 3 === 0 }"
+                @click="openImagePreview(idx, resolveImgList(phase2.mood_images))"
+              >
+                <div class="mag-img-wrap">
+                  <img :src="img" loading="lazy" />
+                  <div class="mag-overlay"><el-icon><ZoomIn /></el-icon></div>
+                </div>
+                <div class="mag-caption" v-if="phase2.mood_text">
+                  <p v-html="formatDropCap(phase2.mood_text)"></p>
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="!resolveImgList(phase2.mood_images).length" description="暂无设计意境内容" />
+          </div>
+
+
+          <!-- 户型规划 - 上图下文布局 -->
+          <div v-if="activeCategory === 'plan'" class="phase-panel plan-stacked">
+            <div v-if="resolveImgUrl(phase3.plan_image)" class="plan-image-wrap" @click="openImagePreview(0, [resolveImgUrl(phase3.plan_image)])">
+              <img :src="resolveImgUrl(phase3.plan_image)" />
+              <div class="img-overlay"><el-icon><ZoomIn /></el-icon></div>
+            </div>
+            <div v-if="phase3.plan_text" class="plan-text-block">
+              <h3 class="phase-heading">平面规划</h3>
+              <div class="phase-body rich-text" v-html="phase3.plan_text"></div>
+            </div>
+            <el-empty v-if="!resolveImgUrl(phase3.plan_image) && !phase3.plan_text" description="暂无户型规划内容" />
+          </div>
+
+          <!-- 鸟瞰图展示 -->
+          <div v-if="activeCategory === 'birdview'" class="phase-panel">
+            <div v-if="resolveImgList(phase4.birdview_images).length" class="phase-birdview-stack">
+              <div v-for="(img, idx) in resolveImgList(phase4.birdview_images)" :key="idx" class="phase-birdview-item" @click="openImagePreview(idx, resolveImgList(phase4.birdview_images))">
+                <img :src="img" loading="lazy" />
+                <div class="img-overlay"><el-icon><ZoomIn /></el-icon></div>
+              </div>
+            </div>
+            <el-empty v-if="!resolveImgList(phase4.birdview_images).length" description="暂无鸟瞰图内容" />
+          </div>
+
+          <!-- 设计意向图 -->
+          <div v-if="activeCategory === 'showcase'" class="phase-panel">
+            <!-- 标题区 -->
+            <div v-if="phase5.showcase_title1" class="showcase-header">
+              <h3>{{ phase5.showcase_title1 }}</h3>
+              <p v-if="phase5.showcase_title2" class="showcase-subtitle">{{ phase5.showcase_title2 }}</p>
+            </div>
+            <!-- 图片展示区 -->
+            <div class="showcase-viewport">
+              <div v-if="resolveImgList(phase5.showcase_images).length === 1" class="showcase-single" @click="openImagePreview(0, resolveImgList(phase5.showcase_images))">
+                <img :src="resolveImgList(phase5.showcase_images)[0]" loading="lazy" />
+              </div>
+              <div v-else-if="resolveImgList(phase5.showcase_images).length > 1" class="showcase-scroll">
+                <div v-for="(img, idx) in resolveImgList(phase5.showcase_images)" :key="idx" class="showcase-img-item" @click="openImagePreview(idx, resolveImgList(phase5.showcase_images))">
+                  <img :src="img" loading="lazy" />
+                </div>
+              </div>
+            </div>
+            <!-- 底部文案 -->
+            <div v-if="phase5.showcase_quote" class="showcase-quote">
+              <blockquote>{{ phase5.showcase_quote }}</blockquote>
+              <p v-if="phase5.showcase_quote_en" class="showcase-quote-en">{{ phase5.showcase_quote_en }}</p>
+            </div>
+            <el-empty v-if="!resolveImgList(phase5.showcase_images).length" description="暂无设计意向图内容" />
+          </div>
+
+          <!-- 空间效果图集 -->
+          <div v-if="activeCategory === 'spaces'" class="phase-panel">
+            <div v-if="spacesByName.length > 0" class="spaces-gallery">
+              <div v-for="space in spacesByName" :key="space.name" class="space-group">
+                <!-- 空间名称大字标题 -->
+                <h3 class="space-name-title">{{ space.name }}</h3>
+                <!-- 瀑布流杂志风格 -->
+                <div class="spaces-masonry">
+                  <div
+                    v-for="(item, idx) in space.items"
+                    :key="item.id || idx"
+                    class="space-card"
+                    @click="openImagePreview(0, space.items.map(i => resolveImgUrl(i)))"
+                  >
+                    <div class="space-img-wrap">
+                      <img :src="resolveImgUrl(item)" loading="lazy" />
+                      <div class="space-overlay">
+                        <div class="space-overlay-content">
+                          <p v-if="item.title" class="space-caption-title">{{ item.title }}</p>
+                        </div>
+                      </div>
+                    </div>
+                    <div v-if="item.description" class="space-desc-bar">
+                      <p v-html="item.description"></p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="spacesByName.length === 0 && galleryList.length === 0" description="暂无空间效果图内容" />
+            <!-- 兼容旧gallery -->
+            <div v-if="spacesByName.length === 0 && galleryList.length > 0" class="gallery-fallback">
+              <h3 class="space-name-title">图集</h3>
+              <div class="spaces-masonry">
+                <div v-for="(media, idx) in galleryList" :key="idx" class="space-card" @click="openImagePreview(idx)">
+                  <div class="space-img-wrap">
+                    <img :src="resolveImgUrl(media)" loading="lazy" />
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- 瀑布流：无描述的图片 -->
-          <div class="gallery-masonry" v-if="plainImages.length > 0">
-            <div
-              v-for="(media, index) in plainImages"
-              :key="'plain-'+index"
-              class="gallery-item"
-              :class="{ large: index % 5 === 0, wide: index % 5 === 3 }"
-              @click="openImagePreview(findMediaIndex(media))"
-            >
-              <img :src="media.url || media.file_url" :alt="media.description" loading="lazy">
-              <div class="item-overlay">
-                <el-icon><ZoomIn /></el-icon>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
@@ -189,15 +337,7 @@
         </div>
       </section>
 
-      <!-- 设计亮点 -->
-      <section class="highlights-section" v-if="caseDetail.design_highlights">
-        <div class="container">
-          <h2 class="section-title">设计亮点</h2>
-          <div class="highlights-content">
-            <p>{{ caseDetail.design_highlights }}</p>
-          </div>
-        </div>
-      </section>
+     
 
       <!-- 施工进度（真实案例服务流程） -->
       <section class="workflow-progress-section" v-if="workflowProgress">
@@ -350,6 +490,44 @@
         </div>
       </section>
 
+      <!-- 更多案例（瀑布流） -->
+      <section class="related-cases" v-if="relatedCases.length > 0">
+        <div class="section-header">
+          <h2 class="section-title">更多案例</h2>
+          <p class="section-subtitle">同风格精选</p>
+        </div>
+        <div class="case-waterfall">
+          <div
+            v-for="caseItem in relatedCases"
+            :key="caseItem.id"
+            class="waterfall-card"
+            @click="goToDetail(caseItem.id)"
+          >
+            <div class="wf-image-wrap">
+              <img
+                v-if="caseItem.cover_image"
+                :src="caseItem.cover_image"
+                :alt="caseItem.title"
+                loading="lazy"
+              >
+              <div v-else class="wf-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
+                <span>{{ caseItem.title }}</span>
+              </div>
+              <div class="wf-overlay">
+                <div class="wf-atmosphere">{{ caseItem.atmosphere }}</div>
+                <div class="wf-bottom">
+                  <div class="wf-title">{{ caseItem.title }}</div>
+                  <div class="wf-meta">
+                    <span v-if="caseItem.house_type">{{ caseItem.house_type }}</span>
+                    <span v-if="caseItem.area">{{ caseItem.area }}㎡</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <!-- 底部信息 -->
       <footer class="case-footer">
         <div class="container">
@@ -370,6 +548,34 @@
       :initial-index="imagePreview.index"
       @close="imagePreview.visible = false"
     />
+
+    <!-- 报价详情弹窗 -->
+    <el-dialog
+      v-model="showQuoteDialog"
+      title="造价分项报价"
+      width="90%"
+      max-width="700px"
+      class="quote-dialog"
+    >
+      <div v-if="caseDetail?.quote_info" class="quote-detail-content">
+        <div class="quote-total">
+          <span class="quote-total-label">总造价</span>
+          <span class="quote-total-value">¥{{ Number(caseDetail.quote_info.total_amount).toLocaleString() }} 元</span>
+        </div>
+        <div class="quote-breakdown" v-if="caseDetail.quote_info.items?.length">
+          <div
+            v-for="item in caseDetail.quote_info.items"
+            :key="item.id || item.name"
+            class="quote-item"
+          >
+            <span class="quote-item-name">{{ item.name || item.category }}</span>
+            <span class="quote-item-amount">¥{{ Number(item.amount || 0).toLocaleString() }} 元</span>
+          </div>
+        </div>
+        <el-empty v-else description="暂无报价明细" />
+      </div>
+    </el-dialog>
+
 
     <!-- 留资表单弹窗 -->
     <el-dialog
@@ -419,11 +625,11 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
-  ArrowLeft, ArrowDown, Location, Star, Share,
+  ArrowLeft, ArrowDown, ArrowRight, Location, Star, Share,
   View, Bell, VideoPlay, ZoomIn, Check
 } from '@element-plus/icons-vue'
 import request from '@/api/request'
@@ -432,17 +638,41 @@ import LeadForm from '@/components/LeadForm.vue'
 const route = useRoute()
 const router = useRouter()
 
+const goToDetail = (id) => {
+  router.push(`/cases/${id}`)
+  window.scrollTo({ top: 0, behavior: 'smooth' })
+}
+
+const getAtmosphereGradient = (atm) => {
+  const map = {
+    '现代简约': 'linear-gradient(135deg,#667eea,#764ba2)',
+    '新中式': 'linear-gradient(135deg,#f093fb,#f5576c)',
+    '日式侧简': 'linear-gradient(135deg,#4facfe,#00f2fe)',
+    '轻奔实用': 'linear-gradient(135deg,#43e97b,#38f9d7)',
+    '法式奥山': 'linear-gradient(135deg,#fa709a,#fee140)',
+    '工业风': 'linear-gradient(135deg,#a18cd1,#fbc2eb)',
+    '山水居': 'linear-gradient(135deg,#ffecd2,#fcb69f)',
+  }
+  return map[atm] || 'linear-gradient(135deg,#8B5A2B,#D4A574)'
+}
+
 const loading = ref(false)
 const caseDetail = ref(null)
+const relatedCases = ref([])
 const isLiked = ref(false)
 const isSubscribed = ref(false)
 const showLeadForm = ref(false)
 const showSubscribeDialog = ref(false)
 const subscribePhone = ref('')
 const showFixedNav = ref(false)
+const showQuoteDialog = ref(false)
 const contentRef = ref(null)
 const currentHeroIndex = ref(0)
+const prevHeroIndex = ref(-1)
 let heroCarouselTimer = null
+
+// 轮播变化时记录上一张
+watch(currentHeroIndex, (newIdx, oldIdx) => { prevHeroIndex.value = oldIdx })
 
 // 图片预览
 const imagePreview = ref({
@@ -581,10 +811,25 @@ const loadCaseDetail = async () => {
     caseDetail.value = res
     document.title = `${res.title} - D&B 帝标|设记家案例`
     checkSubscription()
+    // 加载同风格相关案例
+    loadRelatedCases(res.atmosphere, res.id)
   } catch (error) {
     ElMessage.error('加载案例详情失败')
   } finally {
     loading.value = false
+  }
+}
+
+// 加载相关案例（同风格）
+const loadRelatedCases = async (atmosphere, excludeId) => {
+  try {
+    const res = await request.get('/public/cases', {
+      params: { atmosphere, page_size: 8, status: 'published' }
+    })
+    const list = res?.items || res || []
+    relatedCases.value = list.filter(c => c.id !== excludeId).slice(0, 6)
+  } catch (e) {
+    // 静默失败
   }
 }
 
@@ -670,6 +915,15 @@ const doSubscribe = async () => {
   }
 }
 
+// 打开报价预览
+const openQuotePreview = () => {
+  if (caseDetail.value?.is_real_case && caseDetail.value?.quote_id) {
+    window.open(`/quotes/${caseDetail.value.quote_id}`, '_blank')
+  } else if (caseDetail.value?.quote_info) {
+    showQuoteDialog.value = true
+  }
+}
+
 // 打开图片预览
 const openImagePreview = (index, list = null) => {
   imagePreview.value.list = list || mediaList.value.map(m => m.url || m.file_url)
@@ -701,6 +955,92 @@ const formatPrice = (price) => {
   return parseFloat(price).toLocaleString('zh-CN')
 }
 
+// 格式化万元
+const formatWan = (value) => {
+  if (!value) return '-'
+  const wan = Number(value) / 10000
+  return wan >= 1 ? `${wan.toFixed(1)}万` : `${Number(value).toLocaleString()}元`
+}
+
+// 轮播控制
+const goToHero = (idx) => {
+  prevHeroIndex.value = currentHeroIndex.value
+  currentHeroIndex.value = idx
+}
+const prevHero = () => goToHero((currentHeroIndex.value - 1 + heroImages.value.length) % heroImages.value.length)
+const nextHero = () => goToHero((currentHeroIndex.value + 1) % heroImages.value.length)
+
+// 分类Tab导航
+const activeCategory = ref('mood')
+const categories = [
+  { key: 'mood', label: '设计意境' },
+  { key: 'layout', label: '户型分析' },
+  { key: 'plan', label: '户型规划' },
+  { key: 'birdview', label: '鸟瞰图展示' },
+  { key: 'showcase', label: '设计意向图' },
+  { key: 'spaces', label: '空间效果图' },
+]
+
+// 安全解析JSON图片字段（空字符串/null返回空数组）
+const parseImgField = (val) => {
+  if (!val || val === '') return []
+  if (Array.isArray(val)) return val
+  try { const r = JSON.parse(val); return Array.isArray(r) ? r : [] } catch { return [] }
+}
+
+// 提取图片URL：对象 {url:'...'} → 字符串，字符串原样返回
+const resolveImgUrl = (img) => {
+  if (!img) return ''
+  if (typeof img === 'string') return img
+  if (img && img.url) return img.url
+  if (img && img.image_url) return img.image_url
+  if (img && img.rendering_url) return img.rendering_url
+  return ''
+}
+
+// 解析图片字段并提取为纯URL字符串数组（兼容对象数组和字符串数组）
+const resolveImgList = (arr) => {
+  if (!arr || !Array.isArray(arr)) return []
+  return arr.map(item => resolveImgUrl(item)).filter(u => u)
+}
+// 6阶段数据（来自后端phases字典或数组，过滤null）
+const phases = computed(() => {
+  const p = caseDetail.value?.phases
+  if (!p) return []
+  const arr = Array.isArray(p) ? p : Object.values(p)
+  return arr.filter(Boolean).map(ph => ({
+    ...ph,
+    layout_images: parseImgField(ph.layout_images),
+    mood_images: parseImgField(ph.mood_images),
+    birdview_images: parseImgField(ph.birdview_images),
+    showcase_images: parseImgField(ph.showcase_images),
+  }))
+})
+const getPhase = (n) => phases.value.find(p => p.phase_number === n) || {}
+const phase1 = computed(() => getPhase(1))
+const phase2 = computed(() => getPhase(2))
+const phase3 = computed(() => getPhase(3))
+const phase4 = computed(() => getPhase(4))
+const phase5 = computed(() => getPhase(5))
+const phase6 = computed(() => getPhase(6))
+
+// 空间效果图（来自后端spaces数组，按空间名分组）
+const spaces = computed(() => caseDetail.value?.spaces || [])
+const spacesByName = computed(() => {
+  const groups = {}
+  for (const s of spaces.value) {
+    const name = s.space_name || '其他空间'
+    if (!groups[name]) groups[name] = { name, items: [] }
+    const items = s.renderings || []
+    groups[name].items.push(...items)
+  }
+  return Object.values(groups).map(g => ({
+    ...g,
+    itemsWithDesc: g.items.filter(i => i.description || i.title),
+    itemsNoDesc: g.items.filter(i => !i.description && !i.title),
+  }))
+})
+
 // 格式化日期
 const formatDate = (date) => {
   if (!date) return ''
@@ -724,15 +1064,21 @@ const parseMediaUrls = (urls) => {
   return urls
 }
 
-onMounted(() => {
-  loadCaseDetail()
-  window.addEventListener('scroll', handleScroll)
-  // 英雄图轮播
+const startHeroCarousel = () => {
+  if (heroCarouselTimer) clearInterval(heroCarouselTimer)
   if (heroImages.value.length > 1) {
     heroCarouselTimer = setInterval(() => {
+      prevHeroIndex.value = currentHeroIndex.value
       currentHeroIndex.value = (currentHeroIndex.value + 1) % heroImages.value.length
-    }, 3000)
+    }, 4000)
   }
+}
+
+onMounted(() => {
+  loadCaseDetail().then(() => {
+    startHeroCarousel()
+  })
+  window.addEventListener('scroll', handleScroll)
 })
 
 onUnmounted(() => {
@@ -814,6 +1160,87 @@ onUnmounted(() => {
   color: #ffd700;
 }
 
+/* Hero 轮播样式 */
+.hero-carousel {
+  position: absolute;
+  inset: 0;
+}
+.hero-slide {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 1.2s ease-in-out;
+}
+.hero-slide.active {
+  opacity: 1;
+  z-index: 1;
+}
+.hero-slide img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  animation: kenBurns 12s ease-in-out infinite alternate;
+}
+@keyframes kenBurns {
+  from { transform: scale(1.0); }
+  to { transform: scale(1.12); }
+}
+.carousel-indicators {
+  position: absolute;
+  bottom: 120px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+}
+.carousel-indicators .indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+  cursor: pointer;
+  transition: all 0.3s;
+}
+.carousel-indicators .indicator.active {
+  background: #fff;
+  width: 24px;
+  border-radius: 4px;
+}
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  backdrop-filter: blur(8px);
+}
+.carousel-arrow:hover { background: rgba(0,0,0,0.65); }
+.carousel-arrow.left { left: 20px; }
+.carousel-arrow.right { right: 20px; }
+.carousel-arrow .el-icon { font-size: 20px; }
+
+.hero-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.hero-bg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
 /* Hero 全屏区域 */
 .hero-section {
   position: relative;
@@ -824,63 +1251,60 @@ onUnmounted(() => {
   justify-content: flex-end;
   overflow: hidden;
 }
-
-.hero-bg {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-
-
 .hero-carousel {
   position: absolute;
   inset: 0;
-  z-index: 0;
 }
-
-.hero-carousel img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.carousel-indicators {
+.hero-slide {
   position: absolute;
-  bottom: 120px;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  gap: 8px;
-  z-index: 10;
-}
-
-.carousel-indicators .indicator {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.4);
-  cursor: pointer;
-  transition: all 0.3s;
-}
-
-.carousel-indicators .indicator.active {
-  background: #fff;
-  width: 24px;
-  border-radius: 4px;
-}
-
-.fade-enter-active, .fade-leave-active {
-  transition: opacity 0.5s;
-}
-
-.fade-enter-from, .fade-leave-to {
+  inset: 0;
   opacity: 0;
-}.hero-bg img {
+  transition: opacity 1.2s ease-in-out;
+}
+.hero-slide.active {
+  opacity: 1;
+  z-index: 1;
+}
+.hero-slide img {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  animation: kenBurns 12s ease-in-out infinite alternate;
+  animation-delay: inherit;
 }
+.hero-slide.active img {
+  animation-name: kenBurns;
+}
+.hero-slide:not(.active) img {
+  animation: none;
+}
+@keyframes kenBurns {
+  from { transform: scale(1.0); }
+  to { transform: scale(1.12); }
+}
+.carousel-arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 10;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.4);
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s;
+  backdrop-filter: blur(8px);
+}
+.carousel-arrow:hover { background: rgba(0,0,0,0.65); }
+.carousel-arrow.left { left: 20px; }
+.carousel-arrow.right { right: 20px; }
+.carousel-arrow .el-icon { font-size: 20px; }
+
 
 .hero-gradient {
   position: absolute;
@@ -1072,11 +1496,6 @@ onUnmounted(() => {
   font-size: 28px;
 }
 
-/* 设计理念 */
-.concept-section {
-  padding: 80px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
 
 .section-title {
   font-size: clamp(24px, 4vw, 32px);
@@ -1095,65 +1514,508 @@ onUnmounted(() => {
   font-weight: 300;
 }
 
-/* 图片画廊 */
-.gallery-section {
-  padding: 80px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* 分类Tab导航 */
+.category-tabs-section {
+  padding: 0;
+  background: var(--bg-primary, #0d0d0d);
+  position: sticky;
+  top: 60px;
+  z-index: 90;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.gallery-masonry {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 16px;
+.category-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  padding: 0 0 4px;
+  scrollbar-width: none;
+}
+.category-tabs::-webkit-scrollbar { display: none; }
+
+.category-tab {
+  flex-shrink: 0;
+  padding: 10px 18px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.45);
+  font-size: 14px;
+  cursor: pointer;
+  border-radius: 8px;
+  transition: all 0.25s;
+  font-family: inherit;
+  white-space: nowrap;
+}
+.category-tab:hover {
+  color: rgba(255,255,255,0.75);
+  background: rgba(255,255,255,0.05);
+}
+.category-tab.active {
+  color: #8B5A2B;
+  background: rgba(139,90,43,0.12);
+  font-weight: 600;
 }
 
-.gallery-item {
+/* 6阶段内容区 */
+.phase-content-section {
+  padding: 60px 0;
+}
+.phase-panel {
+  animation: fadeInUp 0.3s ease;
+}
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.phase-heading {
+  font-size: 20px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 16px;
+}
+.phase-body {
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(255,255,255,0.7);
+}
+/* 富文本内容样式重置 */
+.phase-body.rich-text :deep(p) {
+  margin: 0 0 12px;
+  font-size: 15px;
+  line-height: 1.8;
+  color: rgba(255,255,255,0.75);
+}
+.phase-body.rich-text :deep(strong) {
+  color: #fff;
+  font-weight: 600;
+}
+.phase-body.rich-text :deep(span) {
+  color: inherit;
+}
+.phase-body.rich-text :deep(br) {
+  display: block;
+  content: '';
+  margin-top: 4px;
+}
+.phase-text-block {
+  margin-top: 32px;
+}
+
+/* ========== 户型分析：左文案 + 右图片（杂志风格）========== */
+.layout-analysis-section {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+.layout-left {
+  flex: 1;
+  min-width: 0;
+}
+.layout-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 20px;
+  letter-spacing: 2px;
+}
+.layout-analysis-content {
+  font-size: 14px;
+  line-height: 2;
+  color: rgba(255,255,255,0.8);
+}
+.layout-analysis-content :deep(p) {
+  margin: 0 0 14px;
+}
+.layout-analysis-content :deep(strong) {
+  color: #fff;
+  font-weight: 600;
+}
+.layout-right {
+  flex: 1.1;
+  min-width: 0;
+}
+.layout-floorplan-card {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
   cursor: pointer;
-  aspect-ratio: 1;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.08);
 }
-
-.gallery-item.large {
-  grid-column: span 2;
-  grid-row: span 2;
-}
-
-.gallery-item.wide {
-  grid-column: span 2;
-}
-
-.gallery-item img {
+.layout-floorplan-card img {
   width: 100%;
-  height: 100%;
-  object-fit: cover;
+  height: auto;
+  display: block;
   transition: transform 0.5s ease;
 }
-
-.gallery-item:hover img {
-  transform: scale(1.05);
+.layout-floorplan-card:hover img {
+  transform: scale(1.03);
 }
-
-.item-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
+.layout-floorplan-card .img-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.3);
   display: flex;
   align-items: center;
   justify-content: center;
   opacity: 0;
   transition: opacity 0.3s;
 }
-
-.gallery-item:hover .item-overlay {
+.layout-floorplan-card:hover .img-overlay {
   opacity: 1;
 }
 
-.item-overlay .el-icon {
-  font-size: 32px;
-  color: #fff;
+/* 响应式：移动端上下堆叠 */
+@media (max-width: 768px) {
+  .layout-analysis-section {
+    flex-direction: column;
+    gap: 24px;
+  }
+  .layout-right {
+    order: -1; /* 图片在上 */
+  }
 }
+.phase-images-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+.phase-img-card {
+  position: relative;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 4/3;
+}
+.phase-img-card img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.4s;
+}
+.phase-img-card:hover img { transform: scale(1.05); }
+.img-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.25s;
+}
+.phase-img-card:hover .img-overlay { opacity: 1; }
+.img-overlay .el-icon { font-size: 28px; color: #fff; }
+
+/* 鸟瞰图展示：上下垂直排列，完整展示 */
+.phase-birdview-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.phase-birdview-item {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.phase-birdview-item img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.4s;
+}
+.phase-birdview-item:hover img { transform: scale(1.02); }
+
+/* 户型规划：上图下文，上下排列，宽对齐 */
+.phase-plan-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+.plan-image-wrap {
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.plan-image-wrap img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.4s;
+}
+.plan-image-wrap:hover img {
+  transform: scale(1.03);
+}
+.plan-text-block {
+  width: 100%;
+}
+.phase-single-img {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  cursor: pointer;
+  aspect-ratio: 1;
+}
+.phase-single-img img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.4s;
+}
+.phase-single-img:hover img { transform: scale(1.04); }
+
+/* 设计意境 杂志风格 */
+.phase-magazine-layout {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+}
+.phase-magazine-layout .magazine-card {
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+}
+.phase-magazine-layout .magazine-card.large {
+  grid-column: span 2;
+}
+.phase-magazine-layout .mag-img-wrap {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 4/3;
+}
+.phase-magazine-layout .magazine-card.large .mag-img-wrap {
+  aspect-ratio: 16/9;
+}
+.phase-magazine-layout .mag-img-wrap img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.5s;
+}
+.phase-magazine-layout .magazine-card:hover img { transform: scale(1.05); }
+.phase-magazine-layout .mag-overlay {
+  position: absolute; inset: 0;
+  background: rgba(0,0,0,0.3);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.25s;
+}
+.phase-magazine-layout .magazine-card:hover .mag-overlay { opacity: 1; }
+.phase-magazine-layout .mag-caption {
+  background: rgba(0,0,0,0.75);
+  padding: 14px 16px;
+}
+.phase-magazine-layout .mag-caption .mag-text {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.85);
+}
+
+/* 效果图首页 */
+.showcase-header {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.showcase-header h3 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 10px;
+  letter-spacing: 0.06em;
+}
+.showcase-subtitle {
+  font-size: 13px;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+  letter-spacing: 0.12em;
+}
+
+/* 设计意向图展示区 */
+.showcase-viewport {
+  width: 100%;
+  height: 700px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0a0a0a;
+}
+.showcase-single {
+  width: 100%;
+  height: 700px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.showcase-single img {
+  max-width: 100%;
+  max-height: 700px;
+  object-fit: contain;
+}
+.showcase-scroll {
+  display: flex;
+  height: 700px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-behavior: smooth;
+  gap: 0;
+  /* 隐藏滚动条但保留功能 */
+  scrollbar-width: none;
+}
+.showcase-scroll::-webkit-scrollbar { display: none; }
+.showcase-img-item {
+  flex-shrink: 0;
+  height: 700px;
+  cursor: pointer;
+  position: relative;
+}
+.showcase-img-item img {
+  height: 100%;
+  width: auto;
+  display: block;
+}
+/* 底部文案引用 */
+.showcase-quote {
+  margin-top: 32px;
+  padding: 20px 28px;
+  border-left: 3px solid rgba(139,90,43,0.6);
+  background: rgba(255,255,255,0.03);
+  border-radius: 0 8px 8px 0;
+}
+.showcase-quote blockquote {
+  font-size: 15px;
+  color: rgba(255,255,255,0.75);
+  margin: 0 0 8px;
+  line-height: 1.8;
+  font-style: italic;
+}
+.showcase-quote-en {
+  font-size: 12px;
+  color: rgba(255,255,255,0.35);
+  margin: 0;
+  font-style: italic;
+  letter-spacing: 0.05em;
+}
+
+/* 空间效果图集 - 瀑布流杂志风格 */
+.spaces-gallery { display: flex; flex-direction: column; gap: 48px; }
+
+.space-name-title {
+  font-size: 72px !important;
+  font-weight: 700 !important;
+  color: #8B5A2B !important;
+  margin: 0 0 24px !important;
+  padding-bottom: 0 !important;
+  border: none !important;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  text-transform: uppercase;
+  font-style: normal !important;
+}
+
+/* CSS 瀑布流：column-count 多列布局 */
+.spaces-masonry {
+  columns: 3 280px;
+  column-gap: 16px;
+}
+
+.space-card {
+  break-inside: avoid;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+}
+
+.space-img-wrap {
+  position: relative;
+  overflow: hidden;
+}
+
+.space-img-wrap img {
+  width: 100%;
+  display: block;
+  transition: transform 0.6s ease;
+}
+
+.space-card:hover .space-img-wrap img {
+  transform: scale(1.04);
+}
+
+/* 悬浮信息层 */
+.space-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0) 60%);
+  display: flex;
+  align-items: flex-end;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.space-card:hover .space-overlay {
+  opacity: 1;
+}
+
+.space-overlay-content {
+  padding: 16px 14px;
+  width: 100%;
+}
+
+.space-caption-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  line-height: 1.4;
+}
+
+/* 简介文字常驻在图片下方 */
+.space-desc-bar {
+  background: #111;
+  padding: 10px 12px;
+}
+
+.space-desc-bar p {
+  font-size: 12px;
+  color: rgba(255,255,255,0.7);
+  margin: 0;
+  line-height: 1.6;
+}
+
+.gallery-fallback {
+  margin-top: 32px;
+}
+
+/* 兼容旧 gallery-item */
+.gallery-masonry {
+  columns: 3 280px;
+  column-gap: 16px;
+}
+.gallery-item {
+  break-inside: avoid;
+  margin-bottom: 16px;
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  aspect-ratio: 1;
+}
+.gallery-item.large { grid-column: span 2; grid-row: span 2; }
+.gallery-item.wide { grid-column: span 2; }
+.gallery-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+.gallery-item:hover img { transform: scale(1.05); }
+.item-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.gallery-item:hover .item-overlay { opacity: 1; }
+.item-overlay .el-icon { font-size: 32px; color: #fff; }
 
 /* VR 区域 */
 .vr-section {
@@ -1213,11 +2075,6 @@ onUnmounted(() => {
   color: rgba(255, 255, 255, 0.9);
 }
 
-/* 设计亮点 */
-.highlights-section {
-  padding: 80px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
 
 .highlights-content {
   max-width: 800px;
@@ -1834,4 +2691,159 @@ onUnmounted(() => {
   margin-right: 0.1em;
   color: #fff;
 }
+
+/* ── 更多案例瀑布流 ── */
+.related-cases {
+  padding: 60px 0 0;
+  background: #f0ede8;
+}
+
+.related-cases .section-header {
+  padding: 0 60px 32px;
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+}
+
+.related-cases .section-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 2px;
+  margin: 0;
+}
+
+.related-cases .section-subtitle {
+  font-size: 14px;
+  color: #999;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin: 0;
+}
+
+/* 共用瀑布流样式 */
+.case-waterfall {
+  columns: 3;
+  column-gap: 6px;
+  padding: 0 60px 80px;
+}
+
+@media (max-width: 1200px) {
+  .case-waterfall { columns: 2; padding: 0 24px 60px; }
+  .related-cases .section-header { padding: 0 24px 24px; }
+}
+@media (max-width: 640px) {
+  .case-waterfall { columns: 1; padding: 0 12px 40px; }
+  .related-cases .section-header { padding: 0 12px 20px; }
+}
+
+.waterfall-card {
+  break-inside: avoid;
+  margin-bottom: 6px;
+  position: relative;
+  cursor: pointer;
+  overflow: hidden;
+  display: block;
+}
+
+.wf-image-wrap {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+}
+
+.wf-image-wrap img {
+  width: 100%;
+  height: auto;
+  display: block;
+  transition: transform 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+
+.waterfall-card:hover .wf-image-wrap img {
+  transform: scale(1.04);
+}
+
+.wf-no-image {
+  width: 100%;
+  aspect-ratio: 3/4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255,255,255,0.7);
+  font-size: 16px;
+  letter-spacing: 2px;
+}
+
+.wf-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 20px;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.45) 0%,
+    transparent 35%,
+    transparent 50%,
+    rgba(0,0,0,0.72) 100%
+  );
+  transition: background 0.4s ease;
+}
+
+.waterfall-card:hover .wf-overlay {
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.55) 0%,
+    transparent 30%,
+    transparent 45%,
+    rgba(0,0,0,0.85) 100%
+  );
+}
+
+.wf-atmosphere {
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.15);
+  backdrop-filter: blur(4px);
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 5px 12px;
+  border-radius: 2px;
+}
+
+.wf-bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.wf-title {
+  font-size: clamp(22px, 3.5vw, 38px);
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.15;
+  letter-spacing: 1px;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+  word-break: break-all;
+}
+
+.wf-meta {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.wf-meta span {
+  font-size: 12px;
+  color: rgba(255,255,255,0.8);
+  letter-spacing: 1px;
+  background: rgba(255,255,255,0.12);
+  padding: 3px 8px;
+  border-radius: 2px;
+}
 </style>
+

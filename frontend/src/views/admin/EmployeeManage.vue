@@ -426,7 +426,7 @@ const loadDepartments = async () => {
 const loadPositions = async () => {
   try {
     const res = await request.get('/employees/positions')
-    positions.value = res
+    positions.value = res.data || []
   } catch (error) {
     console.error('加载岗位失败', error)
   }

@@ -312,13 +312,17 @@ const showTemplateDialog = ref(false)
 const fetchCases = async () => {
   loading.value = true
   try {
-    const params = {
+    // 过滤掉空字符串/null/undefined，避免后端误解析（如 is_featured='' 被 Flask bool 解析为 True）
+    const rawParams = {
       page: pagination.page,
       page_size: pagination.page_size,
       sort_by: sortBy.value,
       sort_order: sortOrder.value,
       ...filterForm
     }
+    const params = Object.fromEntries(
+      Object.entries(rawParams).filter(([, v]) => v !== '' && v !== null && v !== undefined)
+    )
     
     // 处理面积区间
     if (filterForm.area_range) {

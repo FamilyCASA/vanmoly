@@ -24,7 +24,7 @@ def create_app(config_class=Config):
     jwt.init_app(app)
     # 全局 CORS 配置 - 支持所有来源和方法
     CORS(app, resources={
-        r"/api/*": {
+        r"/*": {
             "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
             "allow_headers": ["Content-Type", "Authorization", "Accept", "Origin", "X-Requested-With"],
