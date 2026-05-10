@@ -48,6 +48,8 @@
         <FrontendConfig v-if="activeKey === 'frontend'" />
         <!-- 积分管理 -->
         <PointsManage v-if="activeKey === 'points'" />
+        <!-- 知识库管理 -->
+        <KnowledgeManage v-if="activeKey === 'knowledge'" />
       </div>
     </div>
   </div>
@@ -56,7 +58,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import {
-  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy
+  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading
 } from '@element-plus/icons-vue'
 import WorkflowTemplateManage from './WorkflowTemplateManage.vue'
 import CategoryManage from './CategoryManage.vue'
@@ -66,6 +68,7 @@ import MaterialManageV2 from './MaterialManageV2.vue'
 import FileManage from './FileManage.vue'
 import FrontendConfig from './FrontendConfig.vue'
 import PointsManage from './PointsManage.vue'
+import KnowledgeManage from './KnowledgeManage.vue'
 
 const activeKey = ref('workflow')
 
@@ -133,6 +136,14 @@ const navItems = [
     icon: Trophy,
     bg: '#FFF0F6',
     color: '#EB2F96'
+  },
+  {
+    key: 'knowledge',
+    title: '知识库管理',
+    desc: '商学院课程与学习资料',
+    icon: Reading,
+    bg: '#F6FFED',
+    color: '#52C41A'
   }
 ]
 

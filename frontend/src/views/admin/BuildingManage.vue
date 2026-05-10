@@ -119,6 +119,7 @@
             <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
             <el-button link type="primary" @click="openEditDialog(row)">编辑</el-button>
             <el-button link type="primary" @click="openFollowDialog(row)">跟进</el-button>
+            <el-button link type="success" @click="openSurvey(row)">调查</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -453,6 +454,7 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Plus, Upload, Download } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -464,6 +466,8 @@ const page = ref(1)
 const pageSize = ref(10)
 const total = ref(0)
 const activeTab = ref('basic')
+const router = useRouter()
+const route = useRoute()
 
 const filterForm = reactive({
   keyword: '',
@@ -671,6 +675,10 @@ const handleSubmit = async () => {
 }
 
 // 跟进
+const openSurvey = (row) => {
+  router.push(`/admin/buildings/survey/${row.id}`)
+}
+
 const openFollowDialog = (row) => {
   followDialog.buildingId = row.id
   followDialog.visible = true

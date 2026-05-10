@@ -74,7 +74,6 @@ def get_templates(current_user):
 
 @quote_bp.route('/templates', methods=['POST'])
 @jwt_required_v2
-@jwt_required_v2
 def create_template(current_user):
     """创建模板"""
     data = request.get_json()
@@ -1688,7 +1687,7 @@ FEE_CATEGORIES = {
 @jwt_required_v2
 def get_quote_fee_breakdown(current_user, id):
     """解析报价单的费用构成，按七大类汇总
-    
+
     用于合同模块导入报价表时自动识别费用分布
     返回：
     - categories: 七大类各自金额和明细
@@ -1779,3 +1778,98 @@ def get_quote_fee_breakdown(current_user, id):
             'contract_suggestion': contract_suggestion,
         }
     })
+
+
+# ========== V3.2 报价工作流 ==========
+
+@quote_bp.route('/<int:id>/submit', methods=['POST'])
+@jwt_required_v2
+def submit_quote(current_user, id):
+    from app.routes.auth_routes_v2 import jwt_required_v2
+    quote = Quote.query.get_or_404(id)
+    
+    if quote.created_by != current_user.id and current_user.role != 'admin':
+        return jsonify({'code': 403, 'message': 'no permission'}), 403
+    
+    if not quote.customer_name or not quote.customer_phone:
+        return jsonify({'code': 400, 'message': 'incomplete customer info'}), 400
+    
+    if not quote.items:
+        return jsonify({'code': 400, 'message': 'no items'}), 400
+    
+    quote.status = 'pending'
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': 'submitted', 'data': {'quote_id': id, 'status': 'pending'}})
+
+
+@quote_bp.route('/<int:id>/approve', methods=['POST'])
+@jwt_required_v2
+def approve_quote(current_user, id):
+    if current_user.role != 'admin':
+        return jsonify({'code': 403, 'message': 'admin only'}), 403
+    
+    quote = Quote.query.get_or_404(id)
+    data = request.get_json() or {}
+    
+    quote.status = 'approved'
+    quote.approved_by = current_user.id
+    quote.approval_note = data.get('note', '')
+    
+    if data.get('seal_url'):
+        quote.seal_url = data['seal_url']
+    
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': 'approved', 'data': {'quote_id': id, 'status': 'approved'}})
+
+
+@quote_bp.route('/<int:id>/reject', methods=['POST'])
+@jwt_required_v2
+def reject_quote(current_user, id):
+    if current_user.role != 'admin':
+        return jsonify({'code': 403, 'message': 'admin only'}), 403
+    
+    quote = Quote.query.get_or_404(id)
+    data = request.get_json() or {}
+    reason = data.get('reason', '')
+    
+    if not reason:
+        return jsonify({'code': 400, 'message': 'reason required'}), 400
+    
+    quote.status = 'rejected'
+    quote.approved_by = current_user.id
+    quote.approval_note = reason
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': 'rejected', 'data': {'quote_id': id, 'status': 'rejected'}})
+
+
+@quote_bp.route('/import', methods=['POST'])
+@jwt_required_v2
+def import_quote(current_user):
+    if 'file' not in request.files:
+        return jsonify({'code': 400, 'message': 'no file'}), 400
+    
+    file = request.files['file']
+    if not file.filename.endswith(('.xlsx', '.xls')):
+        return jsonify({'code': 400, 'message': 'excel only'}), 400
+    
+    try:
+        import pandas as pd
+        df = pd.read_excel(file)
+        
+        items = []
+        for _, row in df.iterrows():
+            items.append({
+                'space_name': str(row.get('space_name', '')),
+                'sku_code': str(row.get('sku_code', '')),
+                'custom_name': str(row.get('custom_name', '')),
+                'material_name': str(row.get('material_name', '')),
+                'quantity': float(row.get('quantity', 1)),
+                'unit_price': float(row.get('unit_price', 0)),
+            })
+        
+        return jsonify({'code': 200, 'message': f'parsed {len(items)} items', 'data': {'items': items}})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e)}), 500

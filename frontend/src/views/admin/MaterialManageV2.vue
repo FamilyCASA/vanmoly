@@ -10,6 +10,12 @@
         <el-button type="primary" @click="openEditDialog()">
           <el-icon><Plus /></el-icon>新增物料
         </el-button>
+        <el-button @click="downloadTemplate">
+          <el-icon><Download /></el-icon>下载模板
+        </el-button>
+        <el-button type="success" @click="openImportDialog">
+          <el-icon><Upload /></el-icon>批量导入
+        </el-button>
       </div>
     </div>
 
@@ -516,6 +522,10 @@ const filters = reactive({
 // 数据列表
 const materials = ref([])
 const loading = ref(false)
+const importDialogVisible = ref(false)
+const importing = ref(false)
+const uploadRef = ref(null)
+const importFile = ref(null)
 const pagination = reactive({
   page: 1,
   pageSize: 20,

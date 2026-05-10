@@ -3,30 +3,30 @@
     <!-- 统一导航栏 -->
     <Navbar />
 
-    
 
-    <!-- 全屏英雄区（杂志封面风格） -->
+
+    <!-- 全屏英雄区(杂志封面风格) -->
     <header class="hero-section" v-if="featuredCase">
       <!-- 多图轮播背景 -->
       <div class="hero-bg">
         <transition :name="carouselTransition" mode="out-in">
           <div :key="currentCarouselIndex" class="hero-slide">
-            <img 
-              v-if="currentHeroImage" 
-              :src="resolveImageUrl(currentHeroImage)" 
-              :alt="featuredCase.title" 
-              loading="lazy" 
+            <img
+              v-if="currentHeroImage"
+              :src="resolveImageUrl(currentHeroImage)"
+              :alt="featuredCase.title"
+              loading="lazy"
               @error="e => handleImageError(e, featuredCase.atmosphere)"
             >
             <div v-else class="hero-placeholder" :style="{ background: getAtmosphereGradient(featuredCase.atmosphere) }"></div>
           </div>
         </transition>
         <div class="hero-overlay"></div>
-        
+
         <!-- 轮播指示器 -->
         <div class="carousel-indicators" v-if="heroImages.length > 1">
-          <span 
-            v-for="(img, idx) in heroImages" 
+          <span
+            v-for="(img, idx) in heroImages"
             :key="idx"
             class="indicator"
             :class="{ active: idx === currentCarouselIndex }"
@@ -34,7 +34,7 @@
           ></span>
         </div>
       </div>
-      
+
       <!-- 杂志风格覆盖层 -->
       <div class="hero-magazine-overlay">
         <!-- 左上角品牌标识 -->
@@ -42,7 +42,7 @@
           <span class="brand-cn">帝标·设记家</span>
           <span class="brand-en">DESIGNARY</span>
         </div>
-        
+
         <!-- 左侧服务团队 -->
         <div class="service-team-sidebar">
           <div class="team-label">SERVICE TEAM</div>
@@ -64,8 +64,8 @@
             </div>
           </div>
         </div>
-        
-        <!-- 右侧核心信息区（深色蒙版 + 去掉重复的面积/户型） -->
+
+        <!-- 右侧核心信息区(深色蒙版 + 去掉重复的面积/户型) -->
         <div class="hero-content">
           <div class="hero-badge" v-if="featuredCase.atmosphere">
             {{ getAtmosphereLabel(featuredCase.atmosphere) }}
@@ -75,10 +75,10 @@
             <span v-if="featuredCase.building_name">{{ featuredCase.building_name }}</span>
             <span v-if="featuredCase.building_name"> · </span>
             {{ featuredCase.location }}
-            <span v-if="featuredCase.area"> · {{ featuredCase.area }}㎡ {{ featuredCase.house_type }}</span>
+            <span v-if="featuredCase.area"> · {{ featuredCase.area }}m2 {{ featuredCase.house_type }}</span>
           </p>
-          
-          <!-- 数字参数展示（价格为主） -->
+
+          <!-- 数字参数展示(价格为主) -->
           <div class="hero-specs">
             <div class="spec-item" v-if="featuredCase.total_price">
               <span class="spec-value">¥{{ formatPrice(featuredCase.total_price) }}</span>
@@ -86,7 +86,7 @@
             </div>
           </div>
         </div>
-        
+
         <!-- 底部 VR 二维码 + 按钮 -->
         <div class="hero-footer">
           <div class="vr-section" v-if="featuredCase.vr_qrcode">
@@ -106,7 +106,7 @@
       </div>
     </header>
 
-    <!-- 第二层：服务流程阶段横向筛选（横排按钮，点击展开细分节点） -->
+    <!-- 第二层:服务流程阶段横向筛选(横排按钮,点击展开细分节点) -->
     <div class="workflow-phase-filter-bar">
       <div class="phase-filter-row">
         <button
@@ -126,7 +126,7 @@
         </button>
       </div>
 
-      <!-- 展开的节点列表（横向滚动） -->
+      <!-- 展开的节点列表(横向滚动) -->
       <transition name="slide-down">
         <div class="phase-nodes-panel" v-if="expandedPhase && phaseNodes[expandedPhase]?.length > 0">
           <div class="nodes-scroll">
@@ -153,13 +153,18 @@
       </transition>
     </div>
 
-<!-- 第一层：氛围选择Tab（蔚来车型Tab风格） -->
+<!-- 第一层:氛围选择Tab(蔚来车型Tab风格) -->
     <div class="atmosphere-tabs">
-      <div 
-        v-for="atm in atmospheres" 
+      <div
+        v-for="atm in atmospheres"
         :key="atm.key"
         class="tab-item"
         :class="{ active: filters.atmosphere === atm.value }"
+        :style="{
+          backgroundColor: atm.color,
+          color: atm.textColor,
+          borderColor: atm.color
+        }"
         @click="selectAtmosphere(atm.key)"
       >
         <span class="tab-label">{{ atm.label }}</span>
@@ -168,50 +173,38 @@
     </div>
 
 
-    <!-- 第三层：颜色筛选色条（暖色→冷色→灰度，hover显示潘通名，点击筛选） -->
-    <div class="color-strip-bar" v-if="colorPalette.length > 0">
-      <div class="color-strip-row">
-        <span class="strip-label">配色</span>
-        <!-- 动态色条：每格宽度 = 100% / 颜色总数 -->
-        <div class="color-strip-track" @mouseleave="hoveredHex = null">
+    <!-- 偏好色筛选(来自数据库实际配色,点击快速筛选) -->
+    <div class="preference-color-bar" v-if="colorPalette.length > 0">
+      <div class="pref-color-row">
+        <span class="pref-label">偏好色</span>
+        <div class="pref-color-cards">
           <div
             v-for="color in colorPalette"
             :key="color.hex"
-            class="color-strip-cell"
-            :style="{
-              backgroundColor: color.hex,
-              width: (1 / colorPalette.length * 100).toFixed(2) + '%',
-              opacity: hoveredHex && hoveredHex !== color.hex ? 0.5 : 1
-            }"
-            :title="color.pantone_name ? color.pantone_name + ' / ' + color.hex : color.hex"
-            @mouseenter="hoveredHex = color.hex"
+            class="pref-color-card"
+            :class="{ active: selectedColor === color.hex }"
+            :style="{ backgroundColor: color.hex }"
+            :title="color.hex + (color.count ? ' (' + color.count + '个方案)' : '')"
             @click="selectColor(color.hex)"
           >
-            <!-- 当前选中指示 -->
-            <span class="strip-active-dot" v-if="selectedColor === color.hex"></span>
-            <!-- Hover Tooltip -->
-            <div class="strip-tooltip" v-if="hoveredHex === color.hex">
-              <span class="tooltip-hex">{{ color.hex }}</span>
-              <span class="tooltip-pantone" v-if="color.pantone_name">{{ color.pantone_name }}</span>
-              <span class="tooltip-count" v-if="color.count > 0">{{ color.count }}&nbsp;case{{ color.count > 1 ? 's' : '' }}</span>
-            </div>
+            <span class="pref-color-count" v-if="color.count">{{ color.count }}</span>
           </div>
         </div>
-        <button class="strip-clear-btn" v-if="selectedColor" @click="clearColorFilter">
-          <el-icon><Close /></el-icon>{{ selectedColor }}
+        <button class="pref-clear-btn" v-if="selectedColor" @click="clearColorFilter">
+          <el-icon><Close /></el-icon>清除
         </button>
       </div>
     </div>
 
-    
 
-    <!-- 第三层：配置方案展示（理想i8版本选择风格） -->
+
+    <!-- 第三层:配置方案展示(理想i8版本选择风格) -->
     <div class="section-title">
       <h2>精选配置方案</h2>
-      <p>每个案例包含多种空间配置方案，满足不同需求</p>
+      <p>每个案例包含多种空间配置方案,满足不同需求</p>
     </div>
 
-        <!-- 案例瀑布流（杂志封面风格） -->
+        <!-- 案例瀑布流(杂志封面风格) -->
     <div class="case-waterfall">
       <div
         v-for="caseItem in cases"
@@ -232,16 +225,16 @@
             <span>{{ caseItem.title }}</span>
           </div>
 
-          <!-- 杂志封面文字覆盖层（始终可见） -->
+          <!-- 杂志封面文字覆盖层(始终可见) -->
           <div class="wf-overlay">
-            <!-- 顶部：氛围标签 -->
+            <!-- 顶部:氛围标签 -->
             <div class="wf-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</div>
-            <!-- 底部：案例名称 + 参数 -->
+            <!-- 底部:案例名称 + 参数 -->
             <div class="wf-bottom">
               <div class="wf-title">{{ caseItem.title }}</div>
               <div class="wf-meta">
                 <span v-if="caseItem.house_type">{{ caseItem.house_type }}</span>
-                <span v-if="caseItem.area">{{ caseItem.area }}㎡</span>
+                <span v-if="caseItem.area">{{ caseItem.area }}m2</span>
                 <span v-if="caseItem.city">{{ caseItem.city }}</span>
               </div>
             </div>
@@ -268,7 +261,7 @@
     <!-- 订阅弹窗 -->
     <el-dialog v-model="subscribeDialogVisible" title="订阅案例更新" width="400px">
       <div class="subscribe-dialog-content">
-        <p>订阅「{{ currentCase?.title }}」后，案例更新时将通过微信通知您</p>
+        <p>订阅「{{ currentCase?.title }}」后,案例更新时将通过微信通知您</p>
         <el-form :model="subscribeForm" label-position="top">
           <el-form-item label="手机号">
             <el-input v-model="subscribeForm.phone" placeholder="请输入手机号" />
@@ -294,15 +287,16 @@ import Footer from '@/components/Footer.vue'
 
 const router = useRouter()
 
-// 六大氛围分类（蔚来车型分类风格）
-// key=前端唯一标识，label=显示文本，value=数据库存储值
+// 六大氛围分类(蔚来车型分类风格)
+// key=前端唯一标识,label=显示文本,value=数据库存储值
+// color=背景色,textColor=文字颜色
 const atmospheres = reactive([
-  { key: 'warm',     label: '温馨', value: '温馨', count: 0 },
-  { key: 'fresh',    label: '清新', value: '清新', count: 0 },
-  { key: 'minimalist', label: '简约', value: '简约', count: 0 },
-  { key: 'romantic', label: '浪漫', value: '浪漫', count: 0 },
-  { key: 'elegant',  label: '雅致', value: '雅致', count: 0 },
-  { key: 'steady',   label: '沉稳', value: '沉稳', count: 0 }
+  { key: 'warm',       label: '温馨',   value: '温馨',   count: 0, color: '#d4a574', textColor: '#fff' },
+  { key: 'fresh',     label: '清新',   value: '清新',   count: 0, color: '#7d9c5a', textColor: '#fff' },
+  { key: 'minimalist',label: '简约',   value: '简约',   count: 0, color: '#9e9e9e', textColor: '#fff' },
+  { key: 'romantic',  label: '浪漫',   value: '浪漫',   count: 0, color: '#e8b4bc', textColor: '#5c3a3a' },
+  { key: 'elegant',   label: '雅致',   value: '雅致',   count: 0, color: '#c9a96e', textColor: '#fff' },
+  { key: 'steady',    label: '沉稳',   value: '沉稳',   count: 0, color: '#2d4a3e', textColor: '#fff' }
 ])
 
 // 状态
@@ -319,7 +313,7 @@ const carouselTransition = ref('fade')
 const carouselTimer = ref(null)
 const transitions = ['fade', 'slide-left', 'slide-right', 'zoom', 'wipe']
 
-// 服务流程步骤（杂志左侧目录）
+// 服务流程步骤(杂志左侧目录)
 const processSteps = [
   { name: '转化签约', key: 'conversion' },
   { name: '前期准备', key: 'preparation' },
@@ -334,8 +328,8 @@ const currentHeroImage = computed(() => {
   return heroImages.value[currentCarouselIndex.value] || featuredCase.value?.cover_image
 })
 
-// 服务流程阶段筛选（与数据库 workflow_phase_config 保持一致）
-// 6个阶段全部展示，名称和数量均来自后端
+// 服务流程阶段筛选(与数据库 workflow_phase_config 保持一致)
+// 6个阶段全部展示,名称和数量均来自后端
 const workflowPhases = ref([
   { key: 'acquisition',   label: '获客沉淀阶段', count: 0, code: 'acquisition' },
   { key: 'conversion',    label: '转化签约阶段', count: 0, code: 'conversion' },
@@ -380,7 +374,7 @@ const togglePhaseExpand = async (phase) => {
   }
 }
 
-// 选择节点（筛选该节点对应的案例）
+// 选择节点(筛选该节点对应的案例)
 const selectedNodeId = ref(null)
 const selectNode = (node) => {
   if (selectedNodeId.value === node.id) {
@@ -409,7 +403,7 @@ const getPhaseShortLabel = (phase) => {
   return map[phase] || phase
 }
 
-// 加载阶段节点数据（从已加载案例的 workflow_progress 获取当前节点名称）
+// 加载阶段节点数据(从已加载案例的 workflow_progress 获取当前节点名称)
 const fetchPhaseNodes = async (targetPhaseKey) => {
   if (loadingNodes.value) return
   loadingNodes.value = true
@@ -457,10 +451,9 @@ const filters = reactive({
   color: ''
 })
 
-// 颜色筛选（色条模式）
-const colorPalette = ref([])  // [{hex, pantone_name, pantone_code, count}]
+// 颜色筛选（色卡模式）
+const colorPalette = ref([])  // [{hex, count}] 从案例数据动态提取
 const selectedColor = ref('')  // hex string
-const hoveredHex = ref(null)
 
 const selectColor = (hex) => {
   selectedColor.value = selectedColor.value === hex ? '' : hex
@@ -507,16 +500,16 @@ const fetchFilterOptions = async () => {
         if (found) atm.count = found.count || 0
       })
     }
-    // 服务流程阶段计数（从后端 progress_options 映射到6个阶段）
+    // 服务流程阶段计数(从后端 progress_options 映射到6个阶段)
     // 后端返回: real_case, designing(acq+conv+prep), construction, soft_service, after_sales
     // 前端需要拆分 designing 为 acquisition/conversion/preparation 三个独立计数
     if (res.progress_options) {
       const optMap = {}
       res.progress_options.forEach(opt => { optMap[opt.key] = opt.count || 0 })
-      
+
       // 直接使用后端返回的各阶段计数
-      // designing 是 acquisition+conversion+preparation 的合计，需按比例或查实际数据拆分
-      // 更好的方式：后端直接返回6个阶段的独立计数
+      // designing 是 acquisition+conversion+preparation 的合计,需按比例或查实际数据拆分
+      // 更好的方式:后端直接返回6个阶段的独立计数
       workflowPhases.value.forEach(p => {
         if (p.key === 'acquisition') p.count = optMap['acquisition_count'] || 0
         else if (p.key === 'conversion') p.count = optMap['conversion_count'] || 0
@@ -533,7 +526,7 @@ const fetchFilterOptions = async () => {
 
 // 选择氛围
 const selectAtmosphere = (key) => {
-  // 切换氛围：传入key，找到对应的value（数据库存储的中文值）
+  // 切换氛围:传入key,找到对应的value(数据库存储的中文值)
   const atm = atmospheres.find(a => a.key === key)
   const newAtm = atm ? atm.value : ''
   filters.atmosphere = filters.atmosphere === newAtm ? '' : newAtm
@@ -542,7 +535,7 @@ const selectAtmosphere = (key) => {
   fetchCases()
 }
 
-// 获取氛围标签（数据库存的是中文值，如'温馨'）
+// 获取氛围标签(数据库存的是中文值,如'温馨')
 const getAtmosphereLabel = (value) => {
   const atm = atmospheres.find(a => a.value === value)
   return atm ? atm.label : value
@@ -567,7 +560,7 @@ const getCaseColorDots = (caseItem) => {
   return dots
 }
 
-// 获取氛围色渐变（封面图不存在时的 fallback）
+// 获取氛围色渐变(封面图不存在时的 fallback)
 const getAtmosphereGradient = (atmosphere) => {
   const gradients = {
     '温馨': 'linear-gradient(135deg, #f5e6d3 0%, #d4a574 100%)',
@@ -580,10 +573,10 @@ const getAtmosphereGradient = (atmosphere) => {
   return gradients[atmosphere] || 'linear-gradient(135deg, #f5f5f5 0%, #e0e0e0 100%)'
 }
 
-// 后端基础 URL（图片服务地址）
+// 后端基础 URL(图片服务地址)
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080'
 
-// 解析图片 URL（处理相对路径）
+// 解析图片 URL(处理相对路径)
 const resolveImageUrl = (url) => {
   if (!url) return null
   if (url.startsWith('http://') || url.startsWith('https://')) {
@@ -592,10 +585,10 @@ const resolveImageUrl = (url) => {
   // 去掉可能存在的前缀 /api/v3
   let path = url
   if (path.startsWith('/api/v3')) {
-    path = path.slice(7)  // 去掉 /api/v3，保留 /upload/...
+    path = path.slice(7)  // 去掉 /api/v3,保留 /upload/...
   }
   if (!path.startsWith('/')) path = '/' + path
-  // 相对路径，拼接 base URL
+  // 相对路径,拼接 base URL
   const base = API_BASE_URL.endsWith('/') ? API_BASE_URL.slice(0, -1) : API_BASE_URL
   return base + path
 }
@@ -603,9 +596,9 @@ const resolveImageUrl = (url) => {
 // 检查图片 URL 是否有效
 const hasValidCoverImage = (caseItem) => {
   const coverImage = caseItem?.cover_image
-  return coverImage && typeof coverImage === 'string' && 
-         coverImage.length > 0 && 
-         !coverImage.includes('null') && 
+  return coverImage && typeof coverImage === 'string' &&
+         coverImage.length > 0 &&
+         !coverImage.includes('null') &&
          !coverImage.includes('undefined')
 }
 
@@ -627,49 +620,48 @@ const fetchCases = async (isLoadMore = false) => {
   } else {
     loading.value = true
   }
-  
+
   try {
     const params = {
       page: pagination.page,
       page_size: pagination.page_size,
       ...filters
     }
-    // 服务流程阶段筛选参数（直接传阶段code给后端）
+    // 服务流程阶段筛选参数(直接传阶段code给后端)
     if (selectedWorkflowPhase.value) {
       const targetPhase = workflowPhases.value.find(p => p.key === selectedWorkflowPhase.value)
       // 后端 progress 参数: acquisition/conversion/preparation/construction/soft_service/after_sales
       params.progress = selectedWorkflowPhase.value
     }
     const res = await getPublicCases(params)
-    
+
     // DEBUG: expose to window for console inspection
 
-    
+
     const items = res?.items || []
-    
+
     if (isLoadMore) {
       cases.value = [...cases.value, ...items]
     } else {
       cases.value = items
-      // 设置精选案例（第一个案例）
+      // 设置精选案例(第一个案例)
       if (items.length > 0 && !featuredCase.value) {
         featuredCase.value = items[0]
         updateHeroImages(items[0])
       }
     }
-    
+
     total.value = res?.total || 0
     hasMore.value = cases.value.length < total.value
+    // 根据当前案例数据动态构建颜色色卡
+    buildColorPaletteFromCases()
   } catch (error) {
     console.error('获取案例列表失败:', error)
-    debugError.value = { message: error.message, stack: error.stack }
   } finally {
     loading.value = false
     loadingMore.value = false
   }
 }
-
-// 加载更多
 const loadMore = () => {
   pagination.page++
   fetchCases(true)
@@ -707,7 +699,7 @@ const submitSubscribe = async () => {
     ElMessage.warning('请输入手机号')
     return
   }
-  
+
   subscribing.value = true
   try {
     await subscribeCase(currentCase.value.id, { phone: subscribeForm.phone })
@@ -766,7 +758,7 @@ const goToSlide = (idx) => {
 // 更新 Hero 图片列表
 const updateHeroImages = (caseItem) => {
   const images = []
-  // 优先用 hero_images（精选 API 返回的轮播图数组）
+  // 优先用 hero_images(精选 API 返回的轮播图数组)
   if (caseItem.hero_images && Array.isArray(caseItem.hero_images) && caseItem.hero_images.length > 0) {
     caseItem.hero_images.forEach(img => {
       if (img && !images.includes(img)) images.push(img)
@@ -794,13 +786,46 @@ onMounted(() => {
   loadColorGroups()
 })
 
-// 加载颜色索引（暖色→冷色→灰度排序色条）
+// 从当前案例列表提取实际使用的颜色(动态,只显示存在的颜色)
+const buildColorPaletteFromCases = () => {
+  const hexCounts = {}
+  for (const c of cases.value) {
+    const fields = ['main_colors', 'auxiliary_colors', 'accent_colors', 'background_colors']
+    for (const field of fields) {
+      let val = c[field]
+      if (!val) continue
+      if (typeof val === 'string') {
+        try { val = JSON.parse(val) } catch { continue }
+      }
+      if (!Array.isArray(val)) continue
+      for (const item of val) {
+        const hex = (item?.hex || item || '')
+        if (hex && /^#[0-9A-Fa-f]{6}$/.test(hex)) {
+          const h = hex.toUpperCase()
+          hexCounts[h] = (hexCounts[h] || 0) + 1
+        }
+      }
+    }
+  }
+  // 转为数组,按数量降序排列(热门颜色在前)
+  const result = Object.entries(hexCounts)
+    .map(([hex, count]) => ({ hex, count }))
+    .sort((a, b) => b.count - a.count)
+  colorPalette.value = result
+}
+
+// 加载颜色索引(保留兼容,但主要使用 buildColorPaletteFromCases)
 const loadColorGroups = async () => {
+  // 首次加载时从后端获取完整色卡数据作为备选
   try {
     const res = await fetch('/api/v3/color-index').then(r => r.json())
     const d = (res.data || res || {})
     const colors = Array.isArray(d) ? d : (d.colors || [])
-    colorPalette.value = colors
+    // 只保留有案例使用过的颜色
+    const withCount = colors.filter(c => c.count > 0)
+    if (withCount.length > 0) {
+      colorPalette.value = withCount.sort((a, b) => (b.count || 0) - (a.count || 0))
+    }
   } catch (e) {
     console.error('loadColorGroups error:', e)
   }
@@ -881,7 +906,7 @@ onUnmounted(() => {
   margin: 0 8px;
 }
 
-/* 第二层：服务流程阶段横向筛选按钮 */
+/* 第二层:服务流程阶段横向筛选按钮 */
 .workflow-phase-filter-bar {
   background: #fafafa;
   padding: 20px 60px;
@@ -961,7 +986,7 @@ onUnmounted(() => {
 }
 .phase-clear-btn:hover { border-color: #999; color: #666; }
 
-/* 节点列表展开面板（横向滚动） */
+/* 节点列表展开面板(横向滚动) */
 .phase-nodes-panel {
   margin-top: 16px;
   background: #fff;
@@ -1030,11 +1055,11 @@ onUnmounted(() => {
   50% { opacity: 0.4; }
 }
 
-/* 第一层：氛围Tab（蔚来车型Tab风格） */
+/* 第一层:氛围Tab(卡片标签风格) */
 .atmosphere-tabs {
   display: flex;
   justify-content: center;
-  gap: 32px;
+  gap: 20px;
   padding: 40px 60px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
@@ -1043,36 +1068,27 @@ onUnmounted(() => {
 .tab-item {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  padding: 12px 24px;
-  font-size: 16px;
-  color: #666;
+  padding: 10px 20px;
+  font-size: 15px;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.3s ease;
+  border-radius: 6px;
+  transition: all 0.25s ease;
   position: relative;
+  border: 2px solid transparent;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
 }
 
 .tab-item:hover {
-  color: #1a1a1a;
-  background: #f8f8f8;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .tab-item.active {
-  color: #1a1a1a;
-  font-weight: 500;
-  background: #f5f5f5;
-}
-
-.tab-item.active::after {
-  content: '';
-  position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 24px;
-  height: 2px;
-  background: #1a1a1a;
+  font-weight: 600;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.2);
 }
 
 .tab-label {
@@ -1087,7 +1103,7 @@ onUnmounted(() => {
   border-radius: 10px;
 }
 
-/* 第二层：英雄区（杂志封面风格） */
+/* 第二层:英雄区(杂志封面风格) */
 .hero-section {
   position: relative;
   height: 100vh;
@@ -1219,7 +1235,7 @@ onUnmounted(() => {
   color: #fff;
 }
 
-/* 品牌标识 - 杂志标题风格（DESIGNARY 艺术粗体） */
+/* 品牌标识 - 杂志标题风格(DESIGNARY 艺术粗体) */
 .brand-mark {
   position: absolute;
   top: 60px;
@@ -1454,137 +1470,93 @@ onUnmounted(() => {
 }
 
 /* 颜色筛选色条 */
-.color-strip-bar {
+/* 偏好色筛选(色卡卡片风格) */
+.preference-color-bar {
   background: #fafafa;
-  padding: 20px 60px;
+  padding: 24px 60px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.color-strip-row {
+.pref-color-row {
   display: flex;
   align-items: center;
-  gap: 16px;
+  gap: 20px;
 }
 
-.strip-label {
+.pref-label {
   font-size: 13px;
   color: #888;
-  letter-spacing: 3px;
+ letter-spacing: 3px;
   flex-shrink: 0;
-  width: 36px;
+  width: 48px;
 }
 
-.color-strip-track {
-  flex: 1;
-  height: 40px;
+.pref-color-cards {
   display: flex;
-  border-radius: 6px;
-  overflow: visible;
-  position: relative;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  flex-wrap: wrap;
+  gap: 10px;
+  flex: 1;
 }
 
-.color-strip-cell {
-  position: relative;
-  height: 100%;
+.pref-color-card {
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-  border-right: 1px solid rgba(255,255,255,0.3);
-  flex-shrink: 0;
+  position: relative;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.color-strip-cell:hover {
-  transform: scaleY(1.12);
-  box-shadow: 0 0 0 2px rgba(0,0,0,0.2);
+.pref-color-card:hover {
+  transform: translateY(-2px) scale(1.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
   z-index: 2;
 }
 
-.color-strip-cell:last-child {
-  border-right: none;
+.pref-color-card.active {
+  border-color: #333;
+  transform: translateY(-2px) scale(1.1);
+  box-shadow: 0 4px 16px rgba(0,0,0,0.3);
 }
 
-.strip-active-dot {
-  position: absolute;
-  bottom: 4px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #fff;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.5);
-  z-index: 3;
-}
-
-/* Hover Tooltip */
-.strip-tooltip {
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%);
-  background: rgba(30,30,30,0.92);
-  color: #fff;
-  padding: 8px 12px;
-  border-radius: 6px;
-  font-size: 12px;
-  white-space: nowrap;
-  z-index: 100;
-  pointer-events: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
-}
-
-.strip-tooltip::after {
-  content: '';
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  border: 5px solid transparent;
-  border-top-color: rgba(30,30,30,0.92);
-}
-
-.tooltip-hex {
-  font-family: 'Courier New', monospace;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 1px;
-}
-
-.tooltip-pantone {
-  font-size: 12px;
-  color: rgba(255,255,255,0.75);
-}
-
-.tooltip-count {
+.pref-color-count {
   font-size: 11px;
-  color: rgba(255,255,255,0.55);
-  margin-top: 2px;
+  font-weight: 600;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+  background: rgba(0,0,0,0.25);
+  padding: 1px 6px;
+  border-radius: 8px;
+  line-height: 1.4;
 }
 
-.strip-clear-btn {
+.pref-clear-btn {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 8px 14px;
-  border: 1px dashed #c8a97a;
+  padding: 6px 14px;
+  font-size: 13px;
+  color: #666;
+  background: #fff;
+  border: 1px solid #ddd;
   border-radius: 20px;
-  background: rgba(200,169,122,0.06);
-  color: #8B5A2B;
-  font-size: 12px;
   cursor: pointer;
+  transition: all 0.2s ease;
   flex-shrink: 0;
-  transition: all 0.2s;
 }
 
-.strip-clear-btn:hover {
-  background: rgba(200,169,122,0.15);
+.pref-clear-btn:hover {
+  color: #333;
+  border-color: #999;
+  background: #f5f5f5;
 }
 
-/* 第三层：配置方案展示 */
+/* 第三层:配置方案展示 */
 .section-title {
   text-align: center;
   padding: 80px 60px 40px;
@@ -1604,8 +1576,8 @@ onUnmounted(() => {
   letter-spacing: 2px;
 }
 
-/* 案例网格（蔚来卡片风格） */
-/* ── 瀑布流网格（杂志封面风格）── */
+/* 案例网格(蔚来卡片风格) */
+/* ── 瀑布流网格(杂志封面风格)── */
 .case-waterfall {
   columns: 3;
   column-gap: 6px;
@@ -1630,7 +1602,7 @@ onUnmounted(() => {
   display: block;
 }
 
-/* 图片容器：自然高度 */
+/* 图片容器:自然高度 */
 .wf-image-wrap {
   position: relative;
   width: 100%;
@@ -1688,19 +1660,19 @@ onUnmounted(() => {
   );
 }
 
-/* 顶部：氛围标签 */
+/* 顶部:氛围标签 */
 .wf-atmosphere {
   align-self: flex-start;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 3px;
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
   color: rgba(255,255,255,0.92);
   background: rgba(255,255,255,0.15);
   backdrop-filter: blur(4px);
   border: 1px solid rgba(255,255,255,0.3);
-  padding: 5px 12px;
-  border-radius: 2px;
+  padding: 6px 16px;
+  border-radius: 3px;
 }
 
 /* 底部文字区 */
@@ -1710,7 +1682,7 @@ onUnmounted(() => {
   gap: 8px;
 }
 
-/* 案例名称：杂志封面大字 */
+/* 案例名称:杂志封面大字 */
 .wf-title {
   font-size: clamp(22px, 3.5vw, 38px);
   font-weight: 700;
@@ -1737,7 +1709,7 @@ onUnmounted(() => {
   border-radius: 2px;
 }
 
-/* ── 旧 card-specs（保留兼容）── */
+/* ── 旧 card-specs(保留兼容)── */
 .card-specs .spec {
   font-size: 14px;
   opacity: 0.9;
@@ -1749,7 +1721,7 @@ onUnmounted(() => {
   font-weight: 500;
 }
 
-/* 色系卡片（蔚来配色风格） */
+/* 色系卡片(蔚来配色风格) */
 .color-swatches {
   display: flex;
   gap: 8px;
@@ -1814,49 +1786,58 @@ onUnmounted(() => {
     grid-template-columns: repeat(2, 1fr);
     padding: 0 24px 60px;
   }
-  
+
   .case-card.large {
     grid-column: span 2;
     grid-row: span 1;
     aspect-ratio: 4/3;
   }
-  
+
   .hero-magazine-overlay {
     grid-template-columns: 200px 1fr;
     padding: 40px;
   }
-  
+
   .brand-mark {
     top: 40px;
     left: 40px;
   }
-  
+
   .brand-en {
     font-size: 64px;
     letter-spacing: 6px;
   }
-  
+
   .brand-cn {
     font-size: 14px;
   }
-  
+
   .hero-title {
     font-size: 36px;
   }
-  
+
   .hero-content {
     padding-right: 40px;
   }
-  
+
   .carousel-indicators {
     right: 40px;
     bottom: 120px;
   }
-  
+
   .atmosphere-tabs {
     gap: 16px;
     padding: 24px;
     flex-wrap: wrap;
+  }
+
+  .preference-color-bar {
+    padding: 16px 24px;
+  }
+
+  .pref-color-card {
+    width: 36px;
+    height: 36px;
   }
 }
 
@@ -1864,57 +1845,57 @@ onUnmounted(() => {
   .case-list-page {
     padding-top: 64px;
   }
-  
+
   .hero-section {
     height: 100vh;
     min-height: 600px;
   }
-  
+
   .hero-magazine-overlay {
     grid-template-columns: 1fr;
     grid-template-rows: auto 1fr auto auto;
     padding: 24px;
   }
-  
+
   .brand-mark {
     top: 24px;
     left: 24px;
   }
-  
+
   .brand-en {
     font-size: 48px;
     letter-spacing: 4px;
   }
-  
+
   .brand-cn {
     font-size: 12px;
   }
-  
+
   .service-team-sidebar {
     grid-column: 1;
     grid-row: 4;
     padding-top: 20px;
     justify-content: flex-start;
   }
-  
+
   .team-members {
     flex-direction: row;
     gap: 16px;
     flex-wrap: wrap;
   }
-  
+
   .team-member {
     opacity: 1;
   }
-  
+
   .member-role {
     font-size: 10px;
   }
-  
+
   .member-name {
     font-size: 13px;
   }
-  
+
   .hero-content {
     grid-column: 1;
     grid-row: 2;
@@ -1924,26 +1905,26 @@ onUnmounted(() => {
     max-width: 100%;
     background: rgba(30, 30, 30, 0.7);
   }
-  
+
   .hero-title {
     font-size: 28px;
     letter-spacing: 2px;
   }
-  
+
   .hero-subtitle {
     font-size: 14px;
   }
-  
+
   .hero-specs {
     gap: 12px;
     justify-content: flex-start;
     flex-wrap: wrap;
   }
-  
+
   .spec-value {
     font-size: 24px;
   }
-  
+
   .hero-footer {
     grid-column: 1;
     grid-row: 3;
@@ -1951,54 +1932,73 @@ onUnmounted(() => {
     gap: 20px;
     align-items: flex-start;
   }
-  
+
   .vr-section {
     order: 2;
   }
-  
+
   .vr-qrcode {
     width: 60px;
     height: 60px;
   }
-  
+
   .hero-actions {
     order: 1;
     flex-direction: row;
     width: 100%;
   }
-  
+
   .btn-primary,
   .btn-secondary {
     width: auto;
     min-width: 120px;
   }
-  
+
   .carousel-indicators {
     right: 24px;
     bottom: 24px;
   }
-  
+
   .case-grid {
     grid-template-columns: 1fr;
     padding: 0 16px 40px;
   }
-  
+
   .case-card.large {
     grid-column: span 1;
     aspect-ratio: 4/3;
   }
-  
+
   .card-overlay {
     opacity: 1;
     padding: 20px;
   }
-  
+
   .atmosphere-tabs {
     justify-content: flex-start;
     overflow-x: auto;
     -webkit-overflow-scrolling: touch;
   }
-  
+
+  .preference-color-bar {
+    padding: 12px 16px;
+  }
+
+  .pref-color-cards {
+    gap: 6px;
+  }
+
+  .pref-color-card {
+    width: 30px;
+    height: 30px;
+    border-radius: 6px;
+  }
+
+  .pref-color-count {
+    font-size: 9px;
+    padding: 0 4px;
+  }
+
   .tab-item {
     white-space: nowrap;
   }

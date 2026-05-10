@@ -37,7 +37,12 @@ const routes = [
     component: () => import('@/views/products/ProductDetailV2.vue'),
     meta: { title: '产品详情' }
   },
-
+  {
+    path: '/knowledge',
+    name: 'KnowledgeIndex',
+    component: () => import('@/views/knowledge/KnowledgeIndex.vue'),
+    meta: { title: '商学院知识库' }
+  },
   {
     path: '/leads',
     name: 'LeadList',
@@ -140,6 +145,13 @@ const routes = [
         component: () => import('@/views/admin/SettingsLayout.vue'),
         meta: { title: '系统设置' }
       },
+
+      {
+        path: 'knowledge',
+        name: 'AdminKnowledge',
+        component: () => import('@/views/admin/KnowledgeManage.vue'),
+        meta: { title: '知识库管理' }
+      },
       {
         path: 'customers',
         name: 'AdminCustomers',
@@ -175,6 +187,12 @@ const routes = [
         name: 'AdminBuildings',
         component: () => import('@/views/admin/BuildingManage.vue'),
         meta: { title: '楼盘管理' }
+      },
+      {
+        path: 'buildings/survey/:id',
+        name: 'BuildingSurveyEdit',
+        component: () => import('@/views/admin/BuildingSurveyEdit.vue'),
+        meta: { title: '楼盘调查' }
       },
       {
         path: 'quotes',

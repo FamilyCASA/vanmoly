@@ -79,6 +79,7 @@ def upload_image():
         
         file = request.files['file']
         custom_name = request.form.get('name')
+        print(f'[DEBUG upload_image] filename={repr(file.filename)}, content_type={repr(file.content_type)}, mimetype={repr(file.mimetype)}')
         
         result = save_upload_file(file, category='image', custom_name=custom_name)
         

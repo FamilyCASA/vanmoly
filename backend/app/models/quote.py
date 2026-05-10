@@ -149,6 +149,16 @@ class QuoteItem(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'), nullable=False)
 
+    # ====== V3.2 空间分组字段 ======
+    space_name = db.Column(db.String(100), comment='空间名称')
+    category_id = db.Column(db.Integer, comment='引用的公库物料一级分类')
+
+    # ====== V3.2 物料字段 ======
+    sku_code = db.Column(db.String(50), comment='物料编号')
+    custom_name = db.Column(db.String(200), comment='自定义商品名称（显示在物料名称前）')
+    material_name = db.Column(db.String(200), comment='物料名称（来自数据库）')
+    material_image = db.Column(db.String(500), comment='引用数据库物料主图URL')
+
     # 房间分类
     room_name = db.Column(db.String(50), comment='房间名称')
     # 客厅/主卧/次卧/书房/厨房/卫生间/阳台/玄关/餐厅等
@@ -174,12 +184,32 @@ class QuoteItem(db.Model):
     unit_price = db.Column(db.Numeric(10, 2), default=0, comment='单价')
     total_price = db.Column(db.Numeric(12, 2), default=0, comment='总价')
 
-    # 工艺/定制
+    # ====== V3.2 定制参数 ======
+    custom_width = db.Column(db.Numeric(8, 2), comment='定制参数-宽度(cm)')
+    custom_depth = db.Column(db.Numeric(8, 2), comment='定制参数-深度(cm)')
+    custom_height = db.Column(db.Numeric(8, 2), comment='定制参数-高度(cm)')
+    custom_result = db.Column(db.Numeric(10, 2), comment='定制参数计算结果')
+
+    # ====== V3.2 工艺增项字段 ======
+    process_id = db.Column(db.Integer, comment='工艺增项ID')
+    process_name = db.Column(db.String(100), comment='工艺增项名称')
+    process_coefficient = db.Column(db.Numeric(6, 3), default=1, comment='工艺系数（无特殊工艺默认1）')
+    process_quantity = db.Column(db.Numeric(8, 2), default=0, comment='工艺数量')
+    process_unit = db.Column(db.String(20), comment='工艺单位')
+    process_unit_price = db.Column(db.Numeric(10, 2), default=0, comment='工艺单价（无特殊工艺默认0）')
+    process_amount = db.Column(db.Numeric(10, 2), default=0, comment='工艺金额')
+
+
+    # ====== V3.2 本行总金额 ======
+    row_total = db.Column(db.Numeric(12, 2), default=0, comment='本行总金额')
+
+
+    # 工艺/定制（兼容旧字段）
     craft_type = db.Column(db.String(50), comment='工艺类型')
     craft_price = db.Column(db.Numeric(10, 2), default=0, comment='工艺费')
 
     # 图片
-    image = db.Column(db.String(255), comment='图片')
+    image = db.Column(db.String(500), comment='图片')
 
     # 备注
     remark = db.Column(db.Text, comment='备注')
@@ -188,14 +218,14 @@ class QuoteItem(db.Model):
     tenant_id = db.Column(db.String(32), default='0', index=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
-    # ====== V3.2 增强字段 ======
-    # 定制尺寸（mm）
+    # ====== V3.2 增强字段（兼容旧） ======
+    # 定制尺寸（mm）- 兼容旧版
     width = db.Column(db.Numeric(10, 2), comment='宽度mm')
     depth = db.Column(db.Numeric(10, 2), comment='深度mm')
     height = db.Column(db.Numeric(10, 2), comment='高度mm')
     # 计量值：系统根据尺寸自动计算
     measurement_value = db.Column(db.Numeric(12, 4), default=1, comment='计量值')
-    # 工艺数量/系数
+    # 工艺数量/系数 - 兼容旧版
     craft_quantity = db.Column(db.Numeric(10, 2), default=1, comment='工艺数量')
     craft_coefficient = db.Column(db.Numeric(5, 2), default=1, comment='工艺系数')
 
@@ -203,6 +233,14 @@ class QuoteItem(db.Model):
         return {
             'id': self.id,
             'quote_id': self.quote_id,
+            # V3.2 空间分组
+            'space_name': self.space_name,
+            'category_id': self.category_id,
+            # V3.2 物料字段
+            'sku_code': self.sku_code,
+            'custom_name': self.custom_name,
+            'material_name': self.material_name,
+            'material_image': self.material_image,
             'room_name': self.room_name,
             'category_level1': self.category_level1,
             'category_level2': self.category_level2,
@@ -216,13 +254,29 @@ class QuoteItem(db.Model):
             'quantity': float(self.quantity) if self.quantity else 0,
             'unit_price': float(self.unit_price) if self.unit_price else 0,
             'total_price': float(self.total_price) if self.total_price else 0,
+            # V3.2 定制参数
+            'custom_width': float(self.custom_width) if self.custom_width else None,
+            'custom_depth': float(self.custom_depth) if self.custom_depth else None,
+            'custom_height': float(self.custom_height) if self.custom_height else None,
+            'custom_result': float(self.custom_result) if self.custom_result else None,
+            # V3.2 工艺增项
+            'process_id': self.process_id,
+            'process_name': self.process_name,
+            'process_coefficient': float(self.process_coefficient) if self.process_coefficient else 1,
+            'process_quantity': float(self.process_quantity) if self.process_quantity else 0,
+            'process_unit': self.process_unit,
+            'process_unit_price': float(self.process_unit_price) if self.process_unit_price else 0,
+            'process_amount': float(self.process_amount) if self.process_amount else 0,
+            # V3.2 本行总金额
+            'row_total': float(self.row_total) if self.row_total else 0,
+            # 兼容旧字段
             'craft_type': self.craft_type,
             'craft_price': float(self.craft_price) if self.craft_price else 0,
             'image': self.image,
             'remark': self.remark,
             'sort_order': self.sort_order,
             'tenant_id': self.tenant_id,
-            # V3.2 增强字段
+            # V3.2 增强字段（兼容旧）
             'width': float(self.width) if self.width else None,
             'depth': float(self.depth) if self.depth else None,
             'height': float(self.height) if self.height else None,

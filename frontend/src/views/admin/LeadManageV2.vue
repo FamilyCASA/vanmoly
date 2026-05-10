@@ -18,6 +18,12 @@
         <el-button @click="openRankingDialog">
           <el-icon><Trophy /></el-icon>积分排行
         </el-button>
+        <el-button @click="downloadTemplate">
+          <el-icon><Download /></el-icon>下载模板
+        </el-button>
+        <el-button type="success" @click="openImportDialog">
+          <el-icon><Upload /></el-icon>批量导入
+        </el-button>
       </div>
     </div>
 
@@ -730,6 +736,36 @@
         <el-table-column prop="point_count" label="记录数" width="80" align="center" />
       </el-table>
     </el-dialog>
+    <!-- 批量导入弹窗 -->
+    <el-dialog v-model="importDialogVisible" title="批量导入线索" width="500px">
+      <el-upload
+        ref="uploadRef"
+        drag
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx,.xls,.csv"
+        :on-change="handleFileChange"
+        :on-exceed="handleExceed"
+      >
+        <el-icon class="el-icon--upload"><Upload /></el-icon>
+        <div class="el-upload__text">
+          将文件拖到此处，或 <em>点击上传</em>
+        </div>
+        <template #tip>
+          <div class="el-upload__tip">
+            只能上传 xlsx/xls/csv 文件，请先下载模板填写数据
+          </div>
+        </template>
+      </el-upload>
+      
+      <template #footer>
+        <el-button @click="importDialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="importing" @click="submitImport">
+          开始导入
+        </el-button>
+      </template>
+    </el-dialog>
+
   </div>
 </template>
 
@@ -739,7 +775,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Search, Phone, ChatDotRound, OfficeBuilding,
   Clock, StarFilled, ArrowDown, UserFilled, Trophy,
-  Edit, User
+  Edit, User, Download, Upload
 } from '@element-plus/icons-vue'
 import {
   getLeads, getLeadDetail, createLead, updateLead,
@@ -751,6 +787,10 @@ import { getEmployees } from '@/api/employee'
 
 // ========== 数据状态 ==========
 const loading = ref(false)
+const importDialogVisible = ref(false)
+const importing = ref(false)
+const uploadRef = ref(null)
+const importFile = ref(null)
 const leads = ref([])
 const selectedLeads = ref([])
 const stats = ref({})
@@ -1270,6 +1310,80 @@ const handleMarkDeposit = async () => {
 
 const handleMarkContract = async () => {
   // 标记签约
+}
+
+
+// ========== 批量导入 ==========
+const openImportDialog = () => {
+  importFile.value = null
+  importDialogVisible.value = true
+}
+
+const handleFileChange = (file) => {
+  importFile.value = file.raw
+}
+
+const handleExceed = () => {
+  ElMessage.warning('只能上传一个文件')
+}
+
+const downloadTemplate = async () => {
+  try {
+    const response = await fetch('/api/v3/leads/import-template', {
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    })
+    if (!response.ok) throw new Error('下载失败')
+    const blob = await response.blob()
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = '线索导入模板.xlsx'
+    a.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('模板下载成功')
+  } catch (error) {
+    console.error('下载模板失败:', error)
+    ElMessage.error('下载模板失败')
+  }
+}
+
+const submitImport = async () => {
+  if (!importFile.value) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  
+  importing.value = true
+  const formData = new FormData()
+  formData.append('file', importFile.value)
+  
+  try {
+    const response = await fetch('/api/v3/leads/import-excel', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      },
+      body: formData
+    })
+    const result = await response.json()
+    
+    if (result.code === 0 || result.created !== undefined) {
+      ElMessage.success(`导入成功！新建 ${result.created || 0} 条，更新 ${result.updated || 0} 条，跳过 ${result.skipped || 0} 条`)
+      importDialogVisible.value = false
+      importFile.value = null
+      fetchLeads()
+      fetchStats()
+    } else {
+      ElMessage.error(result.message || '导入失败')
+    }
+  } catch (error) {
+    console.error('导入失败:', error)
+    ElMessage.error('导入失败')
+  } finally {
+    importing.value = false
+  }
 }
 
 // ========== 工具函数 ==========

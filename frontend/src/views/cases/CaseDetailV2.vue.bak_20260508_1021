@@ -158,44 +158,26 @@
         </div>
       </section>
 
-      <!-- 左右分栏布局 -->
-      <section class="split-layout-section">
-        <!-- 左侧边栏 -->
-        <aside class="left-sidebar">
-          <!-- 垂直Tab导航 -->
-          <div class="sidebar-nav">
+      <!-- 分类Tab导航 -->
+      <section class="category-tabs-section" ref="contentRef">
+        <div class="container">
+          <div class="category-tabs">
             <button
               v-for="cat in categories"
               :key="cat.key"
-              class="sidebar-tab"
+              class="category-tab"
               :class="{ active: activeCategory === cat.key }"
               @click="activeCategory = cat.key"
             >
               {{ cat.label }}
             </button>
           </div>
-          
-          <!-- 分隔线 -->
-          <div class="sidebar-divider"></div>
-          
-          <!-- 预留功能按钮 -->
-          <div class="sidebar-future">
-            <button class="sidebar-future-btn" @click="openMaterialList" disabled>
-              物料清单
-            </button>
-            <button class="sidebar-future-btn" @click="openContractArchive" disabled>
-              合同档案
-            </button>
-            <button class="sidebar-future-btn" @click="openServiceFlow" disabled>
-              服务流程
-            </button>
-          </div>
-        </aside>
+        </div>
+      </section>
 
-        <!-- 右侧内容区 -->
-        <div class="main-content-area">
-          <!-- 6阶段内容展示 -->
-          <div class="phase-content-wrapper">
+      <!-- 6阶段内容展示 -->
+      <section class="phase-content-section">
+        <div class="container">
 
           <!-- 户型分析 - 上图下文布局 -->
           <div v-if="activeCategory === 'layout'" class="phase-panel layout-analysis-stacked">
@@ -336,9 +318,8 @@
             </div>
           </div>
 
-          </div><!-- 关闭 phase-content-wrapper -->
-        </div><!-- 关闭 main-content-area -->
-      </section><!-- 关闭 split-layout-section -->
+        </div>
+      </section>
 
       <!-- VR 体验 -->
       <section class="vr-section" v-if="caseDetail.vr_link">
@@ -1015,24 +996,6 @@ const resolveImgUrl = (img) => {
   if (img && img.image_url) return img.image_url
   if (img && img.rendering_url) return img.rendering_url
   return ''
-}
-
-// 预留功能：打开物料清单
-const openMaterialList = () => {
-  // TODO: 实现物料清单功能
-  ElMessage.info('物料清单功能开发中...')
-}
-
-// 预留功能：打开合同档案
-const openContractArchive = () => {
-  // TODO: 实现合同档案功能
-  ElMessage.info('合同档案功能开发中...')
-}
-
-// 预留功能：打开服务流程
-const openServiceFlow = () => {
-  // TODO: 实现服务流程功能
-  ElMessage.info('服务流程功能开发中...')
 }
 
 // 解析图片字段并提取为纯URL字符串数组（兼容对象数组和字符串数组）
@@ -2881,102 +2844,6 @@ onUnmounted(() => {
   background: rgba(255,255,255,0.12);
   padding: 3px 8px;
   border-radius: 2px;
-}
-
-/* ── 左右分栏布局 ── */
-.split-layout-section {
-  display: flex;
-  width: 100%;
-  min-height: 100vh;
-}
-
-.left-sidebar {
-  width: 120px;
-  min-width: 120px;
-  background: #faf8f5;
-  border-right: 1px solid #e8e4dd;
-  display: flex;
-  flex-direction: column;
-  padding: 24px 0;
-  position: sticky;
-  top: 60px;
-  height: calc(100vh - 60px);
-  overflow-y: auto;
-}
-
-.sidebar-nav {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 12px;
-}
-
-.sidebar-tab {
-  width: 100%;
-  padding: 12px 8px;
-  background: transparent;
-  border: none;
-  border-radius: 8px;
-  font-size: 13px;
-  color: #666;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  text-align: center;
-}
-
-.sidebar-tab:hover {
-  background: #f0ede8;
-  color: #8B5A2B;
-}
-
-.sidebar-tab.active {
-  background: #8B5A2B;
-  color: #fff;
-  font-weight: 600;
-}
-
-.sidebar-divider {
-  height: 1px;
-  background: #e8e4dd;
-  margin: 16px 12px;
-}
-
-.sidebar-future {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 0 12px;
-  margin-top: auto;
-}
-
-.sidebar-future-btn {
-  width: 100%;
-  padding: 10px 8px;
-  background: #f5f3f0;
-  border: 1px dashed #d4cfc6;
-  border-radius: 8px;
-  font-size: 12px;
-  color: #999;
-  cursor: not-allowed;
-  text-align: center;
-  transition: all 0.2s ease;
-}
-
-.sidebar-future-btn:hover:not(:disabled) {
-  background: #8B5A2B;
-  color: #fff;
-  border-color: #8B5A2B;
-}
-
-.main-content-area {
-  flex: 1;
-  width: calc(100% - 120px);
-  min-height: 100vh;
-  background: #fff;
-}
-
-.phase-content-wrapper {
-  padding: 32px 40px;
 }
 </style>
 

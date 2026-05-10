@@ -67,11 +67,7 @@ def get_positions(current_user):
     """获取岗位列表"""
     department_id = request.args.get('department_id', type=int)
 
-    query = Position.query.filter_by(
-        tenant_id=current_user.get('tenant_id', '0'),
-        is_active=True,
-        is_deleted=False,
-    )
+    query = Position.query.filter_by(is_active=True)
 
     if department_id:
         query = query.filter_by(department_id=department_id)
@@ -91,7 +87,6 @@ def create_position(current_user):
     data = request.get_json()
 
     position = Position(
-        tenant_id=current_user.get('tenant_id', '0'),
         name=data['name'],
         code=data.get('code'),
         department_id=data.get('department_id'),
@@ -197,6 +192,17 @@ def create_employee(current_user):
         if existing:
             return jsonify({'code': 400, 'message': '工号已存在'}), 400
 
+    from datetime import datetime
+    entry_val = data.get('entry_date')
+    entry_date_obj = None
+    if entry_val and isinstance(entry_val, str):
+        for fmt in ('%Y-%m-%d', '%Y/%m/%d'):
+            try:
+                entry_date_obj = datetime.strptime(entry_val, fmt).date()
+                break
+            except ValueError:
+                continue
+
     employee = Employee(
         tenant_id=current_user.get('tenant_id', '0'),
         name=data['name'],
@@ -206,7 +212,7 @@ def create_employee(current_user):
         employee_no=data.get('employee_no'),
         department_id=data.get('department_id'),
         position_id=data.get('position_id'),
-        entry_date=data.get('entry_date'),
+        entry_date=entry_date_obj,
         job_level=data.get('job_level'),
         base_salary=data.get('base_salary'),
         role=data.get('role', 'employee'),
@@ -231,28 +237,51 @@ def create_employee(current_user):
 @jwt_required_v2
 def update_employee(current_user, id):
     """更新员工"""
-    employee = Employee.query.get_or_404(id)
-    data = request.get_json()
+    try:
+        from datetime import datetime, date
+        employee = Employee.query.get_or_404(id)
+        data = request.get_json()
 
-    fields = [
-        'name', 'phone', 'email', 'gender', 'id_card', 'birthday',
-        'employee_no', 'department_id', 'position_id', 'entry_date',
-        'probation_end_date', 'formal_date', 'job_level',
-        'base_salary', 'performance_ratio', 'role', 'status',
-        'address', 'emergency_contact', 'emergency_phone', 'remark'
-    ]
+        # 日期字段映射：需要从字符串转成 date 对象
+        date_fields = ['entry_date', 'birthday', 'probation_end_date', 'formal_date']
 
-    for field in fields:
-        if field in data:
-            setattr(employee, field, data[field])
+        fields = [
+            'name', 'phone', 'email', 'gender', 'id_card',
+            'employee_no', 'department_id', 'position_id',
+            'job_level', 'base_salary', 'performance_ratio', 'role', 'status',
+            'address', 'emergency_contact', 'emergency_phone', 'remark'
+        ]
 
-    db.session.commit()
+        for field in fields:
+            if field in data and data[field] is not None and data[field] != '':
+                setattr(employee, field, data[field])
 
-    return jsonify({
-        'code': 200,
-        'message': '更新成功',
-        'data': employee.to_dict()
-    })
+        for field in date_fields:
+            if field in data and data[field]:
+                val = data[field]
+                if isinstance(val, str) and val:
+                    # 支持 YYYY-MM-DD 或 YYYY/MM/DD
+                    for fmt in ('%Y-%m-%d', '%Y/%m/%d'):
+                        try:
+                            dt = datetime.strptime(val, fmt)
+                            setattr(employee, field, dt.date())
+                            break
+                        except ValueError:
+                            continue
+                elif isinstance(val, date):
+                    setattr(employee, field, val)
+
+        db.session.commit()
+
+        return jsonify({
+            'code': 200,
+            'message': '更新成功',
+            'data': employee.to_dict()
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'code': 500, 'message': str(e)})
 
 
 @employee_bp.route('/<int:id>', methods=['DELETE'])

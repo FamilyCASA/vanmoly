@@ -3,7 +3,7 @@
     <!-- 页面标题 -->
     <div class="page-header">
       <div class="header-left">
-        <h2>方案管理</h2>
+        <h2>选品管理</h2>
         <span class="subtitle">管理客户选品方案</span>
       </div>
     </div>

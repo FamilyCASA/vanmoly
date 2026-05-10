@@ -35,6 +35,14 @@ request.interceptors.request.use(
     if (token && !isPublicPath) {
       config.headers.Authorization = `Bearer ${token}`
     }
+
+    // FormData 自动带上正确的 Content-Type（multipart/form-data + boundary）
+    // 不要显式设置 Content-Type，否则 Flask 无法解析 request.files
+    // 必须直接操作 axios headers 对象，清除实例级默认 Content-Type
+    if (config.data instanceof FormData) {
+      config.headers.delete('Content-Type')
+    }
+
     return config
   },
   (error) => {

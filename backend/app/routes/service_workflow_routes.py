@@ -728,3 +728,28 @@ def get_statistics(current_user):
             'completed_this_month': completed_this_month
         }
     })
+
+
+
+# Service workflow public endpoint
+
+@service_workflow_bp.route('/public/phases', methods=['GET'])
+def get_public_workflow_phases():
+    """Get workflow phases (public, no auth required)"""
+    from app.models.service_workflow import WorkflowPhaseConfig, WorkflowNode
+
+    phases = WorkflowPhaseConfig.query.filter_by(is_enabled=True).order_by(WorkflowPhaseConfig.sort_order).all()
+
+    result = []
+    for phase in phases:
+        nodes = WorkflowNode.query.filter_by(phase=phase.code).order_by(WorkflowNode.phase_order).all()
+        result.append({
+            'code': phase.code,
+            'name': phase.name,
+            'color': phase.color,
+            'sort_order': phase.sort_order,
+            'nodes': [n.to_dict() for n in nodes]
+        })
+
+    return jsonify({'code': 200, 'data': {'phases': result}})
+

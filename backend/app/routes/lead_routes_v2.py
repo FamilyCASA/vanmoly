@@ -4,6 +4,8 @@ API端点: /api/v3/leads
 支持积分激励、公海机制、转化漏斗
 """
 from flask import Blueprint, request, jsonify
+import io
+import os
 from sqlalchemy import desc, asc, or_, func, and_
 from datetime import datetime, timedelta, date
 from app import db
@@ -1155,3 +1157,218 @@ def get_todos(current_user):
         
     except Exception as e:
         return api_response(code=500, message=f'获取待办失败: {str(e)}')
+
+
+# ========== Excel 批量导入线索 ==========
+
+@lead_v2_bp.route('/leads/import-template', methods=['GET'])
+@jwt_required_v2
+def download_lead_import_template(current_user):
+    """下载线索导入 Excel 模板"""
+    import io
+    import openpyxl
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = '线索导入模板'
+    
+    # 表头样式
+    header_fill = PatternFill(start_color='8B5A2B', end_color='8B5A2B', fill_type='solid')
+    header_font = Font(name='微软雅黑', bold=True, color='FFFFFF', size=11)
+    cell_font = Font(name='微软雅黑', size=10)
+    thin = Side(style='thin', color='DDDDDD')
+    border = Border(left=thin, right=thin, top=thin, bottom=thin)
+    
+    headers = ['姓名*', '手机号*', '微信号', '意向楼盘', '户型', '面积(㎡)', '预算', '风格偏好', '来源渠道', '意向等级', '装修状态', '备注']
+    col_widths = [12, 15, 15, 18, 12, 10, 12, 12, 12, 10, 12, 20]
+    
+    for col, (h, w) in enumerate(zip(headers, col_widths), 1):
+        cell = ws.cell(row=1, column=col, value=h)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+        ws.column_dimensions[openpyxl.utils.get_column_letter(col)].width = w
+    
+    ws.row_dimensions[1].height = 28
+    
+    # 示例行
+    example_data = ['张三', '13800138000', 'wx123456', '万科城', '三室两厅', '120', '25-30万', '现代简约', '案例留资', '高', '毛坯', '客户刚需，急装']
+    for col, val in enumerate(example_data, 1):
+        cell = ws.cell(row=2, column=col, value=val)
+        cell.font = cell_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    ws.freeze_panes = 'A2'
+    
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    
+    from flask import send_file
+    return send_file(
+        buf,
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        as_attachment=True,
+        download_name='线索导入模板.xlsx'
+    )
+
+
+@lead_v2_bp.route('/leads/import-excel', methods=['POST'])
+@jwt_required_v2
+def import_leads_from_excel(current_user):
+    """Excel 批量导入线索
+    
+    Excel 列头支持（自动识别）：
+    姓名/客户姓名, 手机号/电话/手机, 微信号, 
+    意向楼盘/楼盘, 户型, 面积, 预算,
+    风格偏好, 来源渠道/来源, 意向等级/等级(高/中/低),
+    装修状态, 备注/备注信息
+    """
+    import io
+    import openpyxl
+    
+    if 'file' not in request.files:
+        return api_response(code=400, message='请上传 Excel 文件')
+    
+    file = request.files['file']
+    if not file.filename:
+        return api_response(code=400, message='文件名为空')
+    
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in {'.xlsx', '.xls'}:
+        return api_response(code=400, message=f'不支持的文件格式 {ext}，请上传 xlsx/xls')
+    
+    try:
+        # 读取 Excel
+        wb = openpyxl.load_workbook(io.BytesIO(file.read()), data_only=True)
+        ws = wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        
+        if not rows or len(rows) < 2:
+            return api_response(code=400, message='Excel 文件为空或无数据')
+        
+        # 解析表头
+        headers = [str(c).strip() if c else '' for c in rows[0]]
+        
+        # 列名映射
+        COLUMN_MAP = {
+            '姓名': 'name', '客户姓名': 'name', '客户': 'name',
+            '手机号': 'phone', '电话': 'phone', '手机': 'phone', '联系电话': 'phone',
+            '微信号': 'wechat',
+            '意向楼盘': 'building_name', '楼盘': 'building_name', '楼盘名称': 'building_name',
+            '户型': 'house_type',
+            '面积': 'area', '面积(㎡)': 'area',
+            '预算': 'budget', '装修预算': 'budget',
+            '风格偏好': 'style_preference', '风格': 'style_preference',
+            '来源渠道': 'source', '来源': 'source', '渠道': 'source',
+            '意向等级': 'intention_level', '等级': 'intention_level', '意向': 'intention_level',
+            '装修状态': 'decoration_status',
+            '备注': 'remark', '备注信息': 'remark',
+        }
+        
+        col_map = {}
+        for i, h in enumerate(headers):
+            h = str(h).strip()
+            if h in COLUMN_MAP:
+                col_map[i] = COLUMN_MAP[h]
+        
+        if 'name' not in col_map.values() and 'phone' not in col_map.values():
+            return api_response(code=400, message='Excel 表头无法识别，请使用标准模板列名')
+        
+        imported = 0
+        skipped = 0
+        errors = []
+        
+        current_user_id = request.current_user.get('id')
+        
+        for idx, row in enumerate(rows[1:], 2):  # 从第2行开始
+            try:
+                row_data = {}
+                for i in col_map:
+                    val = row[i] if i < len(row) else None
+                    row_data[col_map[i]] = str(val).strip() if val is not None else ''
+                
+                name = row_data.get('name', '').strip()
+                phone = row_data.get('phone', '').strip()
+                
+                if not phone:
+                    skipped += 1
+                    continue
+                
+                if not phone.isdigit() or len(phone) < 11:
+                    errors.append(f'第{idx}行：手机号格式错误')
+                    skipped += 1
+                    continue
+                
+                # 检查是否已存在
+                existing = Lead.query.filter_by(phone=phone).first()
+                if existing:
+                    errors.append(f'第{idx}行：手机号 {phone} 已存在')
+                    skipped += 1
+                    continue
+                
+                # 生成编号
+                today = datetime.now().strftime('%Y%m%d')
+                seq = db.session.query(func.count(Lead.id)).scalar() or 0
+                lead_no = f'LD{today}{seq + imported + 1:04d}'
+                
+                # 处理意向等级
+                intention = row_data.get('intention_level', '中').strip()
+                if intention not in ('高', '中', '低'):
+                    intention = '中'
+                
+                # 处理来源
+                source = row_data.get('source', '其他').strip() or '其他'
+                
+                # 处理面积
+                area = None
+                area_str = row_data.get('area', '').strip()
+                if area_str and area_str.replace('.', '').isdigit():
+                    area = float(area_str)
+                
+                lead = Lead(
+                    lead_no=lead_no,
+                    name=name or '未命名',
+                    phone=phone,
+                    wechat=row_data.get('wechat') or None,
+                    building_name=row_data.get('building_name') or None,
+                    house_type=row_data.get('house_type') or None,
+                    area=area,
+                    budget=row_data.get('budget') or None,
+                    style_preference=row_data.get('style_preference') or None,
+                    source=source,
+                    intention_level=intention,
+                    decoration_status=row_data.get('decoration_status') or None,
+                    remark=row_data.get('remark') or None,
+                    status=Lead.STATUS_PENDING,
+                    conversion_level=Lead.LEVEL_LEAD,
+                    created_by=current_user_id,
+                    ip_address=request.remote_addr,
+                    user_agent=request.headers.get('User-Agent', '')[:500]
+                )
+                
+                db.session.add(lead)
+                imported += 1
+                
+            except Exception as e:
+                errors.append(f'第{idx}行：{str(e)}')
+                skipped += 1
+        
+        db.session.commit()
+        
+        msg = f'导入完成：成功 {imported} 条'
+        if skipped > 0:
+            msg += f'，跳过 {skipped} 条'
+        if errors:
+            msg += f'，错误：' + '；'.join(errors[:5])
+            if len(errors) > 5:
+                msg += f'... 共{len(errors)}条错误'
+        
+        return api_response(code=200, message=msg, data={'imported': imported, 'skipped': skipped})
+    
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=f'导入失败: {str(e)}')

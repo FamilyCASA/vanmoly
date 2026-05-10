@@ -81,11 +81,19 @@
           </template>
         </el-table-column>
 
+        <el-table-column label="状态" width="100">
+          <template #default="{ row }">
+            <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusText(row.status) }}</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
             <el-button link type="primary" @click="editQuote(row)" v-if="row.status === 'draft'">编辑</el-button>
             <el-button link type="success" @click="previewQuote(row)">预览</el-button>
+            <el-button link type="warning" @click="submitQuote(row)" v-if="row.status === 'draft'">提交</el-button>
+            <el-button link type="success" @click="approveQuote(row)" v-if="row.status === 'pending'">通过</el-button>
+            <el-button link type="danger" @click="rejectQuote(row)" v-if="row.status === 'pending'">驳回</el-button>
             <el-button link type="danger" @click="deleteQuote(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -427,6 +435,9 @@
               <el-table-column v-show="isExportPdf" label="等级" width="60">
                 <template #default="{ row }"><el-input v-model="row.grade" size="small" /></template>
               </el-table-column>
+              <el-table-column label="分类ID" width="70" align="center">
+                <template #default="{ row }"><el-input-number v-model="row.category_id" :min="0" size="small" style="width:60px" controls-position="right" /></template>
+              </el-table-column>
               <el-table-column v-show="isExportPdf" label="规格" width="100">
                 <template #default="{ row }"><el-input v-model="row.spec" size="small" /></template>
               </el-table-column>
@@ -472,6 +483,18 @@
               <el-table-column label="工艺价" width="80" align="right">
                 <template #default="{ row }">
                   <el-input-number v-model="row.craft_price" :min="0" :precision="2" size="small" style="width:70px" controls-position="right" @change="calculateTotal" />
+                </template>
+              </el-table-column>
+              <el-table-column label="增项" width="70" align="right">
+                <template #default="{ row }">
+                  <span class="process-amount">¥{{ formatMoney(row.process_amount || 0) }}</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="编辑" width="50" align="center">
+                <template #default="{ row, $index }">
+                  <el-button type="primary" link size="small" @click="openProcessEditor(row, $index)">
+                    <el-icon><Edit /></el-icon>
+                  </el-button>
                 </template>
               </el-table-column>
               <el-table-column label="单位" width="60" align="center">
@@ -660,6 +683,34 @@
         @save="onSignatureSave"
       />
     </el-dialog>
+
+    <!-- 工艺增项编辑器 -->
+    <el-dialog v-model="processDialogVisible" title="工艺增项配置" width="500px">
+      <el-form v-if="currentEditorRow" label-width="100px">
+        <el-form-item label="工艺名称">
+          <el-input v-model="currentEditorRow.row.process_name" placeholder="例如：喷漆、烤瓷等" />
+        </el-form-item>
+        <el-form-item label="系数">
+          <el-input-number v-model="currentEditorRow.row.process_coefficient" :min="0" :precision="2" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="数量">
+          <el-input-number v-model="currentEditorRow.row.process_quantity" :min="0" :precision="2" style="width:100%" @change="calculateProcessAmount" />
+        </el-form-item>
+        <el-form-item label="单位">
+          <el-input v-model="currentEditorRow.row.process_unit" style="width:100%" />
+        </el-form-item>
+        <el-form-item label="单价">
+          <el-input-number v-model="currentEditorRow.row.process_unit_price" :min="0" :precision="2" style="width:100%" @change="calculateProcessAmount" />
+        </el-form-item>
+        <el-form-item label="增项金额">
+          <el-input-number v-model="currentEditorRow.row.process_amount" :min="0" :precision="2" style="width:100%" disabled />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="processDialogVisible = false">取消</el-button>
+        <el-button type="primary" @click="processDialogVisible = false; calculateTotal()">确定</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -690,6 +741,8 @@ const materialSearchResults = ref([])
 const materialSearchLoading = ref(false)
 const pickerTargetIndex = ref(null)  // 当前正在选择物料的行索引
 const pickerSpaceIdx = ref(null)      // 当前正在选择物料的空间索引
+const processDialogVisible = ref(false)  // 工艺增项编辑弹窗
+const currentEditorRow = ref(null)        // 当前编辑工艺增项的行
 
 // 加载分类树
 const loadCategoryTree = async () => {
@@ -817,6 +870,21 @@ const openPickerForRow = (spaceIdx, childIdx) => {
     el.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
   }
 }
+
+// 打开工艺增项编辑器
+const openProcessEditor = (row, index) => {
+  currentEditorRow.value = { row, index }
+  processDialogVisible.value = true
+  // 预设工艺增项字段
+  if (!row.process_name) {
+    row.process_coefficient = row.process_coefficient || 1
+    row.process_quantity = row.process_quantity || 1
+    row.process_unit = row.process_unit || '项'
+    row.process_unit_price = row.process_unit_price || 0
+  }
+}
+
+// 工艺增项计算
 
 // 切换一级分类Tab时自动搜索
 const onCategoryTabChange = (tabId) => {
@@ -1098,7 +1166,8 @@ const uploadHeaders = computed(() => {
 })
 
 const handleCoverUpload = (res) => {
-  const url = res.data?.file_url || res.data?.url || res.file_url || res.url
+  // axios拦截器已将res解包为{data}，所以res本身就包含file_url
+  const url = res.file_url || res.url || res.data?.file_url || res.data?.url
   if (url) {
     form.cover_config.background_image = url
     ElMessage.success('背景图片上传成功')
@@ -1109,7 +1178,7 @@ const handleCoverUpload = (res) => {
 }
 
 const handleLogoUpload = (res) => {
-  const url = res.data?.file_url || res.data?.url || res.file_url || res.url
+  const url = res.file_url || res.url || res.data?.file_url || res.data?.url
   if (url) {
     form.cover_config.logo = url
     ElMessage.success('Logo上传成功')
@@ -1181,8 +1250,11 @@ const calculateTotal = () => {
     let subtotal = 0
     form.spaces.forEach(space => {
       space.children.forEach(item => {
-        item.total_price = (item.quantity || 0) * (item.unit_price || 0) + (item.craft_price || 0)
-        subtotal += item.total_price
+        // V3.2 计算：本行金额 = 数量×单价 + 工艺费 + 工艺增项
+        const itemTotal = (item.quantity || 0) * (item.unit_price || 0) + (item.craft_price || 0) + (item.process_amount || 0)
+        item.total_price = itemTotal
+        item.row_total = itemTotal // 兼容 V3.2 字段
+        subtotal += itemTotal
       })
     })
     form.subtotal = subtotal
@@ -1203,6 +1275,14 @@ const calculateTotal = () => {
 
   // 计算总价
   form.total_amount = form.subtotal + form.management_fee + form.tax
+}
+
+// 工艺增项计算 = 系数 × 数量 × 单价
+const calculateProcessAmount = () => {
+  if (!currentEditorRow.value) return
+  const { row } = currentEditorRow.value
+  row.process_amount = (row.process_coefficient || 1) * (row.process_quantity || 0) * (row.process_unit_price || 0)
+  calculateTotal()
 }
 
 // 物料项相关 - 获取分类数组（用于级联选择器）
@@ -1323,26 +1403,77 @@ const calculateItemTotal = (item) => {
 }
 
 const onMaterialSelect = (materials) => {
+  // 修复Bug：物料应添加到 form.spaces[].children 而不是 form.items
+  // 优先使用 pickerSpaceIdx，如果未设置则使用第一个空间
+  let targetSpace = null
+  
+  if (pickerSpaceIdx.value !== null && form.spaces[pickerSpaceIdx.value]) {
+    targetSpace = form.spaces[pickerSpaceIdx.value]
+  } else if (form.spaces.length > 0) {
+    // 如果没有选择空间但有空间存在，使用第一个空间
+    targetSpace = form.spaces[0]
+    pickerSpaceIdx.value = 0
+  } else {
+    // 没有空间则创建一个默认空间
+    addSpace()
+    targetSpace = form.spaces[0]
+    pickerSpaceIdx.value = 0
+  }
+  
+  // 确保 children 数组存在
+  if (!targetSpace.children) {
+    targetSpace.children = []
+  }
+  
   materials.forEach(m => {
-    form.items.push({
-      room_name: '客厅',
-      category_level1: m.category_level1 || 'hard_material',
-      category_level2: '',
-      category_level3: '',
-      item_type: 'product',
+    // 构建物料行数据，匹配 children 结构
+    const rowData = {
+      id: genId(),
       sku_id: m.id,
+      sku_code: m.sku_code || '',
       name: m.name,
-      spec: m.spec,
-      brand: m.brand,
-      unit: m.unit,
+      material_name: m.name,  // 兼容字段
+      custom_name: '',        // 自定义商品名称
+      spec: m.spec || m.specification || '',
+      material_attr: m.material_attr || m.attr || '',
+      material: m.material || '',
+      color: m.color || '',
+      brand: m.brand || '',
+      unit: m.unit || '项',
       quantity: 1,
       unit_price: m.sale_price || m.base_price || 0,
       total_price: m.sale_price || m.base_price || 0,
-      image: m.images?.[0] || '',
-      remark: ''
-    })
+      // 定制参数
+      custom_width: null,
+      custom_depth: null,
+      custom_height: null,
+      custom_result: null,
+      // 工艺增项
+      process_id: null,
+      process_name: '',
+      process_coefficient: 1,
+      process_quantity: 0,
+      process_unit: '',
+      process_unit_price: 0,
+      process_amount: 0,
+      // 图片
+      image: m.images?.[0] || m.image || m.reference_image || '',
+      material_image: m.images?.[0] || '',
+      category_level1: m.category_level1 || 'hard_material',
+      category_level2: '',
+      remark: '',
+      room_name: targetSpace.room_name || '客厅'
+    }
+    // 添加到正确空间的 children 数组
+    targetSpace.children.push(rowData)
   })
+  
+  // 重新计算总价
+  calculateTotal()
   showImportDialog.value = false
+  
+  // 提示用户
+  ElMessage.success(`已添加 ${materials.length} 个物料到 ${targetSpace.room_name || '空间'}`)
 }
 
 // 签名相关
@@ -1466,6 +1597,40 @@ const formatMoney = (amount) => {
 }
 
 const formatDate = (date) => {
+
+// 报价状态映射
+const getStatusType = (status) => {
+  const map = { 'draft': 'info', 'pending': 'warning', 'approved': 'success', 'rejected': 'danger' }
+  return map[status] || 'info'
+}
+const getStatusText = (status) => {
+  const map = { 'draft': '草稿', 'pending': '待审核', 'approved': '已通过', 'rejected': '已驳回' }
+  return map[status] || status
+}
+const submitQuote = async (row) => {
+  try {
+    await request.post(`/quotes/${row.id}/submit`)
+    ElMessage.success('提交成功')
+    fetchQuotes()
+  } catch (e) { ElMessage.error('提交失败') }
+}
+const approveQuote = async (row) => {
+  try {
+    await request.post(`/quotes/${row.id}/approve`)
+    ElMessage.success('审核通过')
+    fetchQuotes()
+  } catch (e) { ElMessage.error('审核失败') }
+}
+const rejectQuote = async (row) => {
+  const reason = prompt("请输入驳回原因:")
+  if (!reason) return
+  try {
+    await request.post(`/quotes/${row.id}/reject`, { reason })
+    ElMessage.success('已驳回')
+    fetchQuotes()
+  } catch (e) { ElMessage.error('驳回失败') }
+}
+
   if (!date) return '-'
   return new Date(date).toLocaleDateString('zh-CN')
 }

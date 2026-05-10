@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+﻿import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { resolve } from 'path'
 
@@ -13,12 +13,16 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
+      '/api/v3/upload': {
+        target: 'http://localhost:8080',
+        changeOrigin: true,
+      },
       '/api': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
       '/upload': {
-        target: 'http://localhost:8080',
+        target: 'http://localhost:8080/api/v3',
         changeOrigin: true,
       },
       '/uploads': {

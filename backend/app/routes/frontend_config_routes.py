@@ -214,6 +214,286 @@ def create_component(current_user):
 
 # ==================== 资源管理 ====================
 
+@frontend_config_bp.route('/about-section', methods=['GET'])
+def get_about_section():
+    """获取关于我们区块配置（公开）"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_about',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': None, 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/about-section', methods=['PUT'])
+@jwt_required_v2
+def update_about_section(current_user):
+    """更新关于我们区块配置"""
+    data = request.get_json()
+    component = ComponentConfig.query.filter_by(component_key='home_about').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_about',
+            component_name='首页关于我们',
+            component_type='section',
+            config_schema={},
+            default_config=data,
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = data
+    db.session.commit()
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/brand-logos', methods=['GET'])
+def get_brand_logos():
+    """获取品牌背书 logo 列表（公开）"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_brands',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': [], 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config.get('logos', []), 'message': 'success'})
+
+
+@frontend_config_bp.route('/brand-logos', methods=['PUT'])
+@jwt_required_v2
+def update_brand_logos(current_user):
+    """更新品牌背书 logo 列表"""
+    data = request.get_json()
+    logos = data.get('logos', [])
+    component = ComponentConfig.query.filter_by(component_key='home_brands').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_brands',
+            component_name='品牌背书',
+            component_type='brands',
+            config_schema={},
+            default_config={'logos': logos},
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = {'logos': logos}
+    db.session.commit()
+    return jsonify({'code': 200, 'data': logos, 'message': 'success'})
+
+
+@frontend_config_bp.route('/services-section', methods=['GET'])
+def get_services_section():
+    """获取服务优势配置（公开）"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_services',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': None, 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/services-section', methods=['PUT'])
+@jwt_required_v2
+def update_services_section(current_user):
+    """更新服务优势配置"""
+    data = request.get_json()
+    component = ComponentConfig.query.filter_by(component_key='home_services').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_services',
+            component_name='首页服务优势',
+            component_type='section',
+            config_schema={},
+            default_config=data,
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = data
+    db.session.commit()
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/cases-section', methods=['GET'])
+def get_cases_section():
+    """获取精选案例配置（公开）"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_cases',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': None, 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/cases-section', methods=['PUT'])
+@jwt_required_v2
+def update_cases_section(current_user):
+    """更新精选案例配置"""
+    data = request.get_json()
+    component = ComponentConfig.query.filter_by(component_key='home_cases').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_cases',
+            component_name='首页精选案例',
+            component_type='section',
+            config_schema={},
+            default_config=data,
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = data
+    db.session.commit()
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/cta-section', methods=['GET'])
+def get_cta_section():
+    component = ComponentConfig.query.filter_by(
+        component_key='home_cta',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': {
+            'title': '准备好打造您的理想之家了吗？',
+            'subtitle': '立即预约免费量尺，获取专属设计方案与报价',
+            'primaryBtn': '预约免费量尺',
+            'secondaryBtn': '400-888-8888'
+        }, 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/cta-section', methods=['PUT'])
+@jwt_required_v2
+def update_cta_section(current_user):
+    data = request.get_json()
+    component = ComponentConfig.query.filter_by(component_key='home_cta').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_cta',
+            component_name='首页CTA',
+            component_type='section',
+            config_schema={},
+            default_config=data,
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = data
+    db.session.commit()
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/contact-section', methods=['GET'])
+def get_contact_section():
+    component = ComponentConfig.query.filter_by(
+        component_key='home_contact',
+        is_enabled=True
+    ).first()
+    if not component:
+        return jsonify({'code': 200, 'data': {
+            'address': '成都市青羊区蔡桥街道天府匠芯北区A座6-10',
+            'phone': '139 0817 9177',
+            'hours': '周一至周日 9:00-18:00'
+        }, 'message': 'success'})
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/contact-section', methods=['PUT'])
+@jwt_required_v2
+def update_contact_section(current_user):
+    data = request.get_json()
+    component = ComponentConfig.query.filter_by(component_key='home_contact').first()
+    if not component:
+        component = ComponentConfig(
+            component_key='home_contact',
+            component_name='首页联系信息',
+            component_type='section',
+            config_schema={},
+            default_config=data,
+            category='homepage',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = data
+    db.session.commit()
+    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+
+@frontend_config_bp.route('/hero-slides', methods=['GET'])
+def get_hero_slides():
+    """获取首页轮播图列表"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_hero',
+        is_enabled=True
+    ).first()
+    
+    if not component:
+        # 返回默认轮播图
+        return jsonify({
+            'code': 200,
+            'data': [
+                {'id': 1, 'url': 'https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?w=1920&q=80', 'order': 0},
+                {'id': 2, 'url': 'https://images.unsplash.com/photo-1600607687939-ce8a6c25118c?w=1920&q=80', 'order': 1},
+                {'id': 3, 'url': 'https://images.unsplash.com/photo-1600566753190-17f0baa2a6c3?w=1920&q=80', 'order': 2}
+            ],
+            'message': 'success'
+        })
+    
+    slides = component.default_config.get('slides', [])
+    return jsonify({
+        'code': 200,
+        'data': slides,
+        'message': 'success'
+    })
+
+
+@frontend_config_bp.route('/hero-slides', methods=['PUT'])
+@jwt_required_v2
+def update_hero_slides(current_user):
+    """更新首页轮播图列表"""
+    data = request.get_json()
+    slides = data.get('slides', [])
+    
+    component = ComponentConfig.query.filter_by(
+        component_key='home_hero'
+    ).first()
+    
+    if not component:
+        component = ComponentConfig(
+            component_key='home_hero',
+            component_name='首页轮播图',
+            component_type='hero',
+            config_schema={
+                'slides': {'type': 'array', 'label': '轮播图片列表'}
+            },
+            default_config={'slides': slides},
+            category='hero',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = {'slides': slides}
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'data': slides,
+        'message': '轮播图更新成功'
+    })
+
+
 @frontend_config_bp.route('/resources', methods=['GET'])
 def get_resources():
     """获取资源列表"""
@@ -640,3 +920,19 @@ def get_default_theme():
             'body': 'system-ui, -apple-system, sans-serif'
         }
     }
+    return theme_config
+
+# Frontend config public endpoint
+
+@frontend_config_bp.route('/public', methods=['GET'])
+def get_public_frontend_config():
+    """Get frontend config (public, no auth required)"""
+    from app.models.frontend_config import ComponentConfig
+
+    config = ComponentConfig.query.first()
+    if not config:
+        return jsonify({'code': 200, 'data': {}})
+
+    return jsonify({'code': 200, 'data': config.to_dict()})
+
+

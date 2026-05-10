@@ -43,10 +43,10 @@
           <span>案例管理</span>
         </el-menu-item>
 
-        <!-- 6. 方案管理 -->
+        <!-- 6. 选品管理 -->
         <el-menu-item index="/admin/schemes">
           <el-icon><Document /></el-icon>
-          <span>方案管理</span>
+          <span>选品管理</span>
         </el-menu-item>
 
         <!-- 7. 报价管理 -->
@@ -78,6 +78,8 @@
           <el-icon><Tools /></el-icon>
           <span>系统设置</span>
         </el-menu-item>
+
+
       </el-menu>
     </el-aside>
     <el-container>
