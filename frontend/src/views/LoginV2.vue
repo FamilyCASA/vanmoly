@@ -6,7 +6,7 @@
         <div class="brand-content">
           <!-- <img src="/logo.png" alt="D&B 帝标|设记家" class="brand-logo" v-if="false"> -->
           <div class="brand-title">D&B 帝标|设记家</div>
-          <div class="brand-subtitle">全案服务系统 V3.0</div>
+          <div class="brand-subtitle">全案服务系统 V3.2</div>
           <div class="brand-desc">
             <p>专业 · 高效 · 温暖</p>
             <p>让每一次服务都成为美好回忆</p>

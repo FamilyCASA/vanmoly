@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-box">
-      <h2>D&B 帝标|设记家 DEMO V.0.1</h2>
+      <h2>D&B 帝标|设记家 V3.2</h2>
       <p>全案服务管理系统</p>
       
       <el-form :model="form" :rules="rules" ref="formRef">

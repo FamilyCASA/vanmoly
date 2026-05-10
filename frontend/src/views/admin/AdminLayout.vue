@@ -3,7 +3,7 @@
     <el-aside width="220px" class="sidebar">
       <div class="logo">
         <span class="logo-text">D&B 帝标|设记家</span>
-        <span class="logo-version">V3.0</span>
+        <span class="logo-version">V3.2</span>
       </div>
       <el-menu
         :default-active="$route.path"

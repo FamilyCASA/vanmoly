@@ -1,7 +1,7 @@
 {
   "name": "designary-v3-frontend",
-  "version": "3.0.0",
-  "description": "D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - Web前端",
+  "version": "3.2.0",
+  "description": "D&B 帝标|设记家全安落地服务系统 V3.2.0 - Web前端",
   "type": "module",
   "scripts": {
     "dev": "vite",
