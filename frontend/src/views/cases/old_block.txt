@@ -1,0 +1,104 @@
+})
+
+// ç¹å»æ°è½´ä»»æä½ç½® â éä¸­è¯¥ç¹ Â±10ä¸
+const clickAxis = (event) => {
+  const track = event.currentTarget
+  const rect = track.getBoundingClientRect()
+  const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+  const min = budgetStats.value.min_wan
+  const max = budgetStats.value.max_wan
+  const midWan = min + pct * (max - min)
+  const minWan = Math.max(0, midWan - 5)
+  const maxWan = midWan + 5
+  filters.price_min = Math.floor(minWan * 10000)
+  filters.price_max = Math.ceil(maxWan * 10000)
+  budgetRange.value = true
+  selectedQuickRange.value = ''
+  // æ»åç§»å¨å°ç¹å»ä½ç½®
+  dragPct.value = pct * 100
+  // ç»è®¡è¯¥åºé´æ¡ä¾æ°ï¼åç«¯ä¼°ç®ï¼
+  budgetTip.value = estimateCount(midWan)
+  fetchCases()
+}
+
+// ä¼°ç®åºé´åæ¡ä¾æ°ï¼åºäº buckets æ°æ®ç²ä¼°ï¼
+const estimateCount = (midWan) => {
+  const buckets = budgetStats.value?.buckets || []
+  const low = (midWan - 5) * 10000
+  const high = (midWan + 5) * 10000
+  return buckets.reduce((sum, b) => {
+    const bm = b.mid || 0
+    return sum + (bm >= low && bm <= high ? b.count : 0)
+  }, 0)
+}
+
+// å¿«æ·åºé´æé®
+const applyQuickRange = (range) => {
+  selectedQuickRange.value = range.label
+  filters.price_min = range.min
+  filters.price_max = range.max
+  budgetRange.value = true
+  budgetTip.value = estimateCount((range.min + (range.max || range.min * 2)) / 20000)
+  fetchCases()
+}
+
+// ===== æ»åææ½ =====
+const startDrag = (e) => {
+  isDragging.value = true
+  dragPct.value = null
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', endDrag)
+  e.preventDefault()
+}
+
+const onDrag = (e) => {
+  if (!isDragging.value || !budgetStats.value) return
+  const track = document.querySelector('.budget-axis-track')
+  if (!track) return
+  const rect = track.getBoundingClientRect()
+  const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+  dragPct.value = pct
+  // å®æ¶é¢è§ï¼è®¡ç®å¯¹åºä¸æ°å¹¶æ´æ°æç¤º
+  const min = budgetStats.value.min_wan
+  const max = budgetStats.value.max_wan
+  const midWan = min + (pct / 100) * (max - min)
+  budgetTip.value = estimateCount(midWan)
+}
+
+const endDrag = () => {
+  if (!isDragging.value) {
+    document.removeEventListener('mousemove', onDrag)
+    document.removeEventListener('mouseup', endDrag)
+    return
+  }
+  if (dragPct.value !== null && budgetStats.value) {
+    const min = budgetStats.value.min_wan
+    const max = budgetStats.value.max_wan
+    const midWan = min + (dragPct.value / 100) * (max - min)
+    // è®¾ç½® Â±10ä¸ åºé´
+    const minWan = Math.max(0, midWan - 10)
+    const maxWan = midWan + 10
+    filters.price_min = Math.floor(minWan * 10000)
+    filters.price_max = Math.ceil(maxWan * 10000)
+    budgetRange.value = true
+    selectedQuickRange.value = ''
+    fetchCases()
+  }
+  isDragging.value = false
+  dragPct.value = null
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', endDrag)
+}
+
+// æ»åææç¹å»ï¼ä»å¨éææ½æ¶è§¦åï¼
+const handleClick = () => {
+  if (isDragging.value) return
+  budgetRange.value = !budgetRange.value
+  if (!budgetRange.value) {
+    filters.price_min = null
+    filters.price_max = null
+    budgetTip.value = 0
+    fetchCases()
+  }
+}
+

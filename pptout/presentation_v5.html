@@ -1,0 +1,96 @@
+<!DOCTYPE html><html lang="zh-CN"><head><meta charset="UTF-8">
+<title>PPT Presentation</title><style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:1920px;height:1080px;overflow:hidden;font-family:'Microsoft YaHei','PingFang SC',sans-serif}
+.slide-deck{position:relative;width:1920px;height:1080px}
+.slide{display:none;position:absolute;top:0;left:0;width:100%;height:100%;
+  background-size:cover;background-position:center;background-repeat:no-repeat}
+.slide.active{display:block}
+
+/* Navigation */
+.nc{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);
+  display:flex;align-items:center;gap:20px;z-index:9999;
+  background:rgba(0,0,0,.5);padding:10px 28px;border-radius:30px}
+.nb{background:none;border:1px solid rgba(255,255,255,.6);color:#fff;
+  font-size:22px;width:44px;height:44px;border-radius:50%;cursor:pointer;
+  transition:.2s}
+.nb:hover{background:rgba(255,255,255,.15)}
+.sc2{color:#ccc;font-size:17px;min-width:60px;text-align:center}
+
+.se-final{background:#7B2828 !important;display:flex;flex-direction:column;
+  justify-content:center;align-items:center;gap:32px}
+.db-oval-box{border:2px solid rgba(255,245,220,.45);border-radius:50px;
+  padding:18px 56px;font-size:26px;color:rgba(255,245,220,.65);
+  letter-spacing:6px;font-weight:700;text-align:center}
+.closing-slogan{font-size:26px;color:rgba(255,248,230,.85);
+  line-height:1.9;text-align:center;max-width:720px;padding:0 40px}
+.closing-footer-text{font-size:14px;color:rgba(255,245,220,.35);
+  letter-spacing:8px;text-transform:uppercase}
+</style></head>
+<body>
+<div class="slide-deck">
+<div class="slide" style="background-image:url('pptx_images/image31.png');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image34.png');"></div>
+<div class="slide" style="background-image:url('pptx_images/image35.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image37.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image40.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image43.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image44.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image46.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image47.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image49.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image51.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image53.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image54.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image56.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image58.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image60.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image61.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image63.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image65.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image67.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image68.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image70.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image71.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image73.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image75.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image77.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image78.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image81.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image82.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image32.jpeg');"></div>
+<div class="slide" style="background-image:url('pptx_images/image85.png');"></div>
+<div class="slide" style="background-image:url('pptx_images/image42.png');"></div>
+<div class="slide se-final">
+        <div class="db-oval-box">D &amp; B</div>
+        <div class="closing-slogan">我们不是想用柜子塞满您的家，<br>而是想让您的新家不再有旧家的烦恼！</div>
+        <div class="closing-footer-text">DESIGN · RY · V</div>
+    </div>
+</div>
+<div class="nc">
+    <button class="nb" onclick="prev()">&#8592;</button>
+    <span class="sc2"><span id="cur">1</span> / <span id="tot">42</span></span>
+    <button class="nb" onclick="next()">&#8594;</button>
+</div>
+<script>
+let c=1,t=42;
+document.getElementById('tot').textContent=t;
+function show(n){if(n<1)n=1;if(n>t)n=t;c=n;
+document.querySelectorAll('.slide').forEach((s,i)=>s.classList.toggle('active',i===n-1));
+document.getElementById('cur').textContent=n;}
+function next(){show(c+1)}
+function prev(){show(c-1)}
+document.addEventListener('keydown',e=>{if(e.key==='ArrowRight'||e.key===' '){e.preventDefault();next()}
+if(e.key==='ArrowLeft'){e.preventDefault();prev()}});
+document.addEventListener('click',e=>{if(!e.target.closest('.nc'))next()});
+show(1);
+</script></body></html>

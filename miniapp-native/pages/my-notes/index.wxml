@@ -1,0 +1,48 @@
+<!-- 我的笔记 -->
+<view class="page">
+  <!-- 顶部 -->
+  <view class="page-header">
+    <text class="page-title">我的笔记</text>
+    <view class="add-btn" bindtap="createNote">
+      <text>+ 新建</text>
+    </view>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && notes.length === 0}}">
+    <text class="empty-icon">📝</text>
+    <text class="empty-title">暂无笔记</text>
+    <text class="empty-desc">记录装修灵感、材料偏好、设计方案</text>
+    <view class="empty-btn" bindtap="createNote">
+      <text>新建笔记</text>
+    </view>
+  </view>
+
+  <!-- 笔记列表 -->
+  <view class="note-list" wx:else>
+    <view class="note-card" wx:for="{{notes}}" wx:key="id" bindtap="goToNote" data-id="{{item.id}}">
+      <view class="nc-cover" wx:if="{{item.cover}}">
+        <image src="{{item.cover}}" mode="aspectFill"/>
+      </view>
+      <view class="nc-content">
+        <text class="nc-title">{{item.title}}</text>
+        <text class="nc-excerpt">{{item.excerpt || item.content}}</text>
+        <view class="nc-bottom">
+          <view class="nc-tags" wx:if="{{item.tags && item.tags.length > 0}}">
+            <text class="nct-item" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+          </view>
+          <text class="nc-time">{{item.createdAt}}</text>
+        </view>
+      </view>
+      <view class="nc-delete" catchtap="deleteNote" data-id="{{item.id}}">
+        <text>✕</text>
+      </view>
+    </view>
+  </view>
+</view>

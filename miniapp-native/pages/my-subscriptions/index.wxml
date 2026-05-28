@@ -1,0 +1,55 @@
+<!-- 我的订阅 - 案例动态推送 -->
+<view class="page">
+  <!-- 顶部 -->
+  <view class="page-header">
+    <text class="page-title">我的订阅</text>
+    <view class="action-btn" bindtap="goExplore">
+      <text>发现案例</text>
+    </view>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && subscriptions.length === 0}}">
+    <text class="empty-icon">🔔</text>
+    <text class="empty-title">暂无订阅</text>
+    <text class="empty-desc">订阅感兴趣的案例，第一时间获取动态推送</text>
+    <view class="empty-btn" bindtap="goExplore">
+      <text>去发现案例</text>
+    </view>
+  </view>
+
+  <!-- 订阅列表 -->
+  <view class="sub-list" wx:else>
+    <view class="sub-card" wx:for="{{subscriptions}}" wx:key="id" bindtap="goToCase" data-id="{{item.case_id || item.id}}">
+      <image class="sc-cover" src="{{item.cover}}" mode="aspectFill"/>
+      <view class="sc-info">
+        <view class="sc-top">
+          <text class="sc-title">{{item.title || item.case_title}}</text>
+          <view class="sc-status {{item.notify_status || 'active'}}">
+            <text>{{item.notifyStatusText || '订阅中'}}</text>
+          </view>
+        </view>
+        <view class="sc-meta">
+          <text class="scm-item" wx:if="{{item.style}}">{{item.style}}</text>
+          <text class="scm-item" wx:if="{{item.area}}">{{item.area}}㎡</text>
+          <text class="scm-item" wx:if="{{item.city}}">{{item.city}}</text>
+        </view>
+        <text class="sc-time" wx:if="{{item.latest_update}}">最新更新：{{item.latestUpdateText}}</text>
+      </view>
+      <view class="sc-toggle" catchtap="toggleSubscription" data-id="{{item.id}}">
+        <text>{{item.notify_status === 'paused' ? '恢复' : '暂停'}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="bottom-tip" wx:if="{{subscriptions.length > 0}}">
+    <text>{{subscriptions.length}}个案例订阅</text>
+  </view>
+</view>

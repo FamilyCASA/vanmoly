@@ -5,6 +5,7 @@ V3.0 全新设计，不沿用旧系统界面
 from datetime import datetime
 from app import db
 import json
+import base64
 
 
 class MaterialCategory(db.Model):
@@ -90,6 +91,9 @@ class MaterialSKU(db.Model):
     unit = db.Column(db.String(20), default='件', comment='单位')
     calc_type = db.Column(db.String(20), default='quantity', comment='计价方式:quantity/area/length')
 
+    # 工艺系数（普通物料默认1，特殊工艺物料可自定义）
+    craft_coefficient = db.Column(db.Numeric(5, 2), default=1, comment='工艺系数')
+
     # 库存
     stock_quantity = db.Column(db.Integer, default=0, comment='库存数量')
     stock_warning = db.Column(db.Integer, default=10, comment='库存预警值')
@@ -111,6 +115,15 @@ class MaterialSKU(db.Model):
     has_craft_parts = db.Column(db.Boolean, default=False, comment='是否有工艺子物料')
     craft_parts = db.Column(db.JSON, default=list, comment='工艺子物料配置')
     # 示例: [{"name": "封边", "material_id": 123, "coefficient": 0.1}]
+
+    # 花色
+    color_name = db.Column(db.String(100), comment='花色')
+
+    # 环保
+    env_level = db.Column(db.String(50), comment='环保等级')
+
+    # 供应链
+    supply_chain = db.Column(db.String(100), comment='供应链/采购渠道')
 
     # 描述
     description = db.Column(db.Text, comment='产品描述')
@@ -137,11 +150,15 @@ class MaterialSKU(db.Model):
             'name': self.name,
             'category_id': self.category_id,
             'category_name': self.category.name if self.category else None,
+            'category_icon': ('data:image/svg+xml;base64,' + base64.b64encode(self.category.icon.encode('utf-8')).decode('ascii')) if self.category and self.category.icon else None,
             'brand': self.brand,
             'model': self.model,
             'specification': self.specification,
             'material': self.material,
             'origin': self.origin,
+            'color_name': self.color_name,
+            'env_level': self.env_level,
+            'supply_chain': self.supply_chain,
             'main_image': self.main_image,
             'images': self.images or [],
             'cost_price': float(self.cost_price) if self.cost_price else 0,
@@ -149,6 +166,7 @@ class MaterialSKU(db.Model):
             'market_price': float(self.market_price) if self.market_price else None,
             'unit': self.unit,
             'calc_type': self.calc_type,
+            'craft_coefficient': float(self.craft_coefficient) if self.craft_coefficient else 1,
             'stock_quantity': self.stock_quantity or 0,
             'stock_warning': self.stock_warning or 10,
             'customization_rules': self.customization_rules or [],

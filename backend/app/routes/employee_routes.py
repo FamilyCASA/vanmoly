@@ -223,6 +223,12 @@ def create_employee(current_user):
         remark=data.get('remark')
     )
 
+
+    # 对外展示字段
+    employee.title = data.get('title')
+    employee.bio = data.get('bio')
+    employee.showcase_photo = data.get('showcase_photo')
+
     db.session.add(employee)
     db.session.commit()
 
@@ -249,7 +255,8 @@ def update_employee(current_user, id):
             'name', 'phone', 'email', 'gender', 'id_card',
             'employee_no', 'department_id', 'position_id',
             'job_level', 'base_salary', 'performance_ratio', 'role', 'status',
-            'address', 'emergency_contact', 'emergency_phone', 'remark'
+            'address', 'emergency_contact', 'emergency_phone', 'remark',
+            'title', 'bio', 'showcase_photo'
         ]
 
         for field in fields:

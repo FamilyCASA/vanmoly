@@ -1,0 +1,35 @@
+<!-- 意见反馈 -->
+<view class="page">
+  <view class="form-section">
+    <text class="form-label">反馈类型</text>
+    <view class="type-list">
+      <view class="type-item {{feedbackType === item ? 'active' : ''}}" wx:for="{{types}}" wx:key="*this" bindtap="selectType" data-type="{{item}}">
+        <text>{{item}}</text>
+      </view>
+    </view>
+  </view>
+  <view class="form-section">
+    <text class="form-label">详细描述</text>
+    <textarea class="textarea" value="{{content}}" bindinput="onContentInput" placeholder="请详细描述您遇到的问题或建议" maxlength="500" auto-height/>
+    <text class="char-count">{{content.length}}/500</text>
+  </view>
+  <view class="form-section">
+    <text class="form-label">上传图片（可选，最多3张）</text>
+    <view class="image-list">
+      <view class="img-item" wx:for="{{images}}" wx:key="index">
+        <image src="{{item}}" mode="aspectFill"/>
+        <view class="img-delete" catchtap="deleteImage" data-index="{{index}}"><text>✕</text></view>
+      </view>
+      <view class="img-add" wx:if="{{images.length < 3}}" bindtap="addImage">
+        <text>+</text>
+      </view>
+    </view>
+  </view>
+  <view class="form-section">
+    <text class="form-label">联系方式（可选）</text>
+    <input class="contact-input" value="{{contact}}" bindinput="onContactInput" placeholder="手机号或邮箱"/>
+  </view>
+  <view class="submit-btn" bindtap="submitFeedback">
+    <text>提交反馈</text>
+  </view>
+</view>

@@ -1,178 +1,306 @@
-<view class="products-page">
-  <!-- 顶部搜索栏 -->
-  <view class="search-header">
-    <view class="search-bar">
+<!-- 产品中心 - 小红书瀑布流 · 暗黑深空 -->
+<wxs src="../../utils/util.wxs" module="filters" />
+<view class="page">
+
+  <!-- ========== Hero 区 ========== -->
+  <view class="hero-section">
+    <view class="hero-content">
+      <view class="hero-title-wrap">
+        <text class="hero-title">甄选好物</text>
+        <text class="hero-sub">D&B 帝标·设记家 品质严选</text>
+      </view>
+      <view class="hero-features">
+        <view class="hf-item">
+          <text class="hf-icon">🛡️</text>
+          <view class="hf-text">
+            <text class="hf-label">怕套路</text>
+            <text class="hf-desc">价格透明不踩坑</text>
+          </view>
+        </view>
+        <view class="hf-item">
+          <text class="hf-icon">✅</text>
+          <view class="hf-text">
+            <text class="hf-label">怕翻车</text>
+            <text class="hf-desc">品质保障可溯源</text>
+          </view>
+        </view>
+        <view class="hf-item">
+          <text class="hf-icon">😊</text>
+          <view class="hf-text">
+            <text class="hf-label">想省心</text>
+            <text class="hf-desc">一站式配齐交付</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- ========== 分类导航 ========== -->
+  <view class="category-nav">
+    <scroll-view scroll-x class="cat-scroll" enhanced show-scrollbar="{{false}}" scroll-into-view="cat_{{selectedCatId}}">
+      <view class="cat-track">
+        <view
+          class="cat-item {{selectedCatId === 0 ? 'active' : ''}}"
+          bindtap="selectCategory"
+          data-id="{{0}}"
+        >
+          <text>全部</text>
+        </view>
+        <view
+          class="cat-item {{selectedCatId === item.id ? 'active' : ''}}"
+          wx:for="{{categories}}"
+          wx:key="id"
+          id="cat_{{item.id}}"
+          bindtap="selectCategory"
+          data-id="{{item.id}}"
+        >
+          <text>{{item.name}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ========== 二级分类 ========== -->
+  <view class="subcat-section" wx:if="{{activeSubCategories.length > 0}}">
+    <scroll-view scroll-x class="subcat-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="subcat-track">
+        <view
+          class="subcat-chip {{selectedSubCatId === item.id ? 'active' : ''}}"
+          wx:for="{{activeSubCategories}}"
+          wx:key="id"
+          bindtap="selectSubCategory"
+          data-id="{{item.id}}"
+        >
+          <text>{{item.name}}</text>
+          <text class="subcat-count" wx:if="{{item.material_count}}">{{item.material_count}}</text>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ========== 搜索栏 ========== -->
+  <view class="search-bar">
+    <view class="search-wrap">
       <text class="search-icon">🔍</text>
-      <input 
-        type="text" 
-        placeholder="搜索产品名称、品牌..." 
-        value="{{searchKeyword}}"
-        bindinput="onSearchInput"
+      <input
+        class="search-input"
+        placeholder="搜索产品名称、品牌"
+        placeholder-class="search-ph"
         confirm-type="search"
         bindconfirm="onSearch"
+        value="{{keyword}}"
+        bindinput="onSearchInput"
       />
-      <text wx:if="{{searchKeyword}}" class="clear-icon" bindtap="clearSearch">×</text>
-    </view>
-    <view class="selection-entry" bindtap="goToSelection">
-      <text class="cart-icon">🛒</text>
-      <text wx:if="{{selectionCount > 0}}" class="selection-badge">{{selectionCount}}</text>
+      <text class="search-clear" wx:if="{{keyword}}" bindtap="clearSearch">✕</text>
     </view>
   </view>
 
-  <!-- 分类导航 -->
-  <scroll-view class="category-nav" scroll-x enhanced show-scrollbar="{{false}}">
-    <view 
-      wx:for="{{categories}}" 
-      wx:key="id"
-      class="category-item {{currentCategory === item.id ? 'active' : ''}}"
-      bindtap="selectCategory"
-      data-id="{{item.id}}"
-    >
-      <text>{{item.name}}</text>
-    </view>
-  </scroll-view>
-
-  <!-- 筛选栏 -->
-  <view class="filter-bar">
-    <view class="filter-item {{sortBy === 'default' ? 'active' : ''}}" bindtap="setSort" data-type="default">
-      <text>综合</text>
-    </view>
-    <view class="filter-item {{sortBy === 'price_asc' ? 'active' : ''}}" bindtap="setSort" data-type="price_asc">
-      <text>价格</text>
-      <text class="sort-arrow">{{sortBy === 'price_asc' ? '↑' : '↓'}}</text>
-    </view>
-    <view class="filter-item {{sortBy === 'sales' ? 'active' : ''}}" bindtap="setSort" data-type="sales">
-      <text>销量</text>
-    </view>
-    <view class="filter-item" bindtap="showFilter">
-      <text>筛选</text>
-      <text class="filter-icon">⚙</text>
-    </view>
-  </view>
-
-  <!-- 产品列表 -->
-  <scroll-view 
-    class="products-list" 
-    scroll-y 
-    enhanced
-    refresher-enabled
-    refresher-triggered="{{isRefreshing}}"
-    bindrefresherrefresh="onRefresh"
-    bindscrolltolower="onLoadMore"
-  >
-    <view class="products-grid">
-      <view 
-        wx:for="{{products}}" 
-        wx:key="id"
-        class="product-card"
-        bindtap="goToDetail"
-        data-id="{{item.id}}"
-      >
-        <view class="product-image-wrapper">
-          <image 
-            class="product-image main" 
-            src="{{item.main_image || '/images/placeholder.png'}}" 
-            mode="aspectFill"
-            lazy-load
-          />
-          <image 
-            wx:if="{{item.sub_image}}"
-            class="product-image sub" 
-            src="{{item.sub_image}}" 
-            mode="aspectFill"
-            lazy-load
-          />
-          <view class="quick-add" catchtap="quickAdd" data-item="{{item}}">
-            <text class="add-icon">+</text>
+  <!-- ========== 产品瀑布流 ========== -->
+  <view class="waterfall" wx:if="{{!loading && products.length > 0}}">
+    <!-- 左列 -->
+    <view class="waterfall-col">
+      <view class="wf-card" wx:for="{{leftCol}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+        <view class="wf-img-wrap">
+          <image wx:if="{{item.main_image}}" src="{{item.main_image}}" mode="widthFix" class="wf-img" lazy-load />
+          <view wx:else class="wf-no-img"><text class="no-img-icon">📦</text></view>
+          <view class="wf-add-btn {{item._selected ? 'selected' : ''}}" catchtap="toggleSelection" data-id="{{item.id}}">
+            <text>{{item._selected ? '✓' : '+'}}</text>
           </view>
         </view>
-        <view class="product-info">
-          <text class="product-brand">{{item.brand || '梵木里'}}</text>
-          <text class="product-name">{{item.name}}</text>
-          <view class="product-bottom">
-            <text class="product-price">¥{{item.sale_price}}</text>
-            <text wx:if="{{item.market_price > item.sale_price}}" class="product-original">¥{{item.market_price}}</text>
+        <view class="wf-body">
+          <text class="wf-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+          <text class="wf-name">{{item.name}}</text>
+          <view class="wf-price-row">
+            <text class="wf-price">¥{{item._displayPrice}}</text>
+            <text class="wf-unit" wx:if="{{item.unit}}">/{{item.unit}}</text>
+          </view>
+          <view class="wf-specs" wx:if="{{item.has_variants}}">
+            <text class="spec-tag">多规格</text>
           </view>
         </view>
       </view>
     </view>
-
-    <!-- 加载状态 -->
-    <view class="load-more" wx:if="{{isLoadingMore}}">
-      <text>加载中...</text>
-    </view>
-    <view class="no-more" wx:if="{{noMore && products.length > 0}}">
-      <text>没有更多产品了</text>
-    </view>
-    <view class="empty-state" wx:if="{{!loading && products.length === 0}}">
-      <text class="empty-icon">📦</text>
-      <text class="empty-text">暂无相关产品</text>
-      <text class="empty-tip">换个分类或搜索词试试</text>
-    </view>
-  </scroll-view>
-
-  <!-- 筛选弹窗 -->
-  <view class="filter-modal {{showFilterModal ? 'show' : ''}}" bindtap="hideFilter">
-    <view class="filter-content" catchtap="preventBubble">
-      <view class="filter-header">
-        <text class="filter-title">筛选</text>
-        <text class="filter-close" bindtap="hideFilter">×</text>
-      </view>
-      
-      <scroll-view class="filter-body" scroll-y>
-        <!-- 价格区间 -->
-        <view class="filter-section">
-          <text class="section-label">价格区间</text>
-          <view class="price-range">
-            <input type="digit" placeholder="最低价" value="{{filter.minPrice}}" bindinput="onMinPriceInput"/>
-            <text class="range-separator">-</text>
-            <input type="digit" placeholder="最高价" value="{{filter.maxPrice}}" bindinput="onMaxPriceInput"/>
+    <!-- 右列 -->
+    <view class="waterfall-col">
+      <view class="wf-card" wx:for="{{rightCol}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
+        <view class="wf-img-wrap">
+          <image wx:if="{{item.main_image}}" src="{{item.main_image}}" mode="widthFix" class="wf-img" lazy-load />
+          <view wx:else class="wf-no-img"><text class="no-img-icon">📦</text></view>
+          <view class="wf-add-btn {{item._selected ? 'selected' : ''}}" catchtap="toggleSelection" data-id="{{item.id}}">
+            <text>{{item._selected ? '✓' : '+'}}</text>
           </view>
         </view>
-
-        <!-- 品牌筛选 -->
-        <view class="filter-section" wx:if="{{brands.length > 0}}">
-          <text class="section-label">品牌</text>
-          <view class="brand-list">
-            <view 
-              wx:for="{{brands}}" 
-              wx:key="*this"
-              class="brand-item {{filter.selectedBrands.includes(item) ? 'selected' : ''}}"
-              bindtap="toggleBrand"
-              data-brand="{{item}}"
-            >
-              <text>{{item}}</text>
-            </view>
+        <view class="wf-body">
+          <text class="wf-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+          <text class="wf-name">{{item.name}}</text>
+          <view class="wf-price-row">
+            <text class="wf-price">¥{{item._displayPrice}}</text>
+            <text class="wf-unit" wx:if="{{item.unit}}">/{{item.unit}}</text>
+          </view>
+          <view class="wf-specs" wx:if="{{item.has_variants}}">
+            <text class="spec-tag">多规格</text>
           </view>
         </view>
-
-        <!-- 风格筛选 -->
-        <view class="filter-section" wx:if="{{styles.length > 0}}">
-          <text class="section-label">风格</text>
-          <view class="style-list">
-            <view 
-              wx:for="{{styles}}" 
-              wx:key="*this"
-              class="style-item {{filter.selectedStyles.includes(item) ? 'selected' : ''}}"
-              bindtap="toggleStyle"
-              data-style="{{item}}"
-            >
-              <text>{{item}}</text>
-            </view>
-          </view>
-        </view>
-      </scroll-view>
-
-      <view class="filter-footer">
-        <button class="btn-reset" bindtap="resetFilter">重置</button>
-        <button class="btn-confirm" bindtap="confirmFilter">确定</button>
       </view>
     </view>
   </view>
 
-  <!-- 添加到选品成功提示 -->
-  <view class="toast {{showToast ? 'show' : ''}}">
-    <text class="toast-icon">✓</text>
-    <text class="toast-text">已加入选品清单</text>
+  <!-- 加载中 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="loader"></view>
+    <text>加载中...</text>
   </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{!loading && products.length === 0}}">
+    <text class="empty-icon">📦</text>
+    <text class="empty-text">暂无产品</text>
+    <view class="empty-btn" wx:if="{{keyword || selectedCatId > 0}}" bindtap="resetFilters">
+      <text>重置筛选</text>
+    </view>
+  </view>
+
+  <!-- 加载更多 -->
+  <view class="load-more" wx:if="{{!loading && hasMore && products.length > 0}}" bindtap="loadMore">
+    <text>{{loadingMore ? '加载中...' : '查看更多产品'}}</text>
+  </view>
+
+  <!-- ========== 悬浮选品单按钮 ========== -->
+  <view class="selection-float" bindtap="openSelectionPanel">
+    <text class="float-icon">🛒</text>
+    <view class="float-badge" wx:if="{{selectionCount > 0}}">{{selectionCount}}</view>
+  </view>
+
+  <!-- ========== 底部选品单栏（有选品时固定显示） ========== -->
+  <view class="selection-bar" wx:if="{{selectionCount > 0 && !showSelectionPanel}}" bindtap="openSelectionPanel">
+    <view class="sb-info">
+      <text class="sb-icon">🛒</text>
+      <text class="sb-count">已选 {{selectionCount}} 件</text>
+    </view>
+    <view class="sb-price">
+      <text class="sb-label">合计</text>
+      <text class="sb-amount">¥{{filters.toFixed(totalAmount, 2)}}</text>
+    </view>
+    <view class="sb-btn"><text>查看选品单</text></view>
+  </view>
+
+  <!-- ========== 选品单弹出面板 ========== -->
+  <view class="sel-mask" wx:if="{{showSelectionPanel}}" bindtap="closeSelectionPanel"></view>
+  <view class="sel-panel {{showSelectionPanel ? 'show' : ''}}">
+    <!-- 面板头部 -->
+    <view class="sp-header">
+      <text class="sp-title">我的选品单</text>
+      <view class="sp-actions">
+        <text wx:if="{{selectionItems.length > 0}}" class="sp-edit" bindtap="toggleEdit">{{isEditing ? '完成' : '编辑'}}</text>
+        <text class="sp-close" bindtap="closeSelectionPanel">✕</text>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <scroll-view wx:if="{{selectionItems.length === 0}}" class="sp-scroll" scroll-y>
+      <view class="sp-empty">
+        <text class="sp-empty-icon">🛒</text>
+        <text class="sp-empty-title">选品清单是空的</text>
+        <text class="sp-empty-desc">去挑选喜欢的产品吧</text>
+      </view>
+    </scroll-view>
+
+    <!-- 选品列表 -->
+    <scroll-view wx:else class="sp-scroll" scroll-y enhanced>
+      <!-- 方案信息 -->
+      <view class="sp-scheme">
+        <view class="sp-scheme-header" bindtap="toggleSchemeEdit">
+          <text class="sp-scheme-title">方案信息</text>
+          <text class="sp-scheme-toggle">{{showSchemeEdit ? '收起' : '编辑'}} ></text>
+        </view>
+        <view wx:if="{{showSchemeEdit}}" class="sp-scheme-form">
+          <view class="sp-form-item">
+            <text class="sp-form-label">方案名称</text>
+            <input type="text" placeholder="给方案起个名字" value="{{scheme.name}}" bindinput="onSchemeNameInput" />
+          </view>
+          <view class="sp-form-item">
+            <text class="sp-form-label">房间类型</text>
+            <picker mode="selector" range="{{roomTypes}}" bindchange="onRoomTypeChange">
+              <view class="sp-picker-value">{{scheme.room_type || '请选择'}} ></view>
+            </picker>
+          </view>
+          <view class="sp-form-item">
+            <text class="sp-form-label">面积 (㎡)</text>
+            <input type="digit" placeholder="请输入面积" value="{{scheme.area}}" bindinput="onAreaInput" />
+          </view>
+        </view>
+        <view wx:else class="sp-scheme-preview">
+          <text class="sp-preview-name">{{scheme.name || '未命名方案'}}</text>
+          <text wx:if="{{scheme.room_type}}" class="sp-preview-meta">{{scheme.room_type}}{{scheme.area ? ' ' + scheme.area + '㎡' : ''}}</text>
+        </view>
+      </view>
+
+      <!-- 编辑模式：全选 -->
+      <view wx:if="{{isEditing}}" class="sp-select-all" bindtap="toggleSelectAll">
+        <text class="sp-checkbox {{isAllSelected ? 'checked' : ''}}">{{isAllSelected ? '✓' : ''}}</text>
+        <text class="sp-select-text">全选</text>
+        <text wx:if="{{selectedForDelete.length > 0}}" class="sp-delete-btn" bindtap="deleteSelected">删除选中({{selectedForDelete.length}})</text>
+      </view>
+
+      <!-- 分类分组 -->
+      <view wx:for="{{groupedSelection}}" wx:key="category" class="sp-group">
+        <view class="sp-group-header">
+          <text class="sp-group-name">{{item.category}}</text>
+          <text class="sp-group-count">{{item.items.length}} 件</text>
+        </view>
+        <view wx:for="{{item.items}}" wx:key="id" wx:for-item="product" class="sp-item">
+          <view wx:if="{{isEditing}}" class="sp-item-check" bindtap="toggleSelect" data-id="{{product.id}}" data-variant="{{product.variant_name}}">
+            <text class="sp-checkbox {{filters.isSelected(selectedForDelete, product.id, product.variant_name) ? 'checked' : ''}}">
+              {{filters.isSelected(selectedForDelete, product.id, product.variant_name) ? '✓' : ''}}
+            </text>
+          </view>
+          <image class="sp-item-img" src="{{product.main_image || '/images/placeholder.png'}}" mode="aspectFill" />
+          <view class="sp-item-info">
+            <text class="sp-item-name">{{product.name}}</text>
+            <text class="sp-item-price">¥{{filters.toFixed(product.sale_price, 2)}}</text>
+          </view>
+          <view wx:if="{{!isEditing}}" class="sp-item-qty">
+            <text class="qty-btn {{product.quantity <= 1 ? 'disabled' : ''}}" bindtap="decreaseQty" data-item="{{product}}">-</text>
+            <text class="qty-val">{{product.quantity}}</text>
+            <text class="qty-btn" bindtap="increaseQty" data-item="{{product}}">+</text>
+          </view>
+          <view wx:if="{{!isEditing}}" class="sp-item-total">
+            <text>¥{{filters.toFixed(product.sale_price * product.quantity, 2)}}</text>
+          </view>
+          <text wx:if="{{isEditing}}" class="sp-item-del" bindtap="deleteItem" data-item="{{product}}">删除</text>
+        </view>
+      </view>
+
+      <view style="height: 20rpx;"></view>
+    </scroll-view>
+
+    <!-- 面板底部 -->
+    <view wx:if="{{selectionItems.length > 0}}" class="sp-footer">
+      <view wx:if="{{isEditing}}" class="sp-footer-edit">
+        <view class="sp-select-all" bindtap="toggleSelectAll">
+          <text class="sp-checkbox {{isAllSelected ? 'checked' : ''}}">{{isAllSelected ? '✓' : ''}}</text>
+          <text class="sp-select-text">全选</text>
+        </view>
+        <button class="sp-btn-delete" bindtap="deleteSelected">删除选中</button>
+      </view>
+      <view wx:else class="sp-footer-normal">
+        <view class="sp-footer-price">
+          <text class="sp-footer-label">合计:</text>
+          <text class="sp-footer-amount">¥{{filters.toFixed(totalAmount, 2)}}</text>
+        </view>
+        <button class="sp-btn-submit" bindtap="submitScheme">提交方案</button>
+      </view>
+    </view>
+  </view>
+
+  <!-- ========== 提交成功弹窗 ========== -->
+  <view class="sp-success-mask" wx:if="{{showSubmitSuccess}}" bindtap="closeSubmitSuccess">
+    <view class="sp-success-content" catchtap="">
+      <text class="sp-success-icon">✓</text>
+      <text class="sp-success-title">方案提交成功</text>
+      <text class="sp-success-desc">我们的设计师将尽快与您联系</text>
+      <button class="sp-btn-ok" bindtap="closeSubmitSuccess">确定</button>
+    </view>
+  </view>
+
 </view>

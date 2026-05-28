@@ -759,6 +759,40 @@ def create_theme(current_user):
     })
 
 
+@frontend_config_bp.route('/themes/<int:theme_id>', methods=['PUT'])
+@jwt_required_v2
+def update_theme(current_user, theme_id):
+    """更新主题"""
+    theme = ThemeConfig.query.get_or_404(theme_id)
+    data = request.get_json()
+    
+    for field in ['theme_name', 'theme_key', 'description', 'colors', 'fonts',
+                   'spacing', 'border_radius', 'shadows', 'section_configs']:
+        if field in data:
+            setattr(theme, field, data[field])
+    
+    theme.updated_at = datetime.now()
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'data': theme.to_dict(),
+        'message': '主题更新成功'
+    })
+
+
+@frontend_config_bp.route('/themes/<int:theme_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_theme(current_user, theme_id):
+    """删除主题"""
+    theme = ThemeConfig.query.get_or_404(theme_id)
+    if theme.is_active:
+        return jsonify({'code': 400, 'message': '不能删除当前激活的主题'}), 400
+    db.session.delete(theme)
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '主题已删除'})
+
+
 @frontend_config_bp.route('/themes/<int:theme_id>/activate', methods=['POST'])
 @jwt_required_v2
 def activate_theme(current_user, theme_id):

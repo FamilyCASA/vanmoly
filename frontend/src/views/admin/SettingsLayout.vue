@@ -50,6 +50,10 @@
         <PointsManage v-if="activeKey === 'points'" />
         <!-- 知识库管理 -->
         <KnowledgeManage v-if="activeKey === 'knowledge'" />
+        <!-- 幻灯片模板管理 -->
+        <SlideTemplateManage v-if="activeKey === 'slide-template'" />
+        <!-- 特殊工艺数据库 -->
+        <CraftProcessManage v-if="activeKey === 'craft'" />
       </div>
     </div>
   </div>
@@ -58,7 +62,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import {
-  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading
+  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp
 } from '@element-plus/icons-vue'
 import WorkflowTemplateManage from './WorkflowTemplateManage.vue'
 import CategoryManage from './CategoryManage.vue'
@@ -69,6 +73,8 @@ import FileManage from './FileManage.vue'
 import FrontendConfig from './FrontendConfig.vue'
 import PointsManage from './PointsManage.vue'
 import KnowledgeManage from './KnowledgeManage.vue'
+import SlideTemplateManage from './SlideTemplateManage.vue'
+import CraftProcessManage from './CraftProcessManage.vue'
 
 const activeKey = ref('workflow')
 
@@ -106,12 +112,28 @@ const navItems = [
     color: '#722ED1'
   },
   {
+    key: 'slide-template',
+    title: '幻灯片模板',
+    desc: '公共幻灯片样式配置',
+    icon: Picture,
+    bg: '#FFF7E6',
+    color: '#FA8C16'
+  },
+  {
     key: 'material',
     title: '物料管理',
     desc: 'SKU物料库与供应商',
     icon: Box,
     bg: '#E6FFFB',
     color: '#13C2C2'
+  },
+  {
+    key: 'craft',
+    title: '特殊工艺数据库',
+    desc: '全屋定制/硬装施工工艺库',
+    icon: SetUp,
+    bg: '#FFF2E8',
+    color: '#FA541C'
   },
   {
     key: 'file',

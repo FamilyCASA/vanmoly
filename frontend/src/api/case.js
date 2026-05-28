@@ -259,3 +259,65 @@ export function uploadWorkflowPhoto(caseId, formData) {
 export function getWorkflowNodes() {
   return request.get('/workflow/nodes')
 }
+
+// ========== 预算区间统计 ==========
+export function getBudgetStats() {
+  return request.get('/cases/budget-stats')
+}
+
+// ========== V3.3 幻灯片演示 ==========
+
+// 获取幻灯片配置
+export function getSlideConfig(caseId) {
+  return request.get(`/cases/${caseId}/slide-config`)
+}
+
+// 更新幻灯片配置
+export function updateSlideConfig(caseId, data) {
+  return request.put(`/cases/${caseId}/slide-config`, data)
+}
+
+// 获取幻灯片完整数据
+export function getSlideData(caseId) {
+  return request.get(`/cases/${caseId}/slide-data`)
+}
+
+// ===== 幻灯片模板 CRUD =====
+export function getSlideTemplates() {
+  return request.get('/slide-templates')
+}
+export function getSlideTemplate(id) {
+  return request.get(`/slide-templates/${id}`)
+}
+export function createSlideTemplate(data) {
+  return request.post('/slide-templates', data)
+}
+export function updateSlideTemplate(id, data) {
+  return request.put(`/slide-templates/${id}`, data)
+}
+export function deleteSlideTemplate(id) {
+  return request.delete(`/slide-templates/${id}`)
+}
+export function duplicateSlideTemplate(id, data) {
+  return request.post(`/slide-templates/${id}/duplicate`, data)
+}
+
+// 获取空间物料配置
+export function getSpaceMaterials(caseId) {
+  return request.get(`/cases/${caseId}/space-materials`)
+}
+
+// 批量导入物料配置
+export function batchImportMaterials(caseId, data) {
+  return request.post(`/cases/${caseId}/space-materials/batch`, data)
+}
+
+// 获取材质展示候选物料
+export function getShowcaseCandidates(caseId) {
+  return request.get(`/cases/${caseId}/showcase-candidates`)
+}
+
+// 保存材质展示选择
+export function saveShowcaseMaterials(caseId, data) {
+  return request.put(`/cases/${caseId}/showcase-materials`, data)
+}

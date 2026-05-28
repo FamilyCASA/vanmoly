@@ -1,5 +1,5 @@
 {
-  "description": "D&B 帝标|设记家家装小程序",
+  "description": "D&B 帝标|设记家全案服务",
   "packOptions": {
     "ignore": [],
     "include": []
@@ -48,7 +48,7 @@
     "disableSWC": true
   },
   "compileType": "miniprogram",
-  "libVersion": "2.30.0",
+  "libVersion": "3.15.2",
   "appid": "wx1ab3f3b5ab303682",
   "projectname": "vanmoly-miniapp",
   "isGameTourist": false,

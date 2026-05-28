@@ -1,106 +1,127 @@
+const app = getApp()
+
 Page({
   data: {
+    userName: '',
+    userRole: '',        // admin, manager, employee
+    isAdmin: false,
+    canApprove: false,   // 有审核权限
+    canManageTeam: false, // 有团队管理权限
     stats: {
-      customers: 0,
-      quotes: 0,
-      orders: 0,
-      revenue: 0
-    },
-    backendStatus: '检测中...',
-    dbStatus: '检测中...'
+      pendingLeads: 0,
+      myTasks: 0,
+      pendingApprovals: 0,
+      workflowApprovals: 0,
+      quoteApprovals: 0,
+      contractApprovals: 0,
+      pointsApprovals: 0
+    }
   },
 
   onLoad() {
-    this.checkSystemStatus()
+    this.loadUserInfo()
     this.loadStats()
   },
 
   onShow() {
-    this.checkSystemStatus()
     this.loadStats()
   },
 
-  // 检查系统状态
-  checkSystemStatus() {
-    wx.request({
-      url: 'http://127.0.0.1:5000/',
-      method: 'GET',
-      timeout: 5000,
-      success: (res) => {
-        if (res.statusCode === 200) {
-          this.setData({
-            backendStatus: '正常',
-            dbStatus: '正常'
-          })
-        } else {
-          this.setData({
-            backendStatus: '异常',
-            dbStatus: '未知'
-          })
-        }
-      },
-      fail: () => {
-        this.setData({
-          backendStatus: '离线',
-          dbStatus: '未知'
-        })
-      }
-    })
+  // 加载用户信息
+  loadUserInfo() {
+    // 从本地存储获取登录信息
+    const userInfo = wx.getStorageSync('adminUserInfo')
+    if (userInfo) {
+      const isAdmin = userInfo.role === 'admin'
+      const canApprove = isAdmin || userInfo.role === 'manager' || userInfo.permissions?.includes('approve')
+      const canManageTeam = isAdmin || userInfo.permissions?.includes('manage_team')
+      
+      this.setData({
+        userName: userInfo.name || userInfo.username || '',
+        userRole: userInfo.role || '',
+        isAdmin,
+        canApprove,
+        canManageTeam
+      })
+    } else {
+      // 未登录，跳转到登录页
+      this.goToLogin()
+    }
   },
 
   // 加载统计数据
   loadStats() {
-    // 模拟数据
-    this.setData({
-      stats: {
-        customers: 128,
-        quotes: 256,
-        orders: 32,
-        revenue: '128.5万'
-      }
-    })
+    const token = wx.getStorageSync('adminToken')
+    if (!token) return
 
-    // 实际 API 调用：
-    // wx.request({
-    //   url: 'http://127.0.0.1:5000/api/v3/admin/dashboard',
-    //   header: {
-    //     'Authorization': 'Bearer ' + wx.getStorageSync('token')
-    //   },
-    //   success: (res) => {
-    //     if (res.statusCode === 200) {
-    //       this.setData({ stats: res.data })
-    //     }
-    //   }
-    // })
-  },
-
-  // 跳转到 Web 端页面
-  goToWeb(e) {
-    const path = e.currentTarget.dataset.path
-    // 复制 Web 端链接到剪贴板，提示用户在浏览器中打开
-    wx.setClipboardData({
-      data: `http://localhost:3000/#${path}`,
-      success: () => {
-        wx.showModal({
-          title: '提示',
-          content: '链接已复制到剪贴板，请在浏览器中打开 Web 管理后台',
-          showCancel: false
+    app.request({
+      url: '/admin/dashboard-stats',
+      header: { 'Authorization': `Bearer ${token}` },
+      success: (res) => {
+        if (res) {
+          this.setData({ stats: res })
+        }
+      },
+      fail: () => {
+        // 使用模拟数据
+        this.setData({
+          stats: {
+            pendingLeads: 12,
+            myTasks: 8,
+            pendingApprovals: 5,
+            workflowApprovals: 2,
+            quoteApprovals: 3,
+            contractApprovals: 1,
+            pointsApprovals: 0
+          }
         })
       }
     })
   },
 
-  // 打开 Web 管理后台
-  openWebAdmin() {
-    wx.setClipboardData({
-      data: 'http://localhost:3000',
-      success: () => {
-        wx.showModal({
-          title: '提示',
-          content: 'Web 后台地址已复制到剪贴板，请在浏览器中打开',
-          showCancel: false
-        })
-      }
-    })
+  // 跳转到子页面
+  goToPage(e) {
+    const page = e.currentTarget.dataset.page
+    const pageMap = {
+      // 日常工作
+      'node-report': '/pages/admin-node-report/index',
+      'lead-create': '/pages/admin-lead-create/index',
+      'lead-follow': '/pages/admin-lead-follow/index',
+      'customer-follow': '/pages/admin-customer-follow/index',
+      // 信息管理
+      'customer-create': '/pages/admin-customer-create/index',
+      'buildings': '/pages/admin-buildings/index',
+      'case-share': '/pages/admin-case-share/index',
+      // 审核管理
+      'workflow-mgmt': '/pages/admin-workflow-mgmt/index',
+      'approval-workflow': '/pages/admin-approval/index?type=workflow',
+      'approval-quote': '/pages/admin-approval/index?type=quote',
+      'approval-contract': '/pages/admin-approval/index?type=contract',
+      'approval-points': '/pages/admin-approval/index?type=points',
+      // 团队管理
+      'employees': '/pages/admin-employees/index',
+      'task-assign': '/pages/admin-task-assign/index',
+      // 管理员
+      'settings': '/pages/admin-settings/index',
+      'reports': '/pages/admin-reports/index'
+    }
+
+    const url = pageMap[page]
+    if (url) {
+      wx.navigateTo({ url })
+    } else {
+      wx.showToast({ title: '功能开发中', icon: 'none' })
+    }
+  },
+
+  // 跳转登录
+  goToLogin() {
+    wx.navigateTo({ url: '/pages/admin-login/index' })
+  },
+
+  // 下拉刷新
+  onPullDownRefresh() {
+    this.loadStats()
+    wx.stopPullDownRefresh()
   }
 })

@@ -1,0 +1,351 @@
+/* 节点填报 */
+
+.page {
+  min-height: 100vh;
+  background: #0a0a1a;
+  padding: 24rpx;
+}
+
+.section {
+  margin-bottom: 32rpx;
+}
+
+.sec-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: rgba(255,255,255,0.6);
+  margin-bottom: 20rpx;
+  display: block;
+}
+
+/* 搜索栏 */
+.search-bar {
+  background: rgba(255,255,255,0.06);
+  border-radius: 12rpx;
+  padding: 16rpx 24rpx;
+  margin-bottom: 24rpx;
+}
+
+.search-bar input {
+  color: #fff;
+  font-size: 28rpx;
+}
+
+/* 案例列表 */
+.case-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16rpx;
+}
+
+.case-item {
+  display: flex;
+  gap: 16rpx;
+  background: rgba(255,255,255,0.04);
+  border-radius: 12rpx;
+  padding: 16rpx;
+}
+
+.case-cover {
+  width: 120rpx;
+  height: 90rpx;
+  border-radius: 8rpx;
+}
+
+.case-info {
+  flex: 1;
+}
+
+.case-title {
+  font-size: 28rpx;
+  color: #fff;
+  display: block;
+}
+
+.case-customer {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 8rpx;
+}
+
+/* 节点列表 */
+.node-group {
+  margin-bottom: 24rpx;
+}
+
+.ng-title {
+  font-size: 26rpx;
+  color: #D4AF37;
+  margin-bottom: 12rpx;
+  display: block;
+}
+
+.ng-nodes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+}
+
+.node-item {
+  padding: 16rpx 24rpx;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8rpx;
+  border: 1rpx solid rgba(255,255,255,0.1);
+}
+
+.node-item.completed {
+  border-color: rgba(82,196,26,0.4);
+}
+
+.node-item.ongoing {
+  border-color: rgba(24,144,255,0.4);
+}
+
+.node-item:active {
+  background: rgba(255,255,255,0.08);
+}
+
+.ni-name {
+  font-size: 24rpx;
+  color: #fff;
+  display: block;
+}
+
+.ni-status {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.4);
+  margin-top: 4rpx;
+}
+
+/* 表单 */
+.form-section {
+  background: rgba(255,255,255,0.02);
+  border-radius: 16rpx;
+  padding: 32rpx;
+}
+
+.form-header {
+  margin-bottom: 32rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid rgba(255,255,255,0.08);
+}
+
+.fh-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #fff;
+  display: block;
+}
+
+.fh-case {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 8rpx;
+}
+
+.form-group {
+  margin-bottom: 32rpx;
+}
+
+.fg-label {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 16rpx;
+  display: block;
+}
+
+/* 照片网格 */
+.photo-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+}
+
+.photo-item {
+  width: 160rpx;
+  height: 160rpx;
+  position: relative;
+}
+
+.photo-img {
+  width: 100%;
+  height: 100%;
+  border-radius: 8rpx;
+}
+
+.photo-remove {
+  position: absolute;
+  top: -8rpx;
+  right: -8rpx;
+  width: 36rpx;
+  height: 36rpx;
+  background: #f5222d;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 24rpx;
+}
+
+.photo-add {
+  width: 160rpx;
+  height: 160rpx;
+  background: rgba(255,255,255,0.06);
+  border: 1rpx dashed rgba(255,255,255,0.2);
+  border-radius: 8rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.pa-icon {
+  font-size: 40rpx;
+}
+
+.pa-text {
+  font-size: 20rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 8rpx;
+}
+
+/* 视频 */
+.video-area {
+  margin-top: 16rpx;
+}
+
+.video-item {
+  position: relative;
+}
+
+.video-preview {
+  width: 100%;
+  height: 300rpx;
+  border-radius: 8rpx;
+}
+
+.video-remove {
+  position: absolute;
+  top: 16rpx;
+  right: 16rpx;
+  width: 48rpx;
+  height: 48rpx;
+  background: rgba(0,0,0,0.6);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 28rpx;
+}
+
+.video-add {
+  padding: 48rpx;
+  background: rgba(255,255,255,0.06);
+  border: 1rpx dashed rgba(255,255,255,0.2);
+  border-radius: 8rpx;
+  text-align: center;
+}
+
+.va-icon {
+  font-size: 64rpx;
+}
+
+.va-text {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.5);
+  margin-top: 16rpx;
+  display: block;
+}
+
+/* 报告输入 */
+.report-input {
+  width: 100%;
+  height: 240rpx;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8rpx;
+  padding: 16rpx;
+  color: #fff;
+  font-size: 28rpx;
+  box-sizing: border-box;
+}
+
+/* 文件列表 */
+.file-list {
+  margin-bottom: 16rpx;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  gap: 12rpx;
+  padding: 16rpx;
+  background: rgba(255,255,255,0.04);
+  border-radius: 8rpx;
+  margin-bottom: 8rpx;
+}
+
+.fi-icon {
+  font-size: 28rpx;
+}
+
+.fi-name {
+  flex: 1;
+  font-size: 24rpx;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.fi-remove {
+  color: #f5222d;
+  font-size: 28rpx;
+}
+
+.file-actions {
+  display: flex;
+  gap: 16rpx;
+}
+
+.fa-btn {
+  flex: 1;
+  padding: 20rpx;
+  background: rgba(255,255,255,0.06);
+  border-radius: 8rpx;
+  text-align: center;
+}
+
+.fa-btn text {
+  font-size: 24rpx;
+  color: rgba(255,255,255,0.7);
+}
+
+/* 提交 */
+.submit-section {
+  margin-top: 48rpx;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #D4AF37 0%, #B8962E 100%);
+  border-radius: 12rpx;
+  padding: 28rpx;
+  text-align: center;
+}
+
+.submit-btn text {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0a0a1a;
+}
+
+.save-draft {
+  text-align: center;
+  padding: 24rpx;
+}
+
+.save-draft text {
+  font-size: 26rpx;
+  color: rgba(255,255,255,0.5);
+}

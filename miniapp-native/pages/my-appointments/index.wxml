@@ -1,0 +1,83 @@
+<!-- 我的预约 -->
+<view class="page">
+  <!-- 顶部Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeStatus === 'all' ? 'active' : ''}}" bindtap="switchStatus" data-status="all">
+      <text>全部</text>
+    </view>
+    <view class="tab-item {{activeStatus === 'pending' ? 'active' : ''}}" bindtap="switchStatus" data-status="pending">
+      <text>待确认</text>
+      <view class="tab-dot" wx:if="{{pendingCount > 0}}"></view>
+    </view>
+    <view class="tab-item {{activeStatus === 'confirmed' ? 'active' : ''}}" bindtap="switchStatus" data-status="confirmed">
+      <text>已确认</text>
+    </view>
+    <view class="tab-item {{activeStatus === 'completed' ? 'active' : ''}}" bindtap="switchStatus" data-status="completed">
+      <text>已完成</text>
+    </view>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && appointments.length === 0}}">
+    <text class="empty-icon">📅</text>
+    <text class="empty-title">暂无预约</text>
+    <text class="empty-desc">预约设计师上门量房或咨询服务</text>
+    <view class="empty-btn" bindtap="goAppointment">
+      <text>立即预约</text>
+    </view>
+  </view>
+
+  <!-- 预约列表 -->
+  <view class="appointment-list" wx:else>
+    <view class="appointment-card" wx:for="{{appointments}}" wx:key="id">
+      <view class="ac-header">
+        <view class="ac-status {{item.status}}">
+          <text>{{item.statusText}}</text>
+        </view>
+        <text class="ac-time">{{item.createdAt}}</text>
+      </view>
+      <view class="ac-content" bindtap="goToDetail" data-id="{{item.id}}">
+        <view class="ac-row">
+          <text class="acr-label">预约类型</text>
+          <text class="acr-value">{{item.serviceType || '全案咨询'}}</text>
+        </view>
+        <view class="ac-row">
+          <text class="acr-label">预约时间</text>
+          <text class="acr-value highlight">{{item.appointmentTime}}</text>
+        </view>
+        <view class="ac-row">
+          <text class="acr-label">服务地址</text>
+          <text class="acr-value">{{item.address || '-'}}</text>
+        </view>
+        <view class="ac-row" wx:if="{{item.designerName}}">
+          <text class="acr-label">设计师</text>
+          <text class="acr-value">{{item.designerName}}</text>
+        </view>
+      </view>
+      <view class="ac-actions">
+        <view class="aca-btn" wx:if="{{item.status === 'pending'}}" catchtap="cancelAppointment" data-id="{{item.id}}">
+          <text>取消预约</text>
+        </view>
+        <view class="aca-btn primary" wx:if="{{item.status === 'pending'}}" catchtap="confirmAppointment" data-id="{{item.id}}">
+          <text>修改时间</text>
+        </view>
+        <view class="aca-btn" wx:if="{{item.status === 'completed'}}" catchtap="goToDetail" data-id="{{item.id}}">
+          <text>查看详情</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部新建按钮 -->
+  <view class="bottom-bar">
+    <view class="create-btn" bindtap="goAppointment">
+      <text>+ 新建预约</text>
+    </view>
+  </view>
+</view>

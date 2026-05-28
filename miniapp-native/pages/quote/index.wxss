@@ -1,33 +1,32 @@
-.container {
-  background-color: #f5f5f5;
+/* 报价列表 - 暗黑深空风格 */
+.page {
+  background: #0a0a1a;
   min-height: 100vh;
-  padding: 20rpx;
+  padding: 24rpx 24rpx 40rpx;
 }
 
-/* 页面头部 */
 .page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20rpx;
+  margin-bottom: 24rpx;
 }
 
 .page-title {
-  font-size: 36rpx;
-  font-weight: bold;
-  color: #333;
+  font-size: 40rpx;
+  font-weight: 700;
+  color: #FFFFFF;
 }
 
 .create-btn {
-  background: #8B5A2B;
-  color: #fff;
+  background: #D4AF37;
+  color: #0a0a1a;
   font-size: 26rpx;
-  padding: 16rpx 30rpx;
-  border-radius: 30rpx;
-  border: none;
+  font-weight: 600;
+  padding: 12rpx 28rpx;
+  border-radius: 28rpx;
 }
 
-/* 报价列表 */
 .quote-list {
   display: flex;
   flex-direction: column;
@@ -35,148 +34,130 @@
 }
 
 .quote-card {
-  background: #fff;
-  border-radius: 16rpx;
-  padding: 30rpx;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 20rpx;
+  padding: 28rpx;
 }
 
-.quote-header {
+.qc-top {
   display: flex;
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20rpx;
   padding-bottom: 20rpx;
-  border-bottom: 1rpx solid #f5f5f5;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
-.quote-no {
+.qc-no {
   font-size: 28rpx;
-  font-weight: bold;
-  color: #333;
+  font-weight: 600;
+  color: #FFFFFF;
 }
 
-.quote-status {
-  font-size: 24rpx;
-  padding: 8rpx 16rpx;
+.qc-status-badge {
+  font-size: 22rpx;
+  padding: 6rpx 16rpx;
   border-radius: 20rpx;
+  font-weight: 500;
 }
 
-.quote-status.draft {
-  background: #f5f5f5;
-  color: #666;
-}
+.qc-status-badge.draft { background: rgba(255,255,255,0.06); color: #A0A0B8; }
+.qc-status-badge.sent { background: rgba(24,144,255,0.15); color: #1890ff; }
+.qc-status-badge.confirmed { background: rgba(82,196,26,0.15); color: #52c41a; }
+.qc-status-badge.signed { background: rgba(82,196,26,0.15); color: #52c41a; }
+.qc-status-badge.expired { background: rgba(245,34,45,0.15); color: #ff4d4f; }
 
-.quote-status.sent {
-  background: #e6f7ff;
-  color: #1890ff;
-}
-
-.quote-status.confirmed {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.quote-status.signed {
-  background: #f6ffed;
-  color: #52c41a;
-}
-
-.quote-status.expired {
-  background: #fff1f0;
-  color: #f5222d;
-}
-
-/* 报价内容 */
-.quote-body {
+.qc-info {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
   margin-bottom: 20rpx;
 }
 
-.info-row {
+.qc-row {
   display: flex;
-  margin-bottom: 12rpx;
 }
 
-.info-row:last-child {
-  margin-bottom: 0;
+.qr-label {
+  font-size: 26rpx;
+  color: #606080;
+  width: 100rpx;
 }
 
-.label {
-  font-size: 28rpx;
-  color: #999;
-  width: 120rpx;
+.qr-val {
+  font-size: 26rpx;
+  color: #E8E8E8;
 }
 
-.value {
-  font-size: 28rpx;
-  color: #333;
-  flex: 1;
+.qr-val.amount {
+  color: #D4AF37;
+  font-weight: 600;
 }
 
-.value.amount {
-  color: #f5222d;
-  font-weight: bold;
-}
-
-/* 报价底部 */
-.quote-footer {
+.qc-footer {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding-top: 20rpx;
-  border-top: 1rpx solid #f5f5f5;
+  padding-top: 16rpx;
+  border-top: 1px solid rgba(255,255,255,0.04);
 }
 
-.creator {
-  font-size: 24rpx;
-  color: #999;
+.qc-creator {
+  font-size: 22rpx;
+  color: #606080;
 }
 
-.actions {
+.qc-actions {
   display: flex;
-  gap: 20rpx;
+  gap: 16rpx;
 }
 
-.action {
-  font-size: 26rpx;
-  color: #8B5A2B;
-  padding: 8rpx 16rpx;
+.qa-btn {
+  padding: 8rpx 20rpx;
+  border: 1px solid rgba(212,175,55,0.3);
+  border-radius: 20rpx;
 }
 
-/* 空状态 */
+.qa-btn text {
+  font-size: 24rpx;
+  color: #D4AF37;
+}
+
 .empty-state {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 100rpx 40rpx;
+  padding: 120rpx 40rpx;
 }
 
-.empty-icon {
+.es-icon {
   font-size: 120rpx;
   margin-bottom: 20rpx;
 }
 
-.empty-text {
+.es-text {
   font-size: 30rpx;
-  color: #999;
-  margin-bottom: 30rpx;
+  color: #606080;
+  display: block;
+  margin-bottom: 32rpx;
 }
 
-.empty-btn {
-  background: #8B5A2B;
-  color: #fff;
+.es-btn {
+  background: #D4AF37;
+  color: #0a0a1a;
   font-size: 28rpx;
+  font-weight: 600;
   padding: 20rpx 60rpx;
   border-radius: 40rpx;
-  border: none;
 }
 
-/* 加载更多 */
 .load-more {
   text-align: center;
-  padding: 40rpx;
+  padding: 40rpx 0;
 }
 
-.load-more text {
-  color: #8B5A2B;
-  font-size: 28rpx;
+.lm-text {
+  font-size: 26rpx;
+  color: #D4AF37;
 }

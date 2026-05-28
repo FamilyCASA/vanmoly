@@ -1,5 +1,5 @@
 <template>
-  <nav class="navbar" :class="{ 'scrolled': scrolled, 'transparent': isHome && !scrolled }">
+  <nav class="navbar" :class="{ 'scrolled': scrolled, 'transparent': isTransparent && !scrolled, 'scroll-away': props.stickyHide }">
     <div class="nav-container">
       <div class="nav-brand" @click="goHome">
         <div class="logo-mark">
@@ -17,14 +17,17 @@
       </div>
       
       <div class="nav-menu">
-        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' }">首页</router-link>
-        <router-link to="/cases" class="nav-link" :class="{ active: $route.path.startsWith('/cases') }">案例</router-link>
-        <router-link to="/products" class="nav-link" :class="{ active: $route.path.startsWith('/products') }">产品</router-link>
-        <router-link to="/book" class="nav-link" :class="{ active: $route.path === '/book' }">预约</router-link>
-      </div>
-      
-      <div class="nav-actions">
-        <SelectionButton />
+        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' && !$route.hash }">首页</router-link>
+        <a href="/#services" class="nav-link">全案服务</a>
+        <a href="/#process" class="nav-link">全案流程</a>
+        <a href="/#cases" class="nav-link">精选案例</a>
+        <a href="/#about" class="nav-link">关于设记家</a>
+        <a href="/#partner" class="nav-link">合作品牌</a>
+        <a href="/#contact" class="nav-link">联系我们</a>
+        <router-link to="/book" class="nav-link" :class="{ active: $route.path === '/book' }">预约中心</router-link>
+        <router-link to="/cases" class="nav-link" :class="{ active: $route.path.startsWith('/cases') }">案例中心</router-link>
+        <router-link to="/proposals" class="nav-link" :class="{ active: $route.path.startsWith('/proposals') || $route.path.startsWith('/slides') }">提案中心</router-link>
+        <router-link to="/products" class="nav-link" :class="{ active: $route.path.startsWith('/products') }">产品中心</router-link>
       </div>
       
       <!-- 移动端菜单按钮 -->
@@ -36,10 +39,16 @@
     <!-- 移动端菜单 -->
     <div class="mobile-menu" :class="{ 'open': mobileMenuOpen }">
       <router-link to="/" @click="mobileMenuOpen = false">首页</router-link>
-      <router-link to="/cases" @click="mobileMenuOpen = false">案例</router-link>
-      <router-link to="/products" @click="mobileMenuOpen = false">产品</router-link>
-      <a href="javascript:void(0)" @click="goToSelection">我的选品</a>
-      <router-link to="/book" @click="mobileMenuOpen = false">预约量尺</router-link>
+      <a href="/#services" @click="mobileMenuOpen = false">全案服务</a>
+      <a href="/#process" @click="mobileMenuOpen = false">全案流程</a>
+      <a href="/#cases" @click="mobileMenuOpen = false">精选案例</a>
+      <a href="/#about" @click="mobileMenuOpen = false">关于设记家</a>
+      <a href="/#partner" @click="mobileMenuOpen = false">合作品牌</a>
+      <a href="/#contact" @click="mobileMenuOpen = false">联系我们</a>
+      <router-link to="/book" @click="mobileMenuOpen = false">预约中心</router-link>
+      <router-link to="/cases" @click="mobileMenuOpen = false">案例中心</router-link>
+      <router-link to="/proposals" @click="mobileMenuOpen = false">提案中心</router-link>
+      <router-link to="/products" @click="mobileMenuOpen = false">产品中心</router-link>
     </div>
   </nav>
 </template>
@@ -55,10 +64,19 @@ const router = useRouter()
 const scrolled = ref(false)
 const mobileMenuOpen = ref(false)
 
-const isHome = computed(() => route.path === '/')
+const props = defineProps({
+  // 沉浸式选品模式：筛选栏锁定时 Navbar 也跟随页面滚走
+  stickyHide: {
+    type: Boolean,
+    default: false
+  }
+})
+
+const isTransparent = computed(() => route.meta.hasHero === true)
 
 const handleScroll = () => {
-  scrolled.value = window.scrollY > 50
+  // Hero section is min-height: 100vh - transparent until scrolled past hero
+  scrolled.value = window.scrollY > (window.innerHeight > 0 ? window.innerHeight : 900)
 }
 
 const goHome = () => {
@@ -94,8 +112,8 @@ onUnmounted(() => {
   right: 0;
   z-index: 1000;
   transition: all 0.3s ease;
-  background: #fff;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  background: var(--bg-surface, #1a1a2e);
+  box-shadow: var(--shadow, 0 2px 20px rgba(0,0,0,0.6));
 }
 
 .navbar.transparent {
@@ -104,8 +122,15 @@ onUnmounted(() => {
 }
 
 .navbar.scrolled {
-  background: #fff;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.08);
+  background: var(--bg-elevated, #16213e);
+  box-shadow: var(--shadow, 0 2px 20px rgba(0,0,0,0.8));
+}
+
+/* 沉浸式选品：筛选栏锁定时，Navbar 跟随页面滚走 */
+.navbar.scroll-away {
+  transition: transform 0.4s ease, opacity 0.4s ease;
+  transform: translateY(-100%);
+  opacity: 0;
 }
 
 .nav-container {
@@ -131,20 +156,7 @@ onUnmounted(() => {
 .logo-icon {
   width: 40px;
   height: 40px;
-  color: #1a1a1a;
-}
-
-.navbar.transparent .logo-icon {
-  color: #fff;
-}
-
-.navbar.scrolled .logo-icon {
-  color: #1a1a1a;
-}
-
-.logo-icon svg {
-  width: 100%;
-  height: 100%;
+  color: var(--text-title, #FFFFFF);
 }
 
 .logo-text {
@@ -155,30 +167,14 @@ onUnmounted(() => {
 .brand-name {
   font-size: 20px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: var(--text-title, #FFFFFF);
   letter-spacing: 2px;
-}
-
-.navbar.transparent .brand-name {
-  color: #fff;
-}
-
-.navbar.scrolled .brand-name {
-  color: #1a1a1a;
 }
 
 .brand-tag {
   font-size: 10px;
-  color: #999;
+  color: var(--text-secondary, #A0A0B8);
   letter-spacing: 3px;
-}
-
-.navbar.transparent .brand-tag {
-  color: rgba(255,255,255,0.7);
-}
-
-.navbar.scrolled .brand-tag {
-  color: #999;
 }
 
 .nav-menu {
@@ -189,33 +185,15 @@ onUnmounted(() => {
 
 .nav-link {
   font-size: 15px;
-  color: #666;
+  color: var(--text-secondary, #A0A0B8);
   text-decoration: none;
   transition: color 0.3s;
   position: relative;
 }
 
-.navbar.transparent .nav-link {
-  color: rgba(255,255,255,0.8);
-}
-
-.navbar.scrolled .nav-link {
-  color: #666;
-}
-
 .nav-link:hover,
 .nav-link.active {
-  color: #1a1a1a;
-}
-
-.navbar.transparent .nav-link:hover,
-.navbar.transparent .nav-link.active {
-  color: #fff;
-}
-
-.navbar.scrolled .nav-link:hover,
-.navbar.scrolled .nav-link.active {
-  color: #1a1a1a;
+  color: var(--text-title, #FFFFFF);
 }
 
 .nav-link::after {
@@ -225,7 +203,7 @@ onUnmounted(() => {
   left: 0;
   width: 0;
   height: 2px;
-  background: currentColor;
+  background: var(--primary, #409EFF);
   transition: width 0.3s;
 }
 
@@ -240,12 +218,30 @@ onUnmounted(() => {
   gap: 16px;
 }
 
+.action-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary, #E8E8E8);
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  transition: all 0.3s;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
 .btn-primary {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 12px 24px;
-  background: #1a1a1a;
+  background: var(--primary, #409EFF);
   color: #fff;
   border-radius: 8px;
   font-size: 14px;
@@ -255,7 +251,7 @@ onUnmounted(() => {
 }
 
 .btn-primary:hover {
-  background: #333;
+  background: var(--primary-dark, #2a6cb0);
   transform: translateY(-2px);
 }
 
@@ -274,18 +270,10 @@ onUnmounted(() => {
   display: block;
   width: 24px;
   height: 2px;
-  background: #1a1a1a;
+  background: var(--text-primary, #E8E8E8);
   position: absolute;
   left: 4px;
   transition: all 0.3s;
-}
-
-.navbar.transparent .menu-toggle span {
-  background: #fff;
-}
-
-.navbar.scrolled .menu-toggle span {
-  background: #1a1a1a;
 }
 
 .menu-toggle span::before,
@@ -314,13 +302,13 @@ onUnmounted(() => {
 .menu-toggle span.open::before {
   transform: rotate(45deg);
   top: 0;
-  background: #1a1a1a;
+  background: var(--text-primary, #E8E8E8);
 }
 
 .menu-toggle span.open::after {
   transform: rotate(-45deg);
   top: 0;
-  background: #1a1a1a;
+  background: var(--text-primary, #E8E8E8);
 }
 
 /* 移动端菜单 */
@@ -330,11 +318,11 @@ onUnmounted(() => {
   top: 80px;
   left: 0;
   right: 0;
-  background: #fff;
+  background: var(--bg-surface, #1a1a2e);
   flex-direction: column;
   padding: 24px;
   gap: 16px;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
   transform: translateY(-100%);
   opacity: 0;
   visibility: hidden;
@@ -349,10 +337,10 @@ onUnmounted(() => {
 
 .mobile-menu a {
   font-size: 16px;
-  color: #333;
+  color: var(--text-primary, #E8E8E8);
   text-decoration: none;
   padding: 12px 0;
-  border-bottom: 1px solid #eee;
+  border-bottom: 1px solid var(--border, #2a2a3e);
 }
 
 .mobile-menu .btn-primary {

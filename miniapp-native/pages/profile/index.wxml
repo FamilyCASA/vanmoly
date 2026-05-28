@@ -1,118 +1,247 @@
-<view class="container">
-  <!-- 用户信息 -->
+<!-- 我的 - 暗黑深空风格 - 完整版 -->
+<view class="page">
+
+  <!-- 用户头部 -->
   <view class="user-header">
+    <view class="user-bg"></view>
     <view class="user-info">
-      <view class="avatar">{{userInfo.nickName ? userInfo.nickName[0] : '?'}}</view>
+      <view class="avatar-wrap" bindtap="goToProfile">
+        <image class="avatar-img" src="{{userInfo.avatar}}" wx:if="{{userInfo.avatar}}" mode="aspectFill"/>
+        <view class="avatar-placeholder" wx:else>{{userInfo.nickName ? userInfo.nickName[0] : '?'}}</view>
+        <view class="avatar-vip" wx:if="{{userInfo.isVip}}">VIP</view>
+      </view>
       <view class="user-meta">
         <text class="nickname">{{userInfo.nickName || '未登录'}}</text>
-        <text class="role" wx:if="{{userInfo.role}}">{{userInfo.role}}</text>
+        <view class="user-tags">
+          <text class="role" wx:if="{{userInfo.roleName}}">{{userInfo.roleName}}</text>
+          <text class="role visitor" wx:elif="{{!isLoggedIn}}">访客</text>
+          <text class="level" wx:if="{{userInfo.level}}">Lv.{{userInfo.level}}</text>
+        </view>
+        <view class="user-stats" wx:if="{{isLoggedIn}}">
+          <view class="us-item" bindtap="goToPoints">
+            <text class="us-value">{{points}}</text>
+            <text class="us-label">积分</text>
+          </view>
+          <view class="us-divider"></view>
+          <view class="us-item" bindtap="goToCoupons">
+            <text class="us-value">{{couponCount}}</text>
+            <text class="us-label">优惠券</text>
+          </view>
+          <view class="us-divider"></view>
+          <view class="us-item" bindtap="goToCollections">
+            <text class="us-value">{{collectCount}}</text>
+            <text class="us-label">收藏</text>
+          </view>
+        </view>
       </view>
     </view>
-    <button class="login-btn" wx:if="{{!isLoggedIn}}" bindtap="login">点击登录</button>
-  </view>
-
-  <!-- 数据概览 -->
-  <view class="stats-card" wx:if="{{isLoggedIn}}">
-    <view class="stat-item">
-      <text class="stat-num">{{stats.quotes || 0}}</text>
-      <text class="stat-label">我的报价</text>
+    <view class="login-btn" wx:if="{{!isLoggedIn}}" bindtap="login">
+      <text>点击登录</text>
     </view>
-    <view class="stat-item">
-      <text class="stat-num">{{stats.orders || 0}}</text>
-      <text class="stat-label">进行中</text>
-    </view>
-    <view class="stat-item">
-      <text class="stat-num">{{stats.completed || 0}}</text>
-      <text class="stat-label">已完成</text>
-    </view>
-  </view>
-
-  <!-- 功能菜单 -->
-  <view class="menu-section">
-    <view class="menu-title">我的服务</view>
-    <view class="menu-list">
-      <view class="menu-item" bindtap="goToSelection">
-        <view class="menu-left">
-          <text class="menu-icon">🛒</text>
-          <text class="menu-name">我的选品</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="goToQuotes">
-        <view class="menu-left">
-          <text class="menu-icon">📋</text>
-          <text class="menu-name">我的报价</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="goToWorkflow">
-        <view class="menu-left">
-          <text class="menu-icon">📊</text>
-          <text class="menu-name">项目进度</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="goToSignature">
-        <view class="menu-left">
-          <text class="menu-icon">✍️</text>
-          <text class="menu-name">电子签名</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
+    <view class="settings-btn" wx:else bindtap="goToSettings">
+      <text>⚙</text>
     </view>
   </view>
 
-  <!-- 后台管理入口（仅员工可见） -->
-  <view class="menu-section" wx:if="{{isStaff}}">
-    <view class="menu-title">后台管理</view>
-    <view class="menu-list">
-      <view class="menu-item" bindtap="goToAdmin">
-        <view class="menu-left">
-          <text class="menu-icon">⚙️</text>
-          <text class="menu-name">管理后台</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="goToCustomers">
-        <view class="menu-left">
-          <text class="menu-icon">👥</text>
-          <text class="menu-name">客户管理</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="goToMaterials">
-        <view class="menu-left">
-          <text class="menu-icon">📦</text>
-          <text class="menu-name">物料管理</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
+  <!-- 快捷入口 -->
+  <view class="quick-actions" wx:if="{{isLoggedIn}}">
+    <view class="qa-item" bindtap="goToOrders">
+      <view class="qa-icon">📋</view>
+      <text class="qa-name">我的订单</text>
+    </view>
+    <view class="qa-item" bindtap="goToAppointments">
+      <view class="qa-icon">📅</view>
+      <text class="qa-name">我的预约</text>
+      <view class="qa-dot" wx:if="{{pendingAppointments > 0}}"></view>
+    </view>
+    <view class="qa-item" bindtap="goToSelection">
+      <view class="qa-icon">🛒</view>
+      <text class="qa-name">选品单</text>
+      <view class="qa-badge" wx:if="{{selectionCount > 0}}"><text>{{selectionCount}}</text></view>
+    </view>
+    <view class="qa-item" bindtap="goToSchemes">
+      <view class="qa-icon">📐</view>
+      <text class="qa-name">我的方案</text>
     </view>
   </view>
 
-  <!-- 设置 -->
-  <view class="menu-section">
-    <view class="menu-title">设置</view>
-    <view class="menu-list">
-      <view class="menu-item" bindtap="contactService">
-        <view class="menu-left">
-          <text class="menu-icon">💬</text>
-          <text class="menu-name">联系客服</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
-      <view class="menu-item" bindtap="aboutUs">
-        <view class="menu-left">
-          <text class="menu-icon">ℹ️</text>
-          <text class="menu-name">关于我们</text>
-        </view>
-        <text class="arrow">></text>
-      </view>
+  <!-- 我的服务 -->
+  <view class="menu-group">
+    <view class="menu-title-bar">
+      <text class="mt-text">我的服务</text>
+    </view>
+    <view class="menu-item" bindtap="goToProfile">
+      <view class="mi-icon">👤</view>
+      <text class="mi-name">个人资料</text>
+      <text class="mi-desc" wx:if="{{!userInfo.phone}}">未绑定手机</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToEstates">
+      <view class="mi-icon">🏠</view>
+      <text class="mi-name">我的房产</text>
+      <text class="mi-desc" wx:if="{{estateCount > 0}}">{{estateCount}}套</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToContracts">
+      <view class="mi-icon">📄</view>
+      <text class="mi-name">我的合同</text>
+      <text class="mi-desc" wx:if="{{contractCount > 0}}">{{contractCount}}份</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToQuotes">
+      <view class="mi-icon">💰</view>
+      <text class="mi-name">我的报价</text>
+      <text class="mi-desc" wx:if="{{quoteCount > 0}}">{{quoteCount}}份</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToSubscriptions">
+      <view class="mi-icon">🔔</view>
+      <text class="mi-name">我的订阅</text>
+      <text class="mi-desc" wx:if="{{subCount > 0}}">{{subCount}}个</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 内容管理 -->
+  <view class="menu-group">
+    <view class="menu-title-bar">
+      <text class="mt-text">内容管理</text>
+    </view>
+    <view class="menu-item" bindtap="goToCollections">
+      <view class="mi-icon">⭐</view>
+      <text class="mi-name">我的收藏</text>
+      <text class="mi-desc" wx:if="{{collectCount > 0}}">{{collectCount}}项</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToHistory">
+      <view class="mi-icon">🕐</view>
+      <text class="mi-name">浏览历史</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToNotes">
+      <view class="mi-icon">📝</view>
+      <text class="mi-name">我的笔记</text>
+      <text class="mi-desc" wx:if="{{noteCount > 0}}">{{noteCount}}篇</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToComments">
+      <view class="mi-icon">💬</view>
+      <text class="mi-name">我的评论</text>
+      <text class="mi-desc" wx:if="{{commentCount > 0}}">{{commentCount}}条</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 会员权益 -->
+  <view class="menu-group">
+    <view class="menu-title-bar">
+      <text class="mt-text">会员权益</text>
+    </view>
+    <view class="menu-item" bindtap="goToPoints">
+      <view class="mi-icon">💎</view>
+      <text class="mi-name">我的积分</text>
+      <text class="mi-desc highlight">{{points}}分</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToCoupons">
+      <view class="mi-icon">🎫</view>
+      <text class="mi-name">优惠券</text>
+      <text class="mi-desc" wx:if="{{couponCount > 0}}">{{couponCount}}张可用</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToVip">
+      <view class="mi-icon">👑</view>
+      <text class="mi-name">会员中心</text>
+      <text class="mi-desc" wx:if="{{userInfo.isVip}}">VIP会员</text>
+      <text class="mi-desc" wx:else>开通享特权</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 后台管理（员工可见） -->
+  <view class="menu-group" wx:if="{{isLoggedIn && userInfo.isEmployee}}">
+    <view class="menu-title-bar">
+      <text class="mt-text">后台管理</text>
+      <text class="mt-badge">员工</text>
+    </view>
+    <view class="menu-item" bindtap="goToAdmin">
+      <view class="mi-icon">🎛️</view>
+      <text class="mi-name">工作台</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToNodeReport">
+      <view class="mi-icon">📤</view>
+      <text class="mi-name">节点填报</text>
+      <view class="mi-dot" wx:if="{{pendingNodes > 0}}"></view>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToMyCustomers">
+      <view class="mi-icon">👥</view>
+      <text class="mi-name">我的客户</text>
+      <text class="mi-desc" wx:if="{{customerCount > 0}}">{{customerCount}}位</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToMyLeads">
+      <view class="mi-icon">📞</view>
+      <text class="mi-name">线索跟进</text>
+      <view class="mi-dot" wx:if="{{pendingLeads > 0}}"></view>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToWorkflowManage">
+      <view class="mi-icon">📊</view>
+      <text class="mi-name">流程管理</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 帮助支持 -->
+  <view class="menu-group">
+    <view class="menu-title-bar">
+      <text class="mt-text">帮助支持</text>
+    </view>
+    <view class="menu-item" bindtap="contactService">
+      <view class="mi-icon">📞</view>
+      <text class="mi-name">联系客服</text>
+      <text class="mi-desc">400-888-8888</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="openWechatService">
+      <view class="mi-icon">💬</view>
+      <text class="mi-name">在线客服</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToHelp">
+      <view class="mi-icon">❓</view>
+      <text class="mi-name">帮助中心</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToFeedback">
+      <view class="mi-icon">📮</view>
+      <text class="mi-name">意见反馈</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goToAbout">
+      <view class="mi-icon">ℹ️</view>
+      <text class="mi-name">关于我们</text>
+      <text class="mi-arrow">›</text>
     </view>
   </view>
 
   <!-- 退出登录 -->
-  <view class="logout-section" wx:if="{{isLoggedIn}}">
-    <button class="logout-btn" bindtap="logout">退出登录</button>
+  <view class="menu-group" wx:if="{{isLoggedIn}}">
+    <view class="menu-item logout-item" bindtap="logout">
+      <text class="mi-name mi-danger">退出登录</text>
+    </view>
   </view>
+
+  <!-- 版本信息 -->
+  <view class="version-info">
+    <text>D&B 帝标·设记家 v1.1.0</text>
+  </view>
+
+  <!-- 版权 -->
+  <view class="copyright">
+    <text>© 2026 D&B 帝标·设记家 All Rights Reserved</text>
+  </view>
+
 </view>

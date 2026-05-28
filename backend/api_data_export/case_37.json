@@ -1,0 +1,297 @@
+{
+  "id": 37,
+  "case_no": "VM-CASE-2026-0037",
+  "title": "高新誉峰-现代简约全案",
+  "type": "实景",
+  "style": "现代简约",
+  "atmosphere": "简约",
+  "space_type": "住宅",
+  "budget_range": "20-30万",
+  "area": 180.00,
+  "house_type": "三室两厅",
+  "location": "高新誉峰",
+  "building_id": 1,
+  "address": "成都市高新区天府大道100号",
+  "customer_name": "张先生",
+  "customer_id": 37,
+  "cover_image": "/upload/cases/5541e60682982f507c52ecf9196df526.jpg",
+  "vr_link": "https://vr.vanmoly.com/case/37",
+  "main_colors": ["#F5F5F5", "#E0E0E0", "#FFFFFF"],
+  "auxiliary_colors": ["#BDBDBD", "#9E9E9E"],
+  "accent_colors": ["#FF6B6B", "#4ECDC4"],
+  "background_colors": ["#FAFAFA", "#F0F0F0", "#FFFFFF"],
+  "total_price": 258000.00,
+  "deal_budget": 280000.00,
+  "package_type": "全案设计+施工",
+  "price_detail": "{\"设计费\": 30000, \"施工费\": 180000, \"主材费\": 48000}",
+  "material_list": "[{\"name\": \"净醛板\", \"sku\": \"D&B-00001\", \"quantity\": 120}, {\"name\": \"五金件\", \"sku\": \"HW-001\", \"quantity\": 50}]",
+  "construction_phase": "完工",
+  "owner_authorized": true,
+  "status": "已发布",
+  "is_public": true,
+  "is_featured": true,
+  "is_top": false,
+  "top_position": null,
+  "publish_time": "2026-04-15T10:00:00",
+  "scheduled_time": null,
+  "sync_xiaohongshu": true,
+  "sync_mp": true,
+  "enable_subscription": true,
+  "enable_notify": true,
+  "view_count": 1523,
+  "like_count": 89,
+  "subscription_count": 23,
+  "lead_count": 12,
+  "consult_count": 45,
+  "download_count": 67,
+  "share_count": 34,
+  "responsible_id": 5,
+  "planner_id": 12,
+  "designer_id": 15,
+  "vr_qrcode": "/upload/cases/vr_qrcode_37.png",
+  "storage_plan": "入户玄关定制鞋柜+换鞋凳；客厅整墙收纳柜；餐厅餐边柜+酒柜；主卧衣柜+梳妆台；次卧多功能榻榻米+书桌",
+  "execution_detail": "项目周期：2025.12-2026.03（4个月）\n设计亮点：开放式厨房+岛台设计，增加空间互动性\n收纳系统：全屋定制收纳规划，储物空间提升40%\n材质选择：净醛板+实木多层板，环保等级E0级",
+  "hero_images": ["/upload/cases/5541e60682982f507c52ecf9196df526.jpg", "/upload/cases/575fb7e28ab26483dbea19a075e580d7.jpg"],
+  "gallery": ["/upload/cases/8ad72ee9e1e6a542e818aa93d5bfe89a.jpg", "/upload/cases/a13fd0abdb90822bbb59dabf0ff5f6a7.jpg", "/upload/cases/bb1e02f92a9394d99d45d9b8366d753b.jpg"],
+  "created_by": 5,
+  "created_at": "2026-03-20T09:30:00",
+  "updated_at": "2026-04-20T15:45:00",
+  "planner": {
+    "id": 12,
+    "name": "刘洋",
+    "title": "资深规划师",
+    "bio": "8年全案规划经验，擅长空间收纳设计",
+    "avatar": "/upload/employees/planner_12.jpg"
+  },
+  "designer": {
+    "id": 15,
+    "name": "陈思",
+    "title": "首席设计师",
+    "bio": "10年设计经验，现代简约风格专家",
+    "avatar": "/upload/employees/designer_15.jpg"
+  },
+  "building_name": "高新誉峰",
+  "media": [
+    {
+      "id": 1,
+      "case_id": 37,
+      "media_type": "image",
+      "url": "/upload/cases/5541e60682982f507c52ecf9196df526.jpg",
+      "thumbnail": "/upload/cases/thumb_5541e60682982f507c52ecf9196df526.jpg",
+      "sort_order": 1,
+      "description": "客厅全景"
+    },
+    {
+      "id": 2,
+      "case_id": 37,
+      "media_type": "image",
+      "url": "/upload/cases/575fb7e28ab26483dbea19a075e580d7.jpg",
+      "thumbnail": "/upload/cases/thumb_575fb7e28ab26483dbea19a075e580d7.jpg",
+      "sort_order": 2,
+      "description": "餐厅"
+    }
+  ],
+  "timeline": [
+    {
+      "id": 1,
+      "case_id": 37,
+      "node_time": "2025-12-10T00:00:00",
+      "title": "需求沟通",
+      "content": "与客户深度沟通，了解生活习惯、收纳需求、风格偏好",
+      "media_urls": "[]",
+      "sort_order": 1
+    },
+    {
+      "id": 2,
+      "case_id": 37,
+      "node_time": "2025-12-20T00:00:00",
+      "title": "平面规划",
+      "content": "完成平面布局图，优化空间动线，确定收纳位置",
+      "media_urls": "[]",
+      "sort_order": 2
+    },
+    {
+      "id": 3,
+      "case_id": 37,
+      "node_time": "2026-01-05T00:00:00",
+      "title": "效果图设计",
+      "content": "完成全景效果图，客户确认设计方案",
+      "media_urls": "[]",
+      "sort_order": 3
+    },
+    {
+      "id": 4,
+      "case_id": 37,
+      "node_time": "2026-01-15T00:00:00",
+      "title": "施工进场",
+      "content": "办理装修手续，施工队进场，拆除改造",
+      "media_urls": "[]",
+      "sort_order": 4
+    },
+    {
+      "id": 5,
+      "case_id": 37,
+      "node_time": "2026-03-20T00:00:00",
+      "title": "完工交付",
+      "content": "施工完成，竣工验收，客户满意度100%",
+      "media_urls": "[]",
+      "sort_order": 5
+    }
+  ],
+  "files": [
+    {
+      "id": 1,
+      "case_id": 37,
+      "file_type": "pdf",
+      "file_name": "高新誉峰-设计方案.pdf",
+      "file_url": "/upload/case_files/case_37_design.pdf",
+      "has_watermark": true,
+      "download_count": 45
+    },
+    {
+      "id": 2,
+      "case_id": 37,
+      "file_type": "pdf",
+      "file_name": "高新誉峰-报价清单.pdf",
+      "file_url": "/upload/case_files/case_37_quote.pdf",
+      "has_watermark": true,
+      "download_count": 38
+    }
+  ],
+  "phases": [
+    {
+      "id": 1,
+      "case_id": 37,
+      "phase_number": 1,
+      "phase_name": "户型分析",
+      "layout_images": "[\"/upload/cases/layout_37_1.jpg\"]",
+      "layout_analysis": "<p>原始户型为三室两厅一卫，户型方正，采光良好。主要问题：1. 入户无玄关，隐私性差；2. 厨房封闭式，与餐厅互动性弱；3. 收纳空间不足。</p>"
+    },
+    {
+      "id": 2,
+      "case_id": 37,
+      "phase_number": 2,
+      "phase_name": "设计意境",
+      "mood_images": "[\"/upload/cases/mood_37_1.jpg\", \"/upload/cases/mood_37_2.jpg\"]",
+      "mood_text": "<p>客户偏好现代简约风格，追求干净利落的空间感。色调以白色、浅灰为主，局部点缀木色和莫兰迪色系，营造温馨舒适的居家氛围。</p>"
+    },
+    {
+      "id": 3,
+      "case_id": 37,
+      "phase_number": 3,
+      "phase_name": "平面规划",
+      "plan_image": "/upload/cases/plan_37.jpg",
+      "plan_text": "<p>优化方案：1. 入户增设玄关鞋柜，提升隐私性；2. 厨房改为开放式+岛台设计，增强空间互动；3. 全屋定制收纳系统，储物空间提升40%；4. 主卧增设衣帽间，提升居住品质。</p>"
+    },
+    {
+      "id": 4,
+      "case_id": 37,
+      "phase_number": 4,
+      "phase_name": "鸟瞰展示",
+      "birdview_images": "[\"/upload/cases/birdview_37_1.jpg\", \"/upload/cases/birdview_37_2.jpg\"]"
+    },
+    {
+      "id": 5,
+      "case_id": 37,
+      "phase_number": 5,
+      "phase_name": "效果图首页",
+      "showcase_images": "[\"/upload/cases/render_37_1.jpg\", \"/upload/cases/render_37_2.jpg\", \"/upload/cases/render_37_3.jpg\"]",
+      "showcase_title1": "现代简约",
+      "showcase_title2": "高新誉峰三室两厅全案设计",
+      "showcase_text_cn": "<p>本案位于成都高新区誉峰小区，面积180㎡，三室两厅户型。设计核心：开放式厨房+岛台，增强家人互动；全屋定制收纳系统，储物空间提升40%；现代简约风格，白色+浅灰主色调，局部木色点缀。</p>",
+      "showcase_text_en": "<p>This case is located in Yufeng Community, High-tech Zone, Chengdu, with an area of 180㎡ and a three-bedroom two-living-room layout. Design core: Open kitchen + island to enhance family interaction; Whole-house custom storage system, storage space increased by 40%; Modern minimalist style, white + light gray main color, partial wood color embellishment.</p>"
+    },
+    {
+      "id": 6,
+      "case_id": 37,
+      "phase_number": 6,
+      "phase_name": "空间效果图",
+      "spaces": [
+        {
+          "id": 1,
+          "case_id": 37,
+          "space_name": "客厅",
+          "sort_order": 1,
+          "renderings": [
+            {
+              "id": 1,
+              "space_id": 1,
+              "image_url": "/upload/cases/living_room_1.jpg",
+              "title": "客厅全景",
+              "description": "白色沙发+浅灰地毯，营造简约舒适氛围"
+            },
+            {
+              "id": 2,
+              "space_id": 1,
+              "image_url": "/upload/cases/living_room_2.jpg",
+              "title": "客厅细节",
+              "description": "定制收纳柜，兼具展示与储物功能"
+            }
+          ]
+        },
+        {
+          "id": 2,
+          "case_id": 37,
+          "space_name": "餐厅",
+          "sort_order": 2,
+          "renderings": [
+            {
+              "id": 3,
+              "space_id": 2,
+              "image_url": "/upload/cases/dining_room_1.jpg",
+              "title": "餐厅全景",
+              "description": "开放式厨房+岛台设计，增强空间互动性"
+            }
+          ]
+        },
+        {
+          "id": 3,
+          "case_id": 37,
+          "space_name": "主卧",
+          "sort_order": 3,
+          "renderings": [
+            {
+              "id": 4,
+              "space_id": 3,
+              "image_url": "/upload/cases/master_bedroom_1.jpg",
+              "title": "主卧全景",
+              "description": "定制衣柜+梳妆台，满足收纳与化妆需求"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "spaces": [
+    {
+      "id": 1,
+      "case_id": 37,
+      "space_name": "客厅",
+      "sort_order": 1,
+      "renderings": [
+        {
+          "id": 1,
+          "space_id": 1,
+          "image_url": "/upload/cases/living_room_1.jpg",
+          "title": "客厅全景",
+          "description": "白色沙发+浅灰地毯，营造简约舒适氛围"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "case_id": 37,
+      "space_name": "餐厅",
+      "sort_order": 2,
+      "renderings": [
+        {
+          "id": 2,
+          "space_id": 2,
+          "image_url": "/upload/cases/dining_room_1.jpg",
+          "title": "餐厅全景",
+          "description": "开放式厨房+岛台设计"
+        }
+      ]
+    }
+  ]
+}

@@ -3,7 +3,9 @@
 from app.models.case import (
     CaseStudy, CaseMedia, CaseTimeline, CaseFile,
     CaseSubscription, CaseLead, CaseTemplate,
-    CaseNotification, CaseOperationLog, CaseWorkflowTimeline
+    CaseNotification, CaseOperationLog, CaseWorkflowTimeline,
+    CasePhase, CaseSpaceRendering, CaseRenderingItem,
+    CaseSpaceMaterial, CaseSlideConfig, SlideTemplate,
 )
 from app.models.lead_v2 import (
     Lead, LeadFollow, LeadPoint, LeadDistribution, LeadChannelStat
@@ -53,12 +55,15 @@ from app.models.auth_v2 import (
 from app.models.space_config import (
     CaseSpaceConfig, CaseSpaceConfigItem, QuoteSpaceInstance, MaterialExclusiveRule
 )
+from app.models.craft_process import CraftProcess
 
 __all__ = [
     # 案例管理
     'CaseStudy', 'CaseMedia', 'CaseTimeline', 'CaseFile',
     'CaseSubscription', 'CaseLead', 'CaseTemplate',
     'CaseNotification', 'CaseOperationLog', 'CaseWorkflowTimeline',
+    'CasePhase', 'CaseSpaceRendering', 'CaseRenderingItem',
+    'CaseSpaceMaterial', 'CaseSlideConfig', 'SlideTemplate',
     # 线索 V2.0
     'Lead', 'LeadFollow', 'LeadPoint', 'LeadDistribution', 'LeadChannelStat',
     # 预约
@@ -94,4 +99,6 @@ __all__ = [
     'UserV2', 'PasswordResetToken', 'LoginLog', 'Store', 'DigitalAssetTransfer',
     # 空间配置 V3.2（新增）
     'CaseSpaceConfig', 'CaseSpaceConfigItem', 'QuoteSpaceInstance', 'MaterialExclusiveRule',
+    # 特殊工艺
+    'CraftProcess',
 ]

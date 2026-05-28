@@ -622,6 +622,110 @@
               </el-form-item>
             </el-form>
           </el-tab-pane>
+          <el-tab-pane label="幻灯片配置" name="slide">
+            <el-form label-position="top" class="edit-form" v-if="slideConfigLoaded">
+              <el-divider content-position="left">页面显示控制</el-divider>
+              <el-row :gutter="24">
+                <el-col :span="8">
+                  <el-form-item label="显示封面">
+                    <el-switch v-model="slideConfig.show_cover" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="显示关于页">
+                    <el-switch v-model="slideConfig.show_about" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="显示目录页">
+                    <el-switch v-model="slideConfig.show_catalog" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="24">
+                <el-col :span="8">
+                  <el-form-item label="显示团队页">
+                    <el-switch v-model="slideConfig.show_team" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="显示材质页">
+                    <el-switch v-model="slideConfig.show_material" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="显示物料页">
+                    <el-switch v-model="slideConfig.show_product" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+              <el-row :gutter="24">
+                <el-col :span="8">
+                  <el-form-item label="显示工法页">
+                    <el-switch v-model="slideConfig.show_process" />
+                  </el-form-item>
+                </el-col>
+                <el-col :span="8">
+                  <el-form-item label="显示物料汇总">
+                    <el-switch v-model="slideConfig.show_summary" />
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-divider content-position="left">风格与配色</el-divider>
+              <el-row :gutter="24">
+                <el-col :span="12">
+                  <el-form-item label="模板风格">
+                    <el-select v-model="slideConfig.template_style" placeholder="选择风格" style="width:100%">
+                      <el-option label="暗色" value="dark" />
+                      <el-option label="野兽派" value="brutalist" />
+                      <el-option label="玻璃态" value="glassmorphism" />
+                    </el-select>
+                  </el-form-item>
+                </el-col>
+              </el-row>
+
+              <el-divider content-position="left" v-if="slideConfig.show_material">材质展示配置</el-divider>
+              <div v-if="slideConfig.show_material" class="showcase-material-section">
+                <el-form-item label="展示物料">
+                  <el-select
+                    v-model="slideConfig.showcase_material_ids"
+                    multiple
+                    filterable
+                    placeholder="选择要在幻灯片中展示的物料"
+                    style="width: 100%"
+                    :loading="showcaseLoading"
+                  >
+                    <el-option-group
+                      v-for="group in showcaseGrouped"
+                      :key="group.label"
+                      :label="group.label"
+                    >
+                      <el-option
+                        v-for="item in group.options"
+                        :key="item.id"
+                        :label="item.sku_name"
+                        :value="item.id"
+                      >
+                        <span>{{ item.sku_name }}</span>
+                        <el-tag size="small" type="info" style="margin-left:8px">{{ item.l2 }}</el-tag>
+                      </el-option>
+                    </el-option-group>
+                  </el-select>
+                  <div class="form-tip">从已配置的物料中选择要展示在幻灯片“材质解析”页的物料</div>
+                </el-form-item>
+              </div>
+
+              <el-form-item style="margin-top:20px">
+                <el-button type="primary" @click="saveSlideConfig" :loading="slideSaving">保存幻灯片配置</el-button>
+                <el-button type="success" @click="previewSlide">预览幻灯片</el-button>
+              </el-form-item>
+            </el-form>
+            <div v-else style="text-align:center;padding:40px;color:#999">
+              <el-icon :size="40"><View /></el-icon>
+              <p>加载配置中...</p>
+            </div>
+          </el-tab-pane>
         </el-tabs>
       </div>
 
@@ -773,7 +877,9 @@ import {
   getFiles, uploadFile, deleteFile as deleteFileApi,
   initWorkflow, getWorkflowTimeline, updateWorkflowNode,
   authorizeWorkflow, uploadWorkflowPhoto,
-  getPinnedCases, getWorkflowNodes
+  getPinnedCases, getWorkflowNodes,
+  getSlideConfig, updateSlideConfig,
+  getShowcaseCandidates, saveShowcaseMaterials
 } from '@/api/case'
 import { getBuildings } from '@/api/building'
 import { getEmployees } from '@/api/employee'
@@ -1514,12 +1620,102 @@ const openPreview = () => {
   window.open(`/cases/${caseId.value}`, '_blank')
 }
 
+// ===== 幻灯片配置 =====
+const slideConfigLoaded = ref(false)
+const slideSaving = ref(false)
+const showcaseLoading = ref(false)
+const showcaseSaving = ref(false)
+const showcaseCandidates = ref([])
+
+const slideConfig = reactive({
+  show_cover: true,
+  show_about: true,
+  show_catalog: true,
+  show_team: true,
+  show_material: true,
+  show_product: true,
+  show_process: true,
+  show_summary: false,
+  template_style: 'dark',
+  showcase_material_ids: []
+})
+
+const showcaseGrouped = computed(() => {
+  const map = {}
+  for (const item of showcaseCandidates.value) {
+    const key = item.l1 || '其他'
+    if (!map[key]) map[key] = { label: key, options: [] }
+    map[key].options.push(item)
+  }
+  return Object.values(map)
+})
+
+const loadSlideConfig = async () => {
+  if (!isEdit.value) { slideConfigLoaded.value = true; return }
+  try {
+    const res = await getSlideConfig(caseId.value)
+    if (res) {
+      Object.keys(slideConfig).forEach(key => {
+        if (res[key] !== undefined) slideConfig[key] = res[key]
+      })
+    }
+  } catch (e) {
+    console.warn('加载幻灯片配置失败:', e)
+  } finally {
+    slideConfigLoaded.value = true
+  }
+}
+
+const saveSlideConfig = async () => {
+  slideSaving.value = true
+  try {
+    await updateSlideConfig(caseId.value, { ...slideConfig })
+    ElMessage.success('幻灯片配置已保存')
+  } catch (e) {
+    ElMessage.error('保存失败: ' + (e.message || e))
+  } finally {
+    slideSaving.value = false
+  }
+}
+
+const loadShowcaseCandidates = async () => {
+  if (!isEdit.value) return
+  showcaseLoading.value = true
+  try {
+    const res = await getShowcaseCandidates(caseId.value)
+    showcaseCandidates.value = res || []
+  } catch (e) {
+    console.warn('加载材质候选项失败:', e)
+  } finally {
+    showcaseLoading.value = false
+  }
+}
+
+const saveShowcaseSelection = async () => {
+  showcaseSaving.value = true
+  try {
+    await saveShowcaseMaterials(caseId.value, { material_ids: slideConfig.showcase_material_ids })
+    ElMessage.success('材质展示选择已保存')
+  } catch (e) {
+    ElMessage.error('保存失败: ' + (e.message || e))
+  } finally {
+    showcaseSaving.value = false
+  }
+}
+
+const previewSlide = () => {
+  const url = router.resolve({ name: 'CaseSlidePreview', params: { id: caseId.value } }).href
+  window.open(url, '_blank')
+}
+
 onMounted(() => {
   fetchOptions()
   fetchCaseDetail()
   fetchTimeline()
   fetchFiles()
   fetchWorkflowTimeline()
+  loadSlideConfig()
+  loadShowcaseCandidates()
 })
 </script>
 
@@ -1877,6 +2073,10 @@ onMounted(() => {
   font-size: 12px;
   color: #909399;
   margin-top: 4px;
+}
+
+.showcase-material-section {
+  padding: 12px 0;
 }
 
 /* ===== 服务流程 Workflow ===== */

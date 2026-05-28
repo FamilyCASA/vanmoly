@@ -38,6 +38,7 @@ class CaseStudy(db.Model):
     type = db.Column(db.String(20), default='实景', comment='案例类型')
     style = db.Column(db.String(50), comment='风格标签')
     atmosphere = db.Column(db.String(20), comment='氛围分类')  # 温馨/清新/简约/浪漫/雅致/沉稳
+    scene_tags = db.Column(db.Text, comment='场景标签JSON数组')  # 美食烹饪/游戏聚会/音乐乐器/办公学习/亲子陪伴
     space_type = db.Column(db.String(50), comment='空间类型')
     budget_range = db.Column(db.String(50), comment='预算区间')
     area = db.Column(db.Numeric(10, 2), comment='面积(㎡)')
@@ -115,6 +116,9 @@ class CaseStudy(db.Model):
     hero_images = db.Column(db.Text, comment='英雄图JSON数组(最多5张)')
     gallery = db.Column(db.Text, comment='瀑布流图集JSON数组')
 
+    # 幻灯片模板引用
+    slide_template_id = db.Column(db.Integer, db.ForeignKey('slide_templates.id'), comment='幻灯片模板ID')
+
     # 系统字段
     tenant_id = db.Column(db.String(20), comment='租户ID')
     is_real_case = db.Column(db.Boolean, default=False, comment='是否真实案例(自动)')
@@ -139,6 +143,7 @@ class CaseStudy(db.Model):
                            cascade='all, delete-orphan')
     planner = db.relationship('Employee', foreign_keys=[planner_id], backref='planned_cases')
     designer = db.relationship('Employee', foreign_keys=[designer_id], backref='designed_cases')
+    responsible = db.relationship('Employee', foreign_keys=[responsible_id], backref='responsible_cases')
     building = db.relationship('Building', backref='cases')
 
     def to_dict(self, include_relations=False):
@@ -150,6 +155,7 @@ class CaseStudy(db.Model):
             'type': _fix_garbled(self.type),
             'style': _fix_garbled(self.style),
             'atmosphere': _fix_garbled(self.atmosphere),
+            'scene_tags': json.loads(self.scene_tags) if self.scene_tags else [],
             'space_type': _fix_garbled(self.space_type),
             'budget_range': _fix_garbled(self.budget_range),
             'area': float(self.area) if self.area else None,
@@ -200,11 +206,13 @@ class CaseStudy(db.Model):
             'vr_qrcode': self.vr_qrcode,
             'storage_plan': _fix_garbled(self.storage_plan),
             'execution_detail': _fix_garbled(self.execution_detail),
-            'planner': {'id': self.planner.id, 'name': _fix_garbled(self.planner.name), 'title': _fix_garbled(self.planner.title), 'bio': _fix_garbled(self.planner.bio), 'avatar': self.planner.avatar} if self.planner else None,
-            'designer': {'id': self.designer.id, 'name': _fix_garbled(self.designer.name), 'title': _fix_garbled(self.designer.title), 'bio': _fix_garbled(self.designer.bio), 'avatar': self.designer.avatar} if self.designer else None,
+            'planner': {'id': self.planner.id, 'name': _fix_garbled(self.planner.name), 'title': _fix_garbled(self.planner.title), 'bio': _fix_garbled(self.planner.bio), 'avatar': self.planner.avatar, 'showcase_photo': self.planner.showcase_photo} if self.planner else None,
+            'designer': {'id': self.designer.id, 'name': _fix_garbled(self.designer.name), 'title': _fix_garbled(self.designer.title), 'bio': _fix_garbled(self.designer.bio), 'avatar': self.designer.avatar, 'showcase_photo': self.designer.showcase_photo} if self.designer else None,
+            'responsible': {'id': self.responsible.id, 'name': _fix_garbled(self.responsible.name), 'title': _fix_garbled(self.responsible.title), 'bio': _fix_garbled(self.responsible.bio), 'avatar': self.responsible.avatar, 'showcase_photo': self.responsible.showcase_photo} if self.responsible else None,
             'building_name': _fix_garbled(self.building.name) if self.building_id and self.building else None,
             'hero_images': json.loads(self.hero_images) if self.hero_images else [],
             'gallery': json.loads(self.gallery) if self.gallery else [],
+            'slide_template_id': self.slide_template_id,
             'created_by': self.created_by,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
@@ -291,6 +299,11 @@ class CaseMedia(db.Model):
     media_type = db.Column(db.String(20), comment='媒体类型: image/video')
     url = db.Column(db.String(500), nullable=False, comment='文件URL')
     thumbnail = db.Column(db.String(500), comment='缩略图')
+    # 自定义/材质
+    custom_name = db.Column(db.String(200), comment='自定义商品名称')
+    material = db.Column(db.String(100), comment='材质')
+    custom_measure = db.Column(db.String(100), comment='定制计量值')
+
     sort_order = db.Column(db.Integer, default=0, comment='排序')
     description = db.Column(db.String(500), comment='说明')
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -627,6 +640,18 @@ class CasePhase(db.Model):
     showcase_text_cn = db.Column(db.Text, comment='中文文案')
     showcase_text_en = db.Column(db.Text, comment='英文文案')
 
+    # 阶段7：材质展示
+    material_gallery = db.Column(db.Text, comment='材质图JSON数组')
+    material_specs = db.Column(db.Text, comment='材质规格说明(富文本)')
+
+    # 阶段8：物料展示
+    product_gallery = db.Column(db.Text, comment='物料图JSON数组')
+    product_list = db.Column(db.Text, comment='物料清单JSON(引用物料库)')
+
+    # 阶段9：工法展示
+    process_gallery = db.Column(db.Text, comment='工法图JSON数组')
+    process_desc = db.Column(db.Text, comment='工艺说明(富文本)')
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
@@ -648,6 +673,15 @@ class CasePhase(db.Model):
             'showcase_title2': self.showcase_title2,
             'showcase_text_cn': self.showcase_text_cn,
             'showcase_text_en': self.showcase_text_en,
+            # 阶段7：材质展示
+            'material_gallery': json.loads(self.material_gallery) if self.material_gallery else [],
+            'material_specs': self.material_specs,
+            # 阶段8：物料展示
+            'product_gallery': json.loads(self.product_gallery) if self.product_gallery else [],
+            'product_list': json.loads(self.product_list) if self.product_list else [],
+            # 阶段9：工法展示
+            'process_gallery': json.loads(self.process_gallery) if self.process_gallery else [],
+            'process_desc': self.process_desc,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }
@@ -701,4 +735,261 @@ class CaseRenderingItem(db.Model):
             'description': self.description,
             'sort_order': self.sort_order,
             'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class CaseSpaceMaterial(db.Model):
+    """空间物料配置表 - V3.3 阶段6增强"""
+    __tablename__ = 'case_space_materials'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    space_id = db.Column(db.Integer, db.ForeignKey('case_space_renderings.id'), nullable=False, comment='空间ID')
+    case_id = db.Column(db.Integer, db.ForeignKey('case_study.id'), nullable=False, comment='案例ID')
+
+    # 空间信息
+    space_name = db.Column(db.String(100), comment='空间名称(冗余)')
+    room_name = db.Column(db.String(50), comment='房间类型')
+
+    # 引用物料库
+    sku_id = db.Column(db.Integer, comment='关联物料SKU ID')
+    sku_code = db.Column(db.String(50), comment='物料编号')
+    material_name = db.Column(db.String(200), comment='物料名称')
+    material_image = db.Column(db.String(500), comment='物料图片URL')
+
+    # 分类
+    category_level1 = db.Column(db.String(50), comment='大类')
+    category_level2 = db.Column(db.String(50), comment='中类')
+    category_level3 = db.Column(db.String(50), comment='小类')
+
+    # 规格信息
+    brand = db.Column(db.String(100), comment='品牌')
+    spec = db.Column(db.String(200), comment='规格')
+    unit = db.Column(db.String(20), comment='单位')
+
+    # 环保/供应链
+    env_level = db.Column(db.String(50), comment='环保等级')
+    supply_chain = db.Column(db.String(100), comment='供应链/采购渠道')
+    color_name = db.Column(db.String(100), comment='花色')
+
+    # 自定义字段
+    custom_name = db.Column(db.String(200), comment='自定义商品名称')
+    material = db.Column(db.String(100), comment='材质')
+    custom_measure = db.Column(db.String(100), comment='定制计量值')
+
+    # 尺寸
+    width = db.Column(db.Numeric(10, 2), comment='宽度(mm)')
+    depth = db.Column(db.Numeric(10, 2), comment='深度(mm)')
+    height = db.Column(db.Numeric(10, 2), comment='高度(mm)')
+
+    # 用量/价格
+    quantity = db.Column(db.Numeric(10, 2), default=1, comment='数量')
+    unit_price = db.Column(db.Numeric(10, 2), default=0, comment='单价')
+    total_price = db.Column(db.Numeric(12, 2), default=0, comment='总价')
+
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        # 查询原始SKU名称（db 已在模块顶部 from app import db 导入）
+        sku_name = ''
+        try:
+            from sqlalchemy import text as sa_text
+            sku_row = db.session.execute(
+                sa_text('SELECT name FROM material_sku WHERE id = :sid'),
+                {'sid': self.sku_id}
+            ).fetchone()
+            if sku_row and sku_row[0]:
+                sku_name = sku_row[0]
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f'[CaseSpaceMaterial.to_dict] sku_name query failed: sku_id={self.sku_id}, error={e}')
+        return {
+            'id': self.id,
+            'space_id': self.space_id,
+            'case_id': self.case_id,
+            'space_name': self.space_name,
+            'room_name': self.room_name,
+            'sku_id': self.sku_id,
+            'sku_code': self.sku_code,
+            'sku_name': sku_name,
+            'material_name': self.material_name,
+            'material_image': self.material_image,
+            'category_level1': self.category_level1,
+            'category_level2': self.category_level2,
+            'category_level3': self.category_level3,
+            'brand': self.brand,
+            'spec': self.spec,
+            'unit': self.unit,
+            'env_level': self.env_level,
+            'supply_chain': self.supply_chain,
+            'color_name': self.color_name,
+            'custom_name': self.custom_name or '',
+            'material': self.material or '',
+            'custom_measure': self.custom_measure or '',
+            'width': float(self.width) if self.width else None,
+            'depth': float(self.depth) if self.depth else None,
+            'height': float(self.height) if self.height else None,
+            'quantity': float(self.quantity) if self.quantity else 0,
+            'unit_price': float(self.unit_price) if self.unit_price else 0,
+            'total_price': float(self.total_price) if self.total_price else 0,
+            'sort_order': self.sort_order,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class CaseSlideConfig(db.Model):
+    """案例幻灯片配置表 - V3.4"""
+    __tablename__ = 'case_slide_configs'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    case_id = db.Column(db.Integer, db.ForeignKey('case_study.id'), nullable=False, unique=True, comment='案例ID')
+    template_id = db.Column(db.Integer, db.ForeignKey('slide_templates.id'), comment='关联幻灯片模板')
+
+    # 幻灯片模板/风格配置
+    template_style = db.Column(db.String(50), default='dark', comment='模板风格')
+    primary_color = db.Column(db.String(7), default='#8B4513', comment='主色调')
+
+    # 幻灯片画幅比例
+    aspect_ratio = db.Column(db.String(10), default='16:9', comment='画幅比例: 16:9/21:9/4:3')
+
+    # 封面配置
+    cover_title = db.Column(db.String(200), comment='封面标题(可覆盖)')
+    cover_subtitle = db.Column(db.String(200), comment='封面副标题')
+    cover_bg_image = db.Column(db.String(500), comment='封面背景图URL')
+    brand_name = db.Column(db.String(100), default='DESIGNARY', comment='品牌名称')
+
+    # 内页背景图（默认）
+    inner_bg_image = db.Column(db.String(500), comment='内页默认背景图URL')
+
+    # 封底配置
+    back_bg_image = db.Column(db.String(500), comment='封底背景图URL')
+
+    # 关于我们模板配置
+    about_title = db.Column(db.String(200), default='关于我们', comment='关于我们标题')
+    about_subtitle = db.Column(db.String(200), comment='关于我们副标题')
+    about_content = db.Column(db.Text, comment='关于我们内容(富文本)')
+    about_image = db.Column(db.String(500), comment='关于我们图片URL')
+
+    # 页面开关
+    show_about = db.Column(db.Boolean, default=True, comment='显示关于我们')
+    show_team = db.Column(db.Boolean, default=True, comment='显示团队展示')
+    show_toc = db.Column(db.Boolean, default=True, comment='显示目录')
+    show_material = db.Column(db.Boolean, default=True, comment='显示材质展示')
+    show_product = db.Column(db.Boolean, default=True, comment='显示物料展示')
+    show_process = db.Column(db.Boolean, default=True, comment='显示工法展示')
+    show_summary = db.Column(db.Boolean, default=True, comment='显示物料汇总')
+
+    # 材质展示配置
+    showcase_material_ids = db.Column(db.JSON, default=list, comment='材质展示选中的SKU ID列表')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'case_id': self.case_id,
+            'template_id': self.template_id,
+            'template_style': self.template_style,
+            'primary_color': self.primary_color,
+            'aspect_ratio': self.aspect_ratio,
+            'cover_title': self.cover_title,
+            'cover_subtitle': self.cover_subtitle,
+            'cover_bg_image': self.cover_bg_image,
+            'brand_name': self.brand_name,
+            'inner_bg_image': self.inner_bg_image,
+            'back_bg_image': self.back_bg_image,
+            'about_title': self.about_title,
+            'about_subtitle': self.about_subtitle,
+            'about_content': self.about_content,
+            'about_image': self.about_image,
+            'show_about': self.show_about,
+            'show_team': self.show_team,
+            'show_toc': self.show_toc,
+            'show_material': self.show_material,
+            'show_product': self.show_product,
+            'show_process': self.show_process,
+            'show_summary': self.show_summary,
+            'showcase_material_ids': self.showcase_material_ids or [],
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class SlideTemplate(db.Model):
+    """幻灯片模板表 - V3.4 公共模板系统"""
+    __tablename__ = 'slide_templates'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), nullable=False, comment='模板名称')
+    description = db.Column(db.Text, comment='模板描述')
+    is_default = db.Column(db.Boolean, default=False, comment='是否默认模板')
+    is_active = db.Column(db.Boolean, default=True, comment='是否启用')
+
+    # 幻灯片风格配置
+    template_style = db.Column(db.String(50), default='dark', comment='模板风格: dark/light/minimal')
+    primary_color = db.Column(db.String(7), default='#8B4513', comment='主色调')
+
+    # 幻灯片画幅比例
+    aspect_ratio = db.Column(db.String(10), default='16:9', comment='画幅比例: 16:9/21:9/4:3')
+
+    # 封面配置
+    cover_title = db.Column(db.String(200), comment='封面标题(可覆盖)')
+    cover_subtitle = db.Column(db.String(200), comment='封面副标题')
+    cover_bg_image = db.Column(db.String(500), comment='封面背景图URL')
+    brand_name = db.Column(db.String(100), default='DESIGNARY', comment='品牌名称')
+
+    # 内页背景图（默认）
+    inner_bg_image = db.Column(db.String(500), comment='内页默认背景图URL')
+
+    # 封底配置
+    back_bg_image = db.Column(db.String(500), comment='封底背景图URL')
+
+    # 关于我们模板配置
+    about_title = db.Column(db.String(200), default='关于我们', comment='关于我们标题')
+    about_subtitle = db.Column(db.String(200), comment='关于我们副标题')
+    about_content = db.Column(db.Text, comment='关于我们内容(富文本)')
+    about_image = db.Column(db.String(500), comment='关于我们图片URL')
+
+    # 页面开关
+    show_about = db.Column(db.Boolean, default=True, comment='显示关于我们')
+    show_team = db.Column(db.Boolean, default=True, comment='显示团队展示')
+    show_toc = db.Column(db.Boolean, default=True, comment='显示目录')
+    show_material = db.Column(db.Boolean, default=True, comment='显示材质展示')
+    show_product = db.Column(db.Boolean, default=True, comment='显示物料展示')
+    show_process = db.Column(db.Boolean, default=True, comment='显示工法展示')
+    show_summary = db.Column(db.Boolean, default=True, comment='显示物料汇总')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'is_default': self.is_default,
+            'is_active': self.is_active,
+            'template_style': self.template_style,
+            'primary_color': self.primary_color,
+            'aspect_ratio': self.aspect_ratio,
+            'cover_title': self.cover_title,
+            'cover_subtitle': self.cover_subtitle,
+            'cover_bg_image': self.cover_bg_image,
+            'brand_name': self.brand_name,
+            'inner_bg_image': self.inner_bg_image,
+            'back_bg_image': self.back_bg_image,
+            'about_title': self.about_title,
+            'about_subtitle': self.about_subtitle,
+            'about_content': self.about_content,
+            'about_image': self.about_image,
+            'show_about': self.show_about,
+            'show_team': self.show_team,
+            'show_toc': self.show_toc,
+            'show_material': self.show_material,
+            'show_product': self.show_product,
+            'show_process': self.show_process,
+            'show_summary': self.show_summary,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

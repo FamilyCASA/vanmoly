@@ -458,12 +458,13 @@ onUnmounted(() => {
 
 <style scoped>
 .appointment-page {
-  padding-top: 80px;
+  padding-top: 0;
 }
 
 /* Hero区域 */
 .hero-section {
   position: relative;
+  z-index: 1;
   height: calc(100vh - 80px);
   min-height: 600px;
   display: flex;
@@ -505,7 +506,7 @@ onUnmounted(() => {
 }
 
 .hero-subtitle {
-  font-size: 18px;
+  font-size: 24px;
   font-weight: 300;
   opacity: 0.9;
   margin-bottom: 48px;

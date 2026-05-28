@@ -48,35 +48,33 @@ Page({
   },
 
   // 加载产品详情
-  async loadProductDetail(id) {
+  loadProductDetail(id) {
     this.setData({ loading: true })
     
-    try {
-      const res = await wx.request({
-        url: `${app.globalData.apiBaseUrl}/api/v3/materials/${id}`,
-        method: 'GET',
-        header: {
-          'Authorization': `Bearer ${wx.getStorageSync('token') || ''}`
-        }
-      })
-
-      if (res.statusCode === 200) {
-        const product = res.data
+    app.request({
+      url: `/materials/${id}`,
+      success: (product) => {
         
         // 处理图片列表
         const images = []
-        if (product.main_image) images.push(product.main_image)
-        if (product.sub_image) images.push(product.sub_image)
+        if (product.main_image) images.push(app.resolveImageUrl(product.main_image))
+        if (product.sub_image) images.push(app.resolveImageUrl(product.sub_image))
         if (product.images && Array.isArray(product.images)) {
-          images.push(...product.images)
+          images.push(...product.images.map(img => app.resolveImageUrl(img)))
         }
         
         // 处理规格变体
         const variants = product.variants || []
         const selectedVariant = variants.length > 0 ? variants[0] : null
 
+        // 计算折扣
+        const discountPercent = product.market_price > product.sale_price
+          ? Math.round((1 - product.sale_price / product.market_price) * 100)
+          : 0
+
         this.setData({
           product,
+          discountPercent,
           images: images.length > 0 ? images : ['/images/placeholder.png'],
           variants,
           selectedVariant,
@@ -86,35 +84,25 @@ Page({
         wx.setNavigationBarTitle({
           title: product.name
         })
-      } else {
-        throw new Error('加载失败')
+      },
+      fail: () => {
+        wx.showToast({ title: '加载失败', icon: 'error' })
+        this.setData({ loading: false })
       }
-    } catch (error) {
-      console.error('加载产品详情失败:', error)
-      wx.showToast({
-        title: '加载失败',
-        icon: 'error'
-      })
-      this.setData({ loading: false })
-    }
+    })
   },
 
   // 加载推荐产品
-  async loadRecommendations(id) {
-    try {
-      const res = await wx.request({
-        url: `${app.globalData.apiBaseUrl}/api/v3/materials/${id}/recommendations`,
-        method: 'GET'
-      })
-
-      if (res.statusCode === 200) {
+  loadRecommendations(id) {
+    app.request({
+      url: `/materials/${id}/recommendations`,
+      success: (res) => {
         this.setData({
-          recommendations: res.data || []
+          recommendations: Array.isArray(res) ? res : []
         })
-      }
-    } catch (error) {
-      // 忽略错误
-    }
+      },
+      fail: () => {}
+    })
   },
 
   // 返回上一页

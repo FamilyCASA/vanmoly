@@ -1,0 +1,44 @@
+// utils.wxs - WXS 过滤器（微信视图层脚本）
+// WXML 中不能直接使用 .toFixed()、includes() 等，需通过 WXS 提供
+
+var filters = {
+  // 金额格式化：保留2位小数
+  toFixed: function(value, digits) {
+    if (value === null || value === undefined) return '0.00';
+    return parseFloat(value).toFixed(digits || 2);
+  },
+
+  // 判断数组是否包含某项
+  includes: function(arr, item) {
+    if (!arr) return false;
+    return arr.indexOf(item) > -1;
+  },
+
+  // 生成选品项的唯一key（用于checkbox比较）
+  itemKey: function(id, variant) {
+    return id + '_' + (variant || '');
+  },
+
+  // 判断某项是否被选中
+  isSelected: function(selectedItems, id, variant) {
+    var key = id + '_' + (variant || '');
+    if (!selectedItems) return false;
+    return selectedItems.indexOf(key) > -1;
+  },
+
+  // 价格展示（整数无小数）
+  priceInt: function(value) {
+    if (value === null || value === undefined) return '0';
+    var v = parseFloat(value);
+    if (v === Math.floor(v)) return v.toString();
+    return v.toFixed(2);
+  }
+};
+
+module.exports = {
+  toFixed: filters.toFixed,
+  includes: filters.includes,
+  itemKey: filters.itemKey,
+  isSelected: filters.isSelected,
+  priceInt: filters.priceInt
+};

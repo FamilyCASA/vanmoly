@@ -1,0 +1,31 @@
+/* 我的合同 */
+.page { background: #0a0a1a; min-height: 100vh; }
+.page-header { padding: 32rpx; background: #1a1a2e; border-bottom: 1rpx solid rgba(255,255,255,0.06); }
+.page-title { font-size: 36rpx; font-weight: 700; color: #fff; }
+.loading-wrap { padding: 32rpx; }
+.skeleton-card { height: 240rpx; background: rgba(255,255,255,0.04); border-radius: 16rpx; margin-bottom: 20rpx; animation: skeleton 1.5s infinite; }
+@keyframes skeleton { 0%,100%{opacity:.6} 50%{opacity:.3} }
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 48rpx; }
+.empty-icon { font-size: 120rpx; margin-bottom: 24rpx; }
+.empty-title { font-size: 32rpx; color: #fff; font-weight: 600; margin-bottom: 12rpx; }
+.empty-desc { font-size: 26rpx; color: rgba(255,255,255,0.5); margin-bottom: 32rpx; text-align: center; }
+.contract-list { padding: 24rpx; }
+.contract-card { background: #1a1a2e; border-radius: 16rpx; padding: 24rpx; margin-bottom: 20rpx; border: 1rpx solid rgba(255,255,255,0.06); }
+.cc-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20rpx; padding-bottom: 16rpx; border-bottom: 1rpx solid rgba(255,255,255,0.06); }
+.cch-title { font-size: 30rpx; color: #fff; font-weight: 600; }
+.cch-status { font-size: 22rpx; padding: 6rpx 16rpx; border-radius: 16rpx; }
+.cch-status.draft { background: rgba(212,175,55,0.12); }
+.cch-status.draft text { color: #D4AF37; }
+.cch-status.active { background: rgba(100,149,237,0.12); }
+.cch-status.active text { color: #6495ED; }
+.cch-status.completed { background: rgba(103,194,58,0.12); }
+.cch-status.completed text { color: #67C23A; }
+.cch-status.terminated, .cch-status.cancelled { background: rgba(255,255,255,0.06); }
+.cch-status.terminated text, .cch-status.cancelled text { color: rgba(255,255,255,0.5); }
+.cc-info { display: flex; flex-direction: column; gap: 12rpx; }
+.cci-row { display: flex; justify-content: space-between; }
+.cci-label { font-size: 26rpx; color: rgba(255,255,255,0.5); }
+.cci-value { font-size: 26rpx; color: rgba(255,255,255,0.8); }
+.cci-value.highlight { color: #D4AF37; font-weight: 600; }
+.cc-footer { margin-top: 16rpx; padding-top: 16rpx; border-top: 1rpx solid rgba(255,255,255,0.04); }
+.ccf-progress { font-size: 22rpx; color: rgba(255,255,255,0.4); }

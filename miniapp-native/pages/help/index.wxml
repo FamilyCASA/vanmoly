@@ -1,0 +1,34 @@
+<!-- 帮助中心 -->
+<view class="page">
+  <view class="search-bar">
+    <input class="search-input" placeholder="搜索问题" bindconfirm="onSearch" value="{{keyword}}" bindinput="onKeywordInput"/>
+  </view>
+  <!-- 常见问题 -->
+  <view class="section">
+    <text class="section-title">常见问题</text>
+    <view class="faq-list">
+      <view class="faq-item" wx:for="{{faqs}}" wx:key="index" bindtap="toggleFaq" data-index="{{index}}">
+        <view class="faq-q">
+          <text class="faq-q-text">{{item.question}}</text>
+          <text class="faq-arrow {{item.expanded ? 'open' : ''}}">›</text>
+        </view>
+        <view class="faq-a" wx:if="{{item.expanded}}">
+          <text>{{item.answer}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+  <!-- 联系客服 -->
+  <view class="contact-section">
+    <view class="contact-item" bindtap="callService">
+      <text class="ci-icon">📞</text>
+      <text class="ci-name">电话客服</text>
+      <text class="ci-desc">400-888-8888</text>
+    </view>
+    <view class="contact-item" bindtap="goFeedback">
+      <text class="ci-icon">📮</text>
+      <text class="ci-name">在线反馈</text>
+      <text class="ci-desc">提交问题</text>
+    </view>
+  </view>
+</view>

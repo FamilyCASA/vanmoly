@@ -1,0 +1,34 @@
+/* 我的方案 */
+.page { background: #0a0a1a; min-height: 100vh; }
+.page-header { display: flex; justify-content: space-between; align-items: center; padding: 32rpx; background: #1a1a2e; border-bottom: 1rpx solid rgba(255,255,255,0.06); }
+.page-title { font-size: 36rpx; font-weight: 700; color: #fff; }
+.add-btn { padding: 12rpx 24rpx; background: #D4AF37; border-radius: 24rpx; }
+.add-btn text { font-size: 24rpx; color: #0a0a1a; font-weight: 600; }
+.loading-wrap { padding: 32rpx; }
+.skeleton-card { height: 200rpx; background: rgba(255,255,255,0.04); border-radius: 16rpx; margin-bottom: 20rpx; animation: skeleton 1.5s infinite; }
+@keyframes skeleton { 0%,100%{opacity:.6} 50%{opacity:.3} }
+.empty-state { display: flex; flex-direction: column; align-items: center; padding: 120rpx 48rpx; }
+.empty-icon { font-size: 120rpx; margin-bottom: 24rpx; }
+.empty-title { font-size: 32rpx; color: #fff; font-weight: 600; margin-bottom: 12rpx; }
+.empty-desc { font-size: 26rpx; color: rgba(255,255,255,0.5); margin-bottom: 32rpx; text-align: center; }
+.empty-btn { padding: 20rpx 48rpx; background: #D4AF37; border-radius: 32rpx; }
+.empty-btn text { font-size: 28rpx; color: #0a0a1a; font-weight: 600; }
+.scheme-list { padding: 24rpx; }
+.scheme-card { display: flex; gap: 20rpx; background: #1a1a2e; border-radius: 16rpx; padding: 20rpx; margin-bottom: 20rpx; border: 1rpx solid rgba(255,255,255,0.06); }
+.sc-cover { width: 200rpx; height: 140rpx; border-radius: 12rpx; flex-shrink: 0; }
+.sc-placeholder { width: 200rpx; height: 140rpx; border-radius: 12rpx; background: rgba(255,255,255,0.04); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.sc-placeholder text { font-size: 60rpx; }
+.sc-info { flex: 1; display: flex; flex-direction: column; gap: 8rpx; min-width: 0; }
+.sc-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12rpx; }
+.sc-title { font-size: 30rpx; color: #fff; font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-status { font-size: 20rpx; padding: 4rpx 12rpx; border-radius: 10rpx; flex-shrink: 0; }
+.sc-status.draft { background: rgba(255,255,255,0.06); }
+.sc-status.draft text { color: rgba(255,255,255,0.5); }
+.sc-status.designing, .sc-status.reviewing { background: rgba(212,175,55,0.12); }
+.sc-status.designing text, .sc-status.reviewing text { color: #D4AF37; }
+.sc-status.confirmed, .sc-status.completed { background: rgba(103,194,58,0.12); }
+.sc-status.confirmed text, .sc-status.completed text { color: #67C23A; }
+.sc-desc { font-size: 24rpx; color: rgba(255,255,255,0.5); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sc-meta { display: flex; gap: 16rpx; }
+.scm-item { font-size: 22rpx; color: rgba(255,255,255,0.4); }
+.sc-time { font-size: 20rpx; color: rgba(255,255,255,0.3); }

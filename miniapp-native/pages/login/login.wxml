@@ -1,0 +1,60 @@
+<!-- 微信登录页 -->
+<view class="login-page">
+  <!-- 品牌头部 -->
+  <view class="login-header">
+    <text class="login-brand">DESIGNARY</text>
+    <text class="login-title">D&B 帝标·设记家</text>
+    <text class="login-desc">登录后享受完整服务</text>
+  </view>
+
+  <!-- 登录方式 -->
+  <view class="login-content">
+    <!-- 手机号+验证码（可选） -->
+    <view class="login-section">
+      <view class="login-section-title">
+        <text>手机号快捷登录</text>
+      </view>
+      <view class="login-form">
+        <view class="input-group">
+          <text class="input-prefix">+86</text>
+          <input class="login-input" type="number" maxlength="11" placeholder="请输入手机号" value="{{phone}}" bindinput="onPhoneInput" />
+        </view>
+        <view class="input-group">
+          <input class="login-input" type="number" maxlength="6" placeholder="请输入验证码" value="{{code}}" bindinput="onCodeInput" />
+          <text class="sms-btn {{smsCooldown > 0 ? 'disabled' : ''}}" bindtap="{{smsCooldown > 0 ? '' : 'sendSms'}}">
+            {{smsCooldown > 0 ? smsCooldown + 's' : '获取验证码'}}
+          </text>
+        </view>
+      </view>
+      <button class="btn-login {{canLogin ? '' : 'disabled'}}" bindtap="{{canLogin ? 'phoneLogin' : ''}}">
+        <text>登录 / 注册</text>
+      </button>
+    </view>
+
+    <!-- 分割线 -->
+    <view class="divider">
+      <view class="divider-line"></view>
+      <text class="divider-text">或</text>
+      <view class="divider-line"></view>
+    </view>
+
+    <!-- 微信授权登录 -->
+    <view class="login-section wechat-section">
+      <button class="btn-wechat" open-type="getPhoneNumber" bindgetphonenumber="onWechatLogin">
+        <text class="wechat-icon">💚</text>
+        <text>微信一键登录</text>
+      </button>
+    </view>
+  </view>
+
+  <!-- 用户协议 -->
+  <view class="agreement">
+    <text class="agreement-check {{agreed ? 'checked' : ''}}" bindtap="toggleAgree">{{agreed ? '✓' : ''}}</text>
+    <text class="agreement-text">
+      登录即表示同意
+      <text class="link" bindtap="openAgreement">《用户协议》</text>
+      和
+      <text class="link" bindtap="openPrivacy">《隐私政策》</text>
+    </text>
+  </view>
+</view>

@@ -213,8 +213,8 @@ const triggerSwallowAnimation = () => {
   align-items: center;
   gap: 8px;
   padding: 10px 16px;
-  background: #fff;
-  border: 1px solid #e8e8e8;
+  background: rgba(26, 26, 46, 0.9);
+  border: 1px solid #3a3a4e;
   border-radius: 24px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -222,27 +222,27 @@ const triggerSwallowAnimation = () => {
 }
 
 .selection-button:hover {
-  border-color: #8B5A2B;
-  box-shadow: 0 4px 12px rgba(139, 90, 43, 0.15);
+  border-color: #409EFF;
+  box-shadow: 0 4px 12px rgba(64, 158, 255, 0.2);
   transform: translateY(-2px);
 }
 
 /* 有物品时的样式 */
 .has-items .selection-button {
-  background: linear-gradient(135deg, #8B5A2B 0%, #A67B5B 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #6C63FF 100%);
   border-color: transparent;
   color: #fff;
 }
 
 .has-items .selection-button:hover {
-  box-shadow: 0 6px 20px rgba(139, 90, 43, 0.3);
+  box-shadow: 0 6px 20px rgba(64, 158, 255, 0.3);
 }
 
 /* 背景光晕 */
 .button-glow {
   position: absolute;
   inset: -2px;
-  background: linear-gradient(135deg, #8B5A2B 0%, #D4A574 50%, #8B5A2B 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #6C63FF 50%, #409EFF 100%);
   border-radius: 26px;
   opacity: 0;
   z-index: -1;
@@ -318,6 +318,7 @@ const triggerSwallowAnimation = () => {
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
+  color: #E8E8E8;
 }
 
 /* 数量徽章 */
@@ -326,8 +327,8 @@ const triggerSwallowAnimation = () => {
   min-width: 20px;
   height: 20px;
   padding: 0 6px;
-  background: #fff;
-  color: #8B5A2B;
+  background: #0a0a1a;
+  color: #409EFF;
   border-radius: 10px;
   font-size: 12px;
   font-weight: 600;
@@ -339,7 +340,7 @@ const triggerSwallowAnimation = () => {
 
 .has-items .count-badge {
   background: #FFD700;
-  color: #8B5A2B;
+  color: #0a0a1a;
 }
 
 .count-plus {
@@ -381,7 +382,7 @@ const triggerSwallowAnimation = () => {
 .pulse-ring {
   position: absolute;
   inset: -4px;
-  border: 2px solid #8B5A2B;
+  border: 2px solid #409EFF;
   border-radius: 28px;
   opacity: 0;
   animation: pulse-ring 2s ease-out infinite;
@@ -412,9 +413,10 @@ const triggerSwallowAnimation = () => {
   top: calc(100% + 12px);
   right: 0;
   width: 280px;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 12px;
-  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  border: 1px solid #2a2a3e;
   padding: 16px;
   z-index: 1000;
   animation: tooltip-in 0.3s ease-out;
@@ -427,7 +429,7 @@ const triggerSwallowAnimation = () => {
   right: 40px;
   width: 12px;
   height: 12px;
-  background: #fff;
+  background: #1a1a2e;
   transform: rotate(45deg);
   border-radius: 2px;
 }
@@ -454,7 +456,7 @@ const triggerSwallowAnimation = () => {
   align-items: center;
   margin-bottom: 12px;
   padding-bottom: 12px;
-  border-bottom: 1px solid #f0f0f0;
+  border-bottom: 1px solid #2a2a3e;
   font-weight: 500;
 }
 
@@ -475,7 +477,7 @@ const triggerSwallowAnimation = () => {
   align-items: center;
   gap: 10px;
   padding: 8px;
-  background: #f5f7fa;
+  background: #0a0a1a;
   border-radius: 8px;
 }
 
@@ -498,13 +500,13 @@ const triggerSwallowAnimation = () => {
 
 .tooltip-item .item-qty {
   font-size: 12px;
-  color: #999;
+  color: #A0A0B8;
 }
 
 .tooltip-footer {
   text-align: center;
   font-size: 13px;
-  color: #8B5A2B;
+  color: #409EFF;
   padding-top: 8px;
 }
 

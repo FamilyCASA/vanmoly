@@ -1,0 +1,74 @@
+[
+  {
+    "id": 1,
+    "tenant_id": "0",
+    "name": "管理层",
+    "code": "管理",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.849405",
+    "is_active": 1
+  },
+  {
+    "id": 2,
+    "tenant_id": "0",
+    "name": "设计部",
+    "code": "设计",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.860557",
+    "is_active": 1
+  },
+  {
+    "id": 3,
+    "tenant_id": "0",
+    "name": "工程部",
+    "code": "工程",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.861142",
+    "is_active": 1
+  },
+  {
+    "id": 4,
+    "tenant_id": "0",
+    "name": "市场部",
+    "code": "市场",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.861701",
+    "is_active": 1
+  },
+  {
+    "id": 5,
+    "tenant_id": "0",
+    "name": "行政部",
+    "code": "行政",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.862248",
+    "is_active": 1
+  },
+  {
+    "id": 6,
+    "tenant_id": "0",
+    "name": "财务部",
+    "code": "财务",
+    "parent_id": null,
+    "manager_id": null,
+    "sort_order": 0,
+    "is_enabled": 1,
+    "created_at": "2026-04-26 23:58:22.862795",
+    "is_active": 1
+  }
+]

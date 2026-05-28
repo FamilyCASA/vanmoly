@@ -71,6 +71,7 @@
                     激活
                   </el-button>
                   <el-button link @click="editTheme(theme)">编辑</el-button>
+                  <el-button link type="danger" @click="deleteTheme(theme)">删除</el-button>
                 </div>
               </div>
             </div>
@@ -949,6 +950,23 @@ const activateTheme = async (theme) => {
     loadThemes()
   } catch (error) {
     ElMessage.error('激活失败')
+  }
+}
+
+const deleteTheme = async (theme) => {
+  try {
+    await ElMessageBox.confirm('确定要删除该主题吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request.delete(`/frontend/themes/${theme.id}`)
+    ElMessage.success('删除成功')
+    loadThemes()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
   }
 }
 

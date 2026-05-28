@@ -1,28 +1,27 @@
+import sys; sys.stdout.reconfigure(encoding='utf-8')
 import sqlite3
-
-db_path = r'D:\desktop\VANMOLY-SYS-V3.0\backend\instance\auth.db'
-conn = sqlite3.connect(db_path)
+conn = sqlite3.connect(r'D:\desktop\VANMOLY-SYS-V3.0\backend\instance\vanmoly_v3.db')
 cur = conn.cursor()
 
-# List tables
-cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-tables = [t[0] for t in cur.fetchall()]
-print('Tables:', tables)
+# Check case 37 materials - sku_id and material_name
+cur.execute("SELECT id, sku_id, sku_code, material_name, custom_name, custom_measure FROM case_space_materials WHERE case_id=37 LIMIT 10")
+rows = cur.fetchall()
+print("=== 案例37 物料数据 ===")
+for r in rows:
+    print(r)
 
-# Check employee 42
-if 'employee' in tables:
-    cur.execute('SELECT id, name, department_id, position_id, email FROM employee WHERE id = 42')
-    row = cur.fetchone()
-    print('Employee 42:', row)
-    cur.execute('PRAGMA table_info(employee)')
-    cols = [c[1] for c in cur.fetchall()]
-    print('All cols:', cols)
-elif 'hr_employee_v2' in tables:
-    cur.execute('SELECT id, name, department_id FROM hr_employee_v2 WHERE id = 42')
-    row = cur.fetchone()
-    print('HR Employee 42:', row)
-    cur.execute('PRAGMA table_info(hr_employee_v2)')
-    cols = [c[1] for c in cur.fetchall()]
-    print('All cols:', cols)
+# Check if sku_ids match material_sku table
+print("\n=== sku_id 分布 ===")
+cur.execute("SELECT COUNT(*), CASE WHEN sku_id IS NULL THEN 'NULL' WHEN sku_id='' THEN 'EMPTY' ELSE 'HAS_VALUE' END FROM case_space_materials WHERE case_id=37")
+print(cur.fetchone())
+
+# Check a specific sku_id
+cur.execute("SELECT DISTINCT sku_id FROM case_space_materials WHERE case_id=37 AND sku_id IS NOT NULL AND sku_id != '' LIMIT 5")
+sku_ids = [r[0] for r in cur.fetchall()]
+print(f"\n=== 验证 sku_id 在 material_sku 表中是否存在 ===")
+for sid in sku_ids:
+    cur.execute("SELECT id, name FROM material_sku WHERE id=?", (sid,))
+    r = cur.fetchone()
+    print(f"  sku_id={sid} -> {r}")
 
 conn.close()

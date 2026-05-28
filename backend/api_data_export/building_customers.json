@@ -1,0 +1,50 @@
+[
+  {
+    "id": 1,
+    "building_id": 6,
+    "customer_id": 211,
+    "building_no": "A栋",
+    "unit_no": "1单元",
+    "room_no": "601",
+    "floor": null,
+    "house_type": "3室2厅",
+    "house_area": 125,
+    "decoration_status": "未装修",
+    "owner_type": "owner",
+    "remark": "重点客户",
+    "created_at": "2026-05-02 12:00:03.009974",
+    "tenant_id": "default"
+  },
+  {
+    "id": 2,
+    "building_id": 6,
+    "customer_id": 212,
+    "building_no": "A栋",
+    "unit_no": "1单元",
+    "room_no": "602",
+    "floor": null,
+    "house_type": "2室1厅",
+    "house_area": 89,
+    "decoration_status": "装修中",
+    "owner_type": "owner",
+    "remark": null,
+    "created_at": "2026-05-02 12:00:03.011809",
+    "tenant_id": "default"
+  },
+  {
+    "id": 3,
+    "building_id": 7,
+    "customer_id": 213,
+    "building_no": "B栋",
+    "unit_no": "2单元",
+    "room_no": "1501",
+    "floor": null,
+    "house_type": "4室2厅",
+    "house_area": 165,
+    "decoration_status": "未装修",
+    "owner_type": "owner",
+    "remark": "高端客户",
+    "created_at": "2026-05-02 12:00:03.014035",
+    "tenant_id": "default"
+  }
+]

@@ -148,7 +148,7 @@ const goToRegister = () => {
 <style scoped>
 .customer-login-page {
   min-height: 100vh;
-  background: linear-gradient(135deg, #8B5A2B 0%, #A67B5B 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #6C63FF 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -175,7 +175,7 @@ const goToRegister = () => {
 .login-header h2 {
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a1a;
+  color: #0a0a1a;
   margin: 0 0 8px;
 }
 
@@ -199,13 +199,13 @@ const goToRegister = () => {
   width: 100%;
   height: 48px;
   font-size: 16px;
-  background: #8B5A2B;
-  border-color: #8B5A2B;
+  background: #409EFF;
+  border-color: #409EFF;
 }
 
 .login-btn:hover {
-  background: #6B4423;
-  border-color: #6B4423;
+  background: #3a8ee6;
+  border-color: #3a8ee6;
 }
 
 .register-link {

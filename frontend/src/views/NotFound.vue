@@ -18,6 +18,6 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #f5f7fa;
+  background: #0a0a1a;
 }
 </style>

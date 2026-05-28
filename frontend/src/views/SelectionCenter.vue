@@ -248,7 +248,7 @@
       :close-on-click-modal="false"
     >
       <div class="login-prompt">
-        <el-icon :size="48" color="#8B5A2B"><ShoppingCart /></el-icon>
+        <el-icon :size="48" color="#409EFF"><ShoppingCart /></el-icon>
         <p>您有 {{ anonymousCount }} 件商品在选品清单中</p>
         <p class="prompt-sub">注册后即可查看和管理您的选品，获取专属方案推荐</p>
       </div>
@@ -529,7 +529,7 @@ watch(totalPrice, () => {
 <style scoped>
 .selection-center-page {
   padding: 20px;
-  background: #f5f7fa;
+  background: #0a0a1a;
   min-height: 100vh;
 }
 
@@ -626,12 +626,12 @@ watch(totalPrice, () => {
 }
 
 .tab-item:hover {
-  color: #8B5A2B;
-  background: #f5f7fa;
+  color: #409EFF;
+  background: #0a0a1a;
 }
 
 .tab-item.active {
-  color: #8B5A2B;
+  color: #409EFF;
   background: #fff7e6;
   font-weight: 500;
 }
@@ -655,12 +655,12 @@ watch(totalPrice, () => {
 }
 
 .selection-item:hover {
-  border-color: #8B5A2B;
+  border-color: #409EFF;
   box-shadow: 0 2px 12px rgba(139, 90, 43, 0.1);
 }
 
 .selection-item.is-selected {
-  border-color: #8B5A2B;
+  border-color: #409EFF;
   background: #fff7e6;
 }
 
@@ -690,7 +690,7 @@ watch(totalPrice, () => {
 }
 
 .item-type-tag.package {
-  background: #8B5A2B;
+  background: #409EFF;
 }
 
 .item-type-tag.product {
@@ -813,7 +813,7 @@ watch(totalPrice, () => {
   display: flex;
   gap: 12px;
   padding: 12px;
-  background: #f5f7fa;
+  background: #0a0a1a;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
@@ -822,12 +822,12 @@ watch(totalPrice, () => {
 
 .recommend-item:hover {
   background: #fff;
-  border-color: #8B5A2B;
+  border-color: #409EFF;
 }
 
 .recommend-item.is-highlight {
   background: #fff7e6;
-  border-color: #8B5A2B;
+  border-color: #409EFF;
 }
 
 .recommend-image {
@@ -849,7 +849,7 @@ watch(totalPrice, () => {
   position: absolute;
   top: 0;
   left: 0;
-  background: #8B5A2B;
+  background: #409EFF;
   color: #fff;
   font-size: 11px;
   padding: 2px 8px;

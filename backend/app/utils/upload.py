@@ -74,20 +74,41 @@ def validate_file(file_obj, category=None):
         category: 指定分类，None则自动检测
     
     Returns:
-        (is_valid, error_message, detected_category)
+        (is_valid, error_message, detected_category, inferred_ext)
     """
     if not file_obj or not file_obj.filename:
-        return False, '未选择文件', None
+        return False, '未选择文件', None, None, None
     
-    filename = secure_filename(file_obj.filename)
-    detected_category = get_file_category(filename)
+    # 先用原始文件名检测类型（secure_filename 会删除中文导致扩展名丢失）
+    original_filename = file_obj.filename
+    detected_category = get_file_category(original_filename)
+    inferred_ext = None  # 推断的扩展名（用于中文文件名场景）
+    
+    # 如果从文件名无法识别，尝试从 content_type 推断
+    if not detected_category and file_obj.content_type:
+        # 完整的 MIME 类型到扩展名映射
+        mime_to_ext = {
+            # 图片
+            'image/jpeg': '.jpg', 'image/png': '.png', 'image/gif': '.gif',
+            'image/webp': '.webp', 'image/svg+xml': '.svg', 'image/bmp': '.bmp',
+            # 音频
+            'audio/mpeg': '.mp3', 'audio/wav': '.wav', 'audio/x-ms-wma': '.wma',
+            'audio/aac': '.aac', 'audio/flac': '.flac', 'audio/mp4': '.m4a', 'audio/ogg': '.ogg',
+            # 视频
+            'video/mp4': '.mp4', 'video/x-msvideo': '.avi', 'video/quicktime': '.mov',
+            'video/x-ms-wmv': '.wmv', 'video/x-flv': '.flv', 'video/x-matroska': '.mkv',
+            'video/webm': '.webm'
+        }
+        inferred_ext = mime_to_ext.get(file_obj.content_type)
+        if inferred_ext:
+            detected_category = get_file_category(f'dummy{inferred_ext}')
     
     if not detected_category:
-        return False, f'不支持的文件类型: {Path(filename).suffix}', None
+        return False, f'不支持的文件类型: {Path(original_filename).suffix}', None, None
     
     # 如果指定了分类，检查是否匹配
     if category and category != detected_category:
-        return False, f'文件类型与指定分类不符', detected_category
+        return False, f'文件类型与指定分类不符', detected_category, None
     
     config = FILE_CONFIG[detected_category]
     
@@ -98,12 +119,12 @@ def validate_file(file_obj, category=None):
     
     if file_size > config['max_size']:
         max_mb = config['max_size'] / (1024 * 1024)
-        return False, f'文件大小超过限制 ({max_mb}MB)', detected_category
+        return False, f'文件大小超过限制 ({max_mb}MB)', detected_category, None
     
     if file_size == 0:
-        return False, '文件不能为空', detected_category
+        return False, '文件不能为空', detected_category, None
     
-    return True, None, detected_category
+    return True, None, detected_category, None
 
 
 def save_upload_file(file_obj, category=None, custom_name=None):
@@ -130,7 +151,7 @@ def save_upload_file(file_obj, category=None, custom_name=None):
         }
     """
     # 验证文件
-    is_valid, error_msg, detected_category = validate_file(file_obj, category)
+    is_valid, error_msg, detected_category, inferred_ext = validate_file(file_obj, category)
     if not is_valid:
         return {
             'success': False,
@@ -150,13 +171,17 @@ def save_upload_file(file_obj, category=None, custom_name=None):
     original_name = secure_filename(file_obj.filename)
     ext = Path(original_name).suffix.lower()
     
+    # 如果扩展名为空（中文文件名场景），使用推断的扩展名
+    if not ext and inferred_ext:
+        ext = inferred_ext
+    
     if custom_name:
         saved_name = f"{custom_name}{ext}"
     else:
         # 使用 UUID + 时间戳
         unique_id = uuid.uuid4().hex[:8]
         timestamp = now.strftime('%Y%m%d_%H%M%S')
-        name_part = Path(original_name).stem[:20]  # 限制原文件名长度
+        name_part = Path(original_name).stem[:20] if original_name else 'file'  # 限制原文件名长度
         saved_name = f"{timestamp}_{name_part}_{unique_id}{ext}"
     
     # 保存文件

@@ -1,0 +1,84 @@
+<!-- 我的收藏 -->
+<view class="page">
+  <!-- 顶部Tab -->
+  <view class="tab-bar">
+    <view class="tab-item {{activeTab === 'case' ? 'active' : ''}}" bindtap="switchTab" data-tab="case">
+      <text>案例</text>
+      <text class="tab-count" wx:if="{{caseCount > 0}}">{{caseCount}}</text>
+    </view>
+    <view class="tab-item {{activeTab === 'product' ? 'active' : ''}}" bindtap="switchTab" data-tab="product">
+      <text>产品</text>
+      <text class="tab-count" wx:if="{{productCount > 0}}">{{productCount}}</text>
+    </view>
+    <view class="tab-item {{activeTab === 'designer' ? 'active' : ''}}" bindtap="switchTab" data-tab="designer">
+      <text>设计师</text>
+      <text class="tab-count" wx:if="{{designerCount > 0}}">{{designerCount}}</text>
+    </view>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && currentList.length === 0}}">
+    <text class="empty-icon">{{activeTab === 'case' ? '📁' : activeTab === 'product' ? '🛋️' : '👤'}}</text>
+    <text class="empty-title">暂无收藏</text>
+    <text class="empty-desc">{{activeTab === 'case' ? '浏览案例时点击收藏按钮' : activeTab === 'product' ? '浏览产品时点击收藏按钮' : '浏览设计师主页时点击关注'}}</text>
+    <view class="empty-btn" bindtap="goExplore">
+      <text>去浏览</text>
+    </view>
+  </view>
+
+  <!-- 案例收藏列表 -->
+  <view class="collection-list" wx:elif="{{activeTab === 'case'}}">
+    <view class="case-card" wx:for="{{caseList}}" wx:key="id" bindtap="goToCase" data-id="{{item.id}}">
+      <image class="cc-cover" src="{{item.cover}}" mode="aspectFill"/>
+      <view class="cc-info">
+        <text class="cc-title">{{item.title}}</text>
+        <view class="cc-meta">
+          <text class="ccm-item" wx:if="{{item.style}}">{{item.style}}</text>
+          <text class="ccm-item" wx:if="{{item.area}}">{{item.area}}㎡</text>
+        </view>
+        <text class="cc-time">收藏于 {{item.collectTime}}</text>
+      </view>
+      <view class="cc-delete" catchtap="deleteItem" data-id="{{item.id}}" data-type="case">
+        <text>✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 产品收藏列表 -->
+  <view class="collection-list" wx:elif="{{activeTab === 'product'}}">
+    <view class="product-card" wx:for="{{productList}}" wx:key="id" bindtap="goToProduct" data-id="{{item.id}}">
+      <image class="pc-cover" src="{{item.cover}}" mode="aspectFill"/>
+      <view class="pc-info">
+        <text class="pc-brand" wx:if="{{item.brand}}">{{item.brand}}</text>
+        <text class="pc-name">{{item.name}}</text>
+        <text class="pc-price">¥{{item.price}}</text>
+      </view>
+      <view class="pc-delete" catchtap="deleteItem" data-id="{{item.id}}" data-type="product">
+        <text>✕</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设计师关注列表 -->
+  <view class="collection-list" wx:elif="{{activeTab === 'designer'}}">
+    <view class="designer-card" wx:for="{{designerList}}" wx:key="id" bindtap="goToDesigner" data-id="{{item.id}}">
+      <image class="dc-avatar" src="{{item.avatar}}" mode="aspectFill"/>
+      <view class="dc-info">
+        <text class="dc-name">{{item.name}}</text>
+        <text class="dc-title">{{item.title || '设计师'}}</text>
+        <view class="dc-tags" wx:if="{{item.styles && item.styles.length > 0}}">
+          <text class="dct-item" wx:for="{{item.styles}}" wx:for-item="s" wx:key="*this">{{s}}</text>
+        </view>
+      </view>
+      <view class="dc-unfollow" catchtap="unfollowDesigner" data-id="{{item.id}}">
+        <text>取消关注</text>
+      </view>
+    </view>
+  </view>
+</view>

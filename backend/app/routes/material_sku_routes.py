@@ -34,58 +34,124 @@ def get_categories():
     })
 
 
+
+@material_sku_bp.route('/categories-with-materials', methods=['GET'])
+def get_categories_with_materials():
+    """获取有实际物料的分类树（用于物料选择下拉）"""
+    # 查询所有有物料的L2分类ID
+    from sqlalchemy import func, distinct
+    
+    l2_ids_with_materials = db.session.query(distinct(MaterialSKU.category_id)).filter(
+        MaterialSKU.is_deleted == False,
+        MaterialSKU.category_id.isnot(None)
+    ).all()
+    l2_id_set = {r[0] for r in l2_ids_with_materials}
+    
+    # 查询这些L2分类及其L1父分类
+    l2_cats = MaterialCategory.query.filter(
+        MaterialCategory.id.in_(l2_id_set),
+        MaterialCategory.is_deleted == False
+    ).all() if l2_id_set else []
+    
+    # 收集所有L1 ID
+    l1_ids = {c.parent_id for c in l2_cats if c.parent_id}
+    
+    # 查询L1分类
+    l1_cats = MaterialCategory.query.filter(
+        MaterialCategory.id.in_(l1_ids),
+        MaterialCategory.is_deleted == False
+    ).order_by(MaterialCategory.sort_order).all() if l1_ids else []
+    
+    # 构建树
+    result = []
+    for l1 in l1_cats:
+        children = [c.to_dict() for c in sorted(
+            [c for c in l2_cats if c.parent_id == l1.id],
+            key=lambda x: x.sort_order
+        )]
+        l1_dict = l1.to_dict()
+        l1_dict['children'] = children
+        result.append(l1_dict)
+    
+    # 也要包含只有L1级别物料的分类（没有L2子分类但L1本身有物料）
+    l1_only_ids = db.session.query(distinct(MaterialSKU.category_id)).join(
+        MaterialCategory, MaterialSKU.category_id == MaterialCategory.id
+    ).filter(
+        MaterialSKU.is_deleted == False,
+        MaterialCategory.level == 1,
+        MaterialCategory.is_deleted == False
+    ).all()
+    
+    existing_l1_ids = {l1.id for l1 in l1_cats}
+    for row in l1_only_ids:
+        if row[0] not in existing_l1_ids:
+            cat = MaterialCategory.query.get(row[0])
+            if cat and not cat.is_deleted:
+                cat_dict = cat.to_dict()
+                cat_dict['children'] = []
+                result.append(cat_dict)
+    
+    return jsonify({
+        'code': 200,
+        'data': result
+    })
+
+
 @material_sku_bp.route('/material-categories/processes', methods=['GET'])
 @jwt_required_v2
 def get_process_categories(current_user):
-    """获取工艺增项分类列表（筛选物料库二级分类中 parent_name='特殊工艺' 的分类）"""
+    """获取工艺增项分类列表
+    特殊工艺是挂在每个一级分类下的二级分类，按 parent_id（一级分类ID）过滤
+    不传 parent_id 时返回所有特殊工艺子分类（向后兼容）
+    """
     from sqlalchemy import or_ as sql_or
-    # 先找到 parent_name='特殊工艺' 的一级分类
-    parent = MaterialCategory.query.filter(
+    parent_id = request.args.get('parent_id', type=int)
+
+    # 找到所有 name='特殊工艺' 的二级分类（parent_id != None）
+    query = MaterialCategory.query.filter(
         MaterialCategory.name == '特殊工艺',
-        MaterialCategory.parent_id == None,
+        MaterialCategory.parent_id != None,
         sql_or(MaterialCategory.is_deleted == False, MaterialCategory.is_deleted.is_(None)),
         MaterialCategory.is_enabled == True
-    ).first()
-
-    if not parent:
-        return jsonify({'code': 200, 'data': []})
-
-    # 再找所有二级子分类
-    children = MaterialCategory.query.filter(
-        MaterialCategory.parent_id == parent.id,
-        sql_or(MaterialCategory.is_deleted == False, MaterialCategory.is_deleted.is_(None)),
-        MaterialCategory.is_enabled == True
-    ).order_by(MaterialCategory.sort_order).all()
+    )
+    if parent_id:
+        query = query.filter(MaterialCategory.parent_id == parent_id)
+    special_cats = query.order_by(MaterialCategory.sort_order).all()
 
     result = []
-    for child in children:
-        data = child.to_dict()
-        # 从备注中解析系数/单位/单价
-        remark = child.remark or ''
-        coef = 1.0
-        unit = ''
-        unit_price = 0.0
-        try:
-            import re
-            m = re.search(r'系数[:：]?\s*([\d.]+)', remark)
-            if m:
-                coef = float(m.group(1))
-            m = re.search(r'单位[:：]?\s*(\S+)', remark)
-            if m:
-                unit = m.group(1)
-            m = re.search(r'单价[:：]?\s*([\d.]+)', remark)
-            if m:
-                unit_price = float(m.group(1))
-        except Exception:
-            pass
-        result.append({
-            'id': child.id,
-            'name': child.name,
-            'coefficient': coef,
-            'unit': unit,
-            'unit_price': unit_price,
-            'remark': child.remark,
-        })
+    for sp in special_cats:
+        children = MaterialCategory.query.filter(
+            MaterialCategory.parent_id == sp.id,
+            sql_or(MaterialCategory.is_deleted == False, MaterialCategory.is_deleted.is_(None)),
+            MaterialCategory.is_enabled == True
+        ).order_by(MaterialCategory.sort_order).all()
+        for child in children:
+            remark = child.remark or ''
+            coef = 1.0
+            unit = ''
+            unit_price = 0.0
+            try:
+                import re
+                m = re.search(r'系数[:：]?\s*([\d.]+)', remark)
+                if m:
+                    coef = float(m.group(1))
+                m = re.search(r'单位[:：]?\s*(\S+)', remark)
+                if m:
+                    unit = m.group(1)
+                m = re.search(r'单价[:：]?\s*([\d.]+)', remark)
+                if m:
+                    unit_price = float(m.group(1))
+            except Exception:
+                pass
+            result.append({
+                'id': child.id,
+                'name': child.name,
+                'parent_id': sp.parent_id,   # 一级分类ID，前端可用于校验
+                'coefficient': coef,
+                'unit': unit,
+                'unit_price': unit_price,
+                'remark': child.remark,
+            })
 
     return jsonify({'code': 200, 'data': result})
 
@@ -170,13 +236,34 @@ def get_materials():
     category_id = request.args.get('category_id', '')
     # 支持逗号分隔的多个 category_id（一级分类搜索其下所有二级分类）
     category_ids_raw = request.args.get('category_ids', '')
-    status = request.args.get('status', 'active').strip()
+    status = request.args.get('status', '').strip()
+    brand = request.args.get('brand', '').strip()
+    unit = request.args.get('unit', '').strip()
+    supply_chain = request.args.get('supply_chain', '').strip()
+    env_level = request.args.get('env_level', '').strip()
+    is_public = request.args.get('is_public', '', type=str)
     low_stock = request.args.get('low_stock', type=bool)
 
     query = MaterialSKU.query.filter_by(is_deleted=False)
 
+    # 前台只展示公开物料
+    if is_public in ('1', 'true'):
+        query = query.filter_by(is_public=True)
+
     if status:
         query = query.filter_by(status=status)
+
+    if brand:
+        query = query.filter(MaterialSKU.brand.contains(brand))
+
+    if unit:
+        query = query.filter_by(unit=unit)
+
+    if supply_chain:
+        query = query.filter(MaterialSKU.supply_chain.contains(supply_chain))
+
+    if env_level:
+        query = query.filter_by(env_level=env_level)
 
     if keyword:
         query = query.filter(
@@ -265,6 +352,9 @@ def create_material(current_user):
         description=data.get('description'),
         tags=data.get('tags', []),
         status=data.get('status', 'active'),
+        color_name=data.get('color_name', ''),
+        env_level=data.get('env_level', '合格'),
+        supply_chain=data.get('supply_chain', '直供'),
         created_by=1
     )
 
@@ -656,6 +746,61 @@ def get_brands(current_user):
     return jsonify({
         'code': 200,
         'data': [b[0] for b in brands if b[0]]
+    })
+
+
+@material_sku_bp.route('/filter-options', methods=['GET'])
+@jwt_required_v2
+def get_filter_options(current_user):
+    """获取筛选栏所有下拉选项（从数据库真实数据动态提取）"""
+    from sqlalchemy import distinct, func
+    
+    base = MaterialSKU.query.filter(MaterialSKU.is_deleted == False)
+    
+    # 单位
+    units_raw = db.session.query(distinct(MaterialSKU.unit)).filter(
+        MaterialSKU.unit.isnot(None),
+        MaterialSKU.unit != '',
+        MaterialSKU.is_deleted == False
+    ).order_by(MaterialSKU.unit).all()
+    units = [u[0] for u in units_raw if u[0]]
+    
+    # 供应链
+    sc_raw = db.session.query(distinct(MaterialSKU.supply_chain)).filter(
+        MaterialSKU.supply_chain.isnot(None),
+        MaterialSKU.supply_chain != '',
+        MaterialSKU.is_deleted == False
+    ).order_by(MaterialSKU.supply_chain).all()
+    supply_chains = [s[0] for s in sc_raw if s[0]]
+    
+    # 环保等级
+    env_raw = db.session.query(distinct(MaterialSKU.env_level)).filter(
+        MaterialSKU.env_level.isnot(None),
+        MaterialSKU.env_level != '',
+        MaterialSKU.is_deleted == False
+    ).order_by(MaterialSKU.env_level).all()
+    env_levels = [e[0] for e in env_raw if e[0]]
+    
+    # 状态（带中文标签）
+    status_raw = db.session.query(distinct(MaterialSKU.status)).filter(
+        MaterialSKU.status.isnot(None),
+        MaterialSKU.is_deleted == False
+    ).order_by(MaterialSKU.status).all()
+    status_map = {
+        'active': '在售',
+        'draft': '草稿',
+        'discontinued': '停售'
+    }
+    statuses = [{'value': s[0], 'label': status_map.get(s[0], s[0])} for s in status_raw if s[0]]
+    
+    return jsonify({
+        'code': 200,
+        'data': {
+            'units': units,
+            'supply_chains': supply_chains,
+            'env_levels': env_levels,
+            'statuses': statuses
+        }
     })
 
 
@@ -1111,3 +1256,116 @@ def import_materials_from_excel(current_user):
     except Exception as e:
         db.session.rollback()
         return jsonify({'code': 500, 'message': f'导入失败: {str(e)}'})
+
+@material_sku_bp.route('/batch-import', methods=['POST'])
+def batch_import_materials():
+    """批量导入物料，自动创建不重复的L2分类"""
+    data = request.get_json()
+    if not data or 'items' not in data:
+        return jsonify({'code': 400, 'message': '请提供物料列表(items)'})
+
+    items = data['items']
+    if not items or not isinstance(items, list):
+        return jsonify({'code': 400, 'message': '物料列表不能为空'})
+
+    # 加载所有现有分类
+    all_cats = MaterialCategory.query.filter_by(is_deleted=False).all()
+    cat_name_map = {}
+    for c in all_cats:
+        key = f"{c.parent_id or 0}|{c.name}"
+        cat_name_map[key] = c
+    l1_name_map = {c.name: c for c in all_cats if c.level == 1 and not c.is_deleted}
+
+    results = {'created': 0, 'skipped': 0, 'errors': [], 'new_categories': []}
+
+    for idx, item in enumerate(items):
+        try:
+            l1_name = item.get('category_level1', '').strip()
+            l2_name = item.get('category_level2', '').strip()
+
+            if not l1_name:
+                results['errors'].append(f'第{idx+1}行: 缺少一级分类')
+                continue
+
+            # 查找或创建 L1
+            l1_cat = l1_name_map.get(l1_name)
+            if not l1_cat:
+                l1_cat = MaterialCategory(
+                    name=l1_name, level=1, sort_order=len(l1_name_map) + 1
+                )
+                db.session.add(l1_cat)
+                db.session.flush()
+                l1_name_map[l1_name] = l1_cat
+                cat_name_map[f"0|{l1_name}"] = l1_cat
+                results['new_categories'].append({'level': 1, 'name': l1_name, 'id': l1_cat.id})
+
+            # 查找或创建 L2
+            category_id = l1_cat.id
+            if l2_name:
+                key = f"{l1_cat.id}|{l2_name}"
+                l2_cat = cat_name_map.get(key)
+                if not l2_cat:
+                    max_sort = db.session.query(db.func.max(MaterialCategory.sort_order)).filter_by(
+                        parent_id=l1_cat.id, is_deleted=False
+                    ).scalar() or 0
+                    l2_cat = MaterialCategory(
+                        name=l2_name, parent_id=l1_cat.id, level=2, sort_order=max_sort + 1
+                    )
+                    db.session.add(l2_cat)
+                    db.session.flush()
+                    cat_name_map[key] = l2_cat
+                    results['new_categories'].append({'level': 2, 'name': l2_name, 'parent': l1_name, 'id': l2_cat.id})
+                category_id = l2_cat.id
+
+            # SKU编码去重
+            sku_code = item.get('sku_code', '').strip()
+            if sku_code:
+                existing = MaterialSKU.query.filter_by(sku_code=sku_code).first()
+                if existing:
+                    results['skipped'] += 1
+                    continue
+
+            # 创建SKU
+            sku = MaterialSKU(
+                sku_code=sku_code or f"AUTO-{idx+1:05d}",
+                name=item.get('name', '').strip(),
+                category_id=category_id,
+                brand=item.get('brand', ''),
+                model=item.get('model', ''),
+                specification=item.get('specification', ''),
+                material=item.get('material', ''),
+                origin=item.get('origin', ''),
+                main_image=item.get('main_image', ''),
+                color_name=item.get('color_name', ''),
+                env_level=item.get('env_level', '合格'),
+                supply_chain=item.get('supply_chain', '直供'),
+                cost_price=float(item.get('cost_price', 0) or 0),
+                sale_price=float(item.get('sale_price', 0) or 0),
+                market_price=float(item.get('market_price', 0) or 0) if item.get('market_price') else None,
+                unit=item.get('unit', '件'),
+                calc_type=item.get('calc_type', 'quantity'),
+                stock_quantity=int(item.get('stock_quantity', 0) or 0),
+                description=item.get('description', ''),
+                status=item.get('status', 'active'),
+                is_public=item.get('is_public', True),
+            )
+            db.session.add(sku)
+            results['created'] += 1
+
+        except Exception as e:
+            results['errors'].append(f'第{idx+1}行: {str(e)}')
+            db.session.rollback()
+            continue
+
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': f'批量导入失败: {str(e)}'})
+
+    return jsonify({
+        'code': 200,
+        'message': f'批量导入完成: 创建{results["created"]}条, 跳过{results["skipped"]}条, 新分类{len(results["new_categories"])}个',
+        'data': results
+    })
+

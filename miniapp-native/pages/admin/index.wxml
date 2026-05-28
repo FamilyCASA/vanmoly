@@ -1,83 +1,143 @@
-<view class="container">
-  <!-- 页面标题 -->
+<!-- 管理后台 - 手机端操作中心 · 暗黑深空 -->
+<view class="page">
+
+  <!-- 头部 -->
   <view class="page-header">
-    <text class="page-title">管理后台</text>
-    <text class="version">v3.0.4</text>
+    <view class="header-top">
+      <text class="page-title">管理后台</text>
+      <view class="header-badge" wx:if="{{userRole === 'admin'}}">
+        <text>管理员</text>
+      </view>
+    </view>
+    <text class="page-subtitle">{{userName || '未登录'}}</text>
   </view>
 
-  <!-- 统计卡片 -->
-  <view class="stats-grid">
-    <view class="stat-card">
-      <text class="stat-num">{{stats.customers}}</text>
-      <text class="stat-label">客户数</text>
+  <!-- 统计概览 -->
+  <view class="stats-row">
+    <view class="stat-item" bindtap="goToPage" data-page="leads">
+      <text class="si-num">{{stats.pendingLeads}}</text>
+      <text class="si-label">待跟进线索</text>
     </view>
-    <view class="stat-card">
-      <text class="stat-num">{{stats.quotes}}</text>
-      <text class="stat-label">报价单</text>
+    <view class="stat-item" bindtap="goToPage" data-page="tasks">
+      <text class="si-num">{{stats.myTasks}}</text>
+      <text class="si-label">我的任务</text>
     </view>
-    <view class="stat-card">
-      <text class="stat-num">{{stats.orders}}</text>
-      <text class="stat-label">进行中</text>
-    </view>
-    <view class="stat-card">
-      <text class="stat-num">¥{{stats.revenue}}</text>
-      <text class="stat-label">本月营收</text>
+    <view class="stat-item" bindtap="goToPage" data-page="approvals">
+      <text class="si-num gold">{{stats.pendingApprovals}}</text>
+      <text class="si-label">待审核</text>
     </view>
   </view>
 
-  <!-- 快捷入口 -->
-  <view class="quick-section">
-    <view class="section-title">快捷入口</view>
-    <view class="quick-grid">
-      <view class="quick-item" bindtap="goToWeb" data-path="/customers">
-        <view class="quick-icon" style="background: #1890ff;">👥</view>
-        <text>客户管理</text>
+  <!-- 日常工作 -->
+  <view class="section">
+    <text class="sec-title">日常工作</text>
+    <view class="menu-grid">
+      <view class="menu-item primary" bindtap="goToPage" data-page="node-report">
+        <view class="mi-icon">📝</view>
+        <text class="mi-name">节点填报</text>
+        <text class="mi-desc">拍照/视频/报告</text>
       </view>
-      <view class="quick-item" bindtap="goToWeb" data-path="/quotes">
-        <view class="quick-icon" style="background: #52c41a;">📋</view>
-        <text>报价管理</text>
+      <view class="menu-item" bindtap="goToPage" data-page="lead-create">
+        <view class="mi-icon">🎯</view>
+        <text class="mi-name">新建线索</text>
+        <text class="mi-desc">拍摄识别录入</text>
       </view>
-      <view class="quick-item" bindtap="goToWeb" data-path="/materials">
-        <view class="quick-icon" style="background: #722ed1;">📦</view>
-        <text>物料管理</text>
+      <view class="menu-item" bindtap="goToPage" data-page="lead-follow">
+        <view class="mi-icon">📞</view>
+        <text class="mi-name">线索跟进</text>
+        <view class="mi-badge" wx:if="{{stats.pendingLeads > 0}}">{{stats.pendingLeads}}</view>
       </view>
-      <view class="quick-item" bindtap="goToWeb" data-path="/workflow">
-        <view class="quick-icon" style="background: #eb2f96;">📊</view>
-        <text>工作流程</text>
-      </view>
-      <view class="quick-item" bindtap="goToWeb" data-path="/employees">
-        <view class="quick-icon" style="background: #fa8c16;">🧑‍💼</view>
-        <text>员工管理</text>
-      </view>
-      <view class="quick-item" bindtap="goToWeb" data-path="/finance">
-        <view class="quick-icon" style="background: #13c2c2;">💰</view>
-        <text>财务看板</text>
+      <view class="menu-item" bindtap="goToPage" data-page="customer-follow">
+        <view class="mi-icon">👥</view>
+        <text class="mi-name">客户跟进</text>
       </view>
     </view>
   </view>
 
-  <!-- 系统状态 -->
-  <view class="status-section">
-    <view class="section-title">系统状态</view>
-    <view class="status-list">
-      <view class="status-item">
-        <text class="status-label">后端服务</text>
-        <text class="status-value {{backendStatus === '正常' ? 'success' : 'error'}}">{{backendStatus}}</text>
+  <!-- 信息管理 -->
+  <view class="section">
+    <text class="sec-title">信息管理</text>
+    <view class="menu-grid">
+      <view class="menu-item" bindtap="goToPage" data-page="customer-create">
+        <view class="mi-icon">👤</view>
+        <text class="mi-name">新建客户</text>
       </view>
-      <view class="status-item">
-        <text class="status-label">数据库</text>
-        <text class="status-value {{dbStatus === '正常' ? 'success' : 'error'}}">{{dbStatus}}</text>
+      <view class="menu-item" bindtap="goToPage" data-page="buildings">
+        <view class="mi-icon">🏢</view>
+        <text class="mi-name">楼盘信息</text>
       </view>
-      <view class="status-item">
-        <text class="status-label">版本号</text>
-        <text class="status-value">v3.0.4</text>
+      <view class="menu-item" bindtap="goToPage" data-page="case-share">
+        <view class="mi-icon">🖼️</view>
+        <text class="mi-name">分享案例</text>
       </view>
     </view>
   </view>
 
-  <!-- 提示信息 -->
-  <view class="tip-section">
-    <text class="tip-text">提示：完整的管理功能请在 Web 端使用，体验更佳</text>
-    <button class="web-btn" bindtap="openWebAdmin">打开 Web 管理后台</button>
+  <!-- 审核管理 -->
+  <view class="section" wx:if="{{canApprove}}">
+    <text class="sec-title">审核管理</text>
+    <view class="menu-grid">
+      <view class="menu-item" bindtap="goToPage" data-page="workflow-mgmt">
+        <view class="mi-icon">📊</view>
+        <text class="mi-name">流程管理</text>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="approval-workflow">
+        <view class="mi-icon">✅</view>
+        <text class="mi-name">审核流程</text>
+        <view class="mi-badge" wx:if="{{stats.workflowApprovals > 0}}">{{stats.workflowApprovals}}</view>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="approval-quote">
+        <view class="mi-icon">💰</view>
+        <text class="mi-name">审核报价</text>
+        <view class="mi-badge" wx:if="{{stats.quoteApprovals > 0}}">{{stats.quoteApprovals}}</view>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="approval-contract">
+        <view class="mi-icon">📄</view>
+        <text class="mi-name">审核合同</text>
+        <view class="mi-badge" wx:if="{{stats.contractApprovals > 0}}">{{stats.contractApprovals}}</view>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="approval-points">
+        <view class="mi-icon">⭐</view>
+        <text class="mi-name">审核积分</text>
+        <view class="mi-badge" wx:if="{{stats.pointsApprovals > 0}}">{{stats.pointsApprovals}}</view>
+      </view>
+    </view>
   </view>
+
+  <!-- 团队管理 -->
+  <view class="section" wx:if="{{canManageTeam}}">
+    <text class="sec-title">团队管理</text>
+    <view class="menu-grid">
+      <view class="menu-item" bindtap="goToPage" data-page="employees">
+        <view class="mi-icon">🧑‍💼</view>
+        <text class="mi-name">员工管理</text>
+        <text class="mi-desc">点击分配任务</text>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="task-assign">
+        <view class="mi-icon">📋</view>
+        <text class="mi-name">分配任务</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 管理员 -->
+  <view class="section" wx:if="{{isAdmin}}">
+    <text class="sec-title">管理员</text>
+    <view class="menu-grid">
+      <view class="menu-item" bindtap="goToPage" data-page="settings">
+        <view class="mi-icon">⚙️</view>
+        <text class="mi-name">系统设置</text>
+      </view>
+      <view class="menu-item" bindtap="goToPage" data-page="reports">
+        <view class="mi-icon">📈</view>
+        <text class="mi-name">数据报表</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部提示 -->
+  <view class="footer-tip">
+    <text>D&B 帝标 · 设记家 管理系统 v3.3.0</text>
+  </view>
+
 </view>

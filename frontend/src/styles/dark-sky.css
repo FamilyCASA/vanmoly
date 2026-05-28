@@ -1,0 +1,58 @@
+/* 暗黑深空主题 - 系统风格统一升级 */
+/* 目标：统一所有页面到暗黑深空风格 */
+
+:root.dark {
+  /* 背景色系 - 深空 */
+  --bg-base: #0a0a1a;           /* 最底层背景：极深蓝黑 */
+  --bg-surface: #1a1a2e;        /* 表面/卡片背景 */
+  --bg-surface-hover: #22223a;   /* 表面悬浮 */
+  --bg-elevated: #16213e;       /* 悬浮层/弹窗背景 */
+  
+  /* 主色调 */
+  --primary: #409EFF;            /* Element Plus 蓝（保留） */
+  --primary-dark: #2a6cb0;       /* 主色暗色 */
+  --accent: #6C63FF;            /* 深空紫蓝强调色 */
+  
+  /* 文字色系 - 确保与背景对比度 */
+  --text-primary: #E8E8E8;      /* 主文字：浅灰白，对比度充足 */
+  --text-title: #FFFFFF;         /* 标题：纯白 */
+  --text-secondary: #A0A0B8;     /* 辅助文字：浅灰蓝 */
+  --text-placeholder: #606080;   /* 占位文字 */
+  
+  /* 边框/分割色 */
+  --border: #2a2a3e;
+  --divider: #1a1a2e;
+  
+  /* 阴影 */
+  --shadow: 0 2px 12px rgba(0, 0, 0, 0.6);
+}
+
+/* 全局暗黑模式基础样式 */
+html.dark {
+  color-scheme: dark;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+}
+
+/* Element Plus 暗黑主题覆盖 */
+.dark .el-card {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.dark .el-input__inner {
+  background-color: var(--bg-surface);
+  border-color: var(--border);
+  color: var(--text-primary);
+}
+
+.dark .el-table {
+  background-color: var(--bg-surface);
+  color: var(--text-primary);
+}
+
+.dark .el-dialog {
+  background-color: var(--bg-elevated);
+  color: var(--text-primary);
+}

@@ -186,6 +186,7 @@ class ThemeConfig(db.Model):
     
     theme_name = db.Column(db.String(100), nullable=False, comment='主题名称')
     theme_key = db.Column(db.String(50), unique=True, nullable=False, comment='主题标识')
+    description = db.Column(db.String(500), comment='主题描述')
     
     # 颜色配置
     colors = db.Column(db.JSON, default=dict, comment='颜色配置JSON')
@@ -197,6 +198,9 @@ class ThemeConfig(db.Model):
     spacing = db.Column(db.JSON, default=dict, comment='间距配置')
     border_radius = db.Column(db.JSON, default=dict, comment='圆角配置')
     shadows = db.Column(db.JSON, default=dict, comment='阴影配置')
+    
+    # 区域级配置（JSON，存储各区块样式）
+    section_configs = db.Column(db.JSON, default=dict, comment='区域级样式配置JSON')
     
     # 状态
     is_active = db.Column(db.Boolean, default=False, comment='是否当前激活主题')
@@ -210,11 +214,13 @@ class ThemeConfig(db.Model):
             'id': self.id,
             'theme_name': self.theme_name,
             'theme_key': self.theme_key,
+            'description': self.description,
             'colors': self.colors,
             'fonts': self.fonts,
             'spacing': self.spacing,
             'border_radius': self.border_radius,
             'shadows': self.shadows,
+            'section_configs': self.section_configs,
             'is_active': self.is_active,
             'is_default': self.is_default
         }

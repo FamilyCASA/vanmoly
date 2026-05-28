@@ -1,0 +1,108 @@
+n / 10000)
+  const high = Math.round(filters.price_max / 10000)
+  const mid = Math.round((low + high) / 2)
+  return '约' + mid + '万'
+})
+
+// 点击数轴任意位置 → 选中该点 ±10万
+const clickAxis = (event) => {
+  const track = event.currentTarget
+  const rect = track.getBoundingClientRect()
+  const pct = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+  const min = budgetStats.value.min_wan
+  const max = budgetStats.value.max_wan
+  const midWan = min + pct * (max - min)
+  const minWan = Math.max(0, midWan - 5)
+  const maxWan = midWan + 5
+  filters.price_min = Math.floor(minWan * 10000)
+  filters.price_max = Math.ceil(maxWan * 10000)
+  budgetRange.value = true
+  selectedQuickRange.value = ''
+  // 滑块移动到点击位置
+  dragPct.value = pct * 100
+  // 统计该区间案例数（前端估算）
+  budgetTip.value = estimateCount(midWan)
+  fetchCases()
+}
+
+// 估算区间内案例数（基于 buckets 数据粗估）
+const estimateCount = (midWan) => {
+  const buckets = budgetStats.value?.buckets || []
+  const low = (midWan - 5) * 10000
+  const high = (midWan + 5) * 10000
+  return buckets.reduce((sum, b) => {
+    const bm = b.mid || 0
+    return sum + (bm >= low && bm <= high ? b.count : 0)
+  }, 0)
+}
+
+// 快捷区间按钮
+const applyQuickRange = (range) => {
+  selectedQuickRange.value = range.label
+  filters.price_min = range.min
+  filters.price_max = range.max
+  budgetRange.value = true
+  budgetTip.value = estimateCount((range.min + (range.max || range.min * 2)) / 20000)
+  fetchCases()
+}
+
+// ===== 滑块拖拽 =====
+const startDrag = (e) => {
+  isDragging.value = true
+  dragPct.value = null
+  document.addEventListener('mousemove', onDrag)
+  document.addEventListener('mouseup', endDrag)
+  e.preventDefault()
+}
+
+const onDrag = (e) => {
+  if (!isDragging.value || !budgetStats.value) return
+  const track = document.querySelector('.budget-axis-track')
+  if (!track) return
+  const rect = track.getBoundingClientRect()
+  const pct = Math.max(0, Math.min(100, ((e.clientX - rect.left) / rect.width) * 100))
+  dragPct.value = pct
+  // 实时预览：计算对应万数并更新提示
+  const min = budgetStats.value.min_wan
+  const max = budgetStats.value.max_wan
+  const midWan = min + (pct / 100) * (max - min)
+  budgetTip.value = estimateCount(midWan)
+}
+
+const endDrag = () => {
+  if (!isDragging.value) {
+    document.removeEventListener('mousemove', onDrag)
+    document.removeEventListener('mouseup', endDrag)
+    return
+  }
+  if (dragPct.value !== null && budgetStats.value) {
+    const min = budgetStats.value.min_wan
+    const max = budgetStats.value.max_wan
+    const midWan = min + (dragPct.value / 100) * (max - min)
+    // 设置 ±10万 区间
+    const minWan = Math.max(0, midWan - 10)
+    const maxWan = midWan + 10
+    filters.price_min = Math.floor(minWan * 10000)
+    filters.price_max = Math.ceil(maxWan * 10000)
+    budgetRange.value = true
+    selectedQuickRange.value = ''
+    fetchCases()
+  }
+  isDragging.value = false
+  dragPct.value = null
+  document.removeEventListener('mousemove', onDrag)
+  document.removeEventListener('mouseup', endDrag)
+}
+
+// 滑块手柄点击（仅在非拖拽时触发）
+const handleClick = () => {
+  if (isDragging.value) return
+  budgetRange.value = !budgetRange.value
+  if (!budgetRange.value) {
+    filters.price_min = null
+    filters.price_max = null
+    budgetTip.value = 0
+    fetchCases()
+  }
+}
+

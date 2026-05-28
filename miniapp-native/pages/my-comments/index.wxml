@@ -1,0 +1,55 @@
+<!-- 我的评论 -->
+<view class="page">
+  <!-- 顶部 -->
+  <view class="page-header">
+    <text class="page-title">我的评论</text>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && comments.length === 0}}">
+    <text class="empty-icon">💬</text>
+    <text class="empty-title">暂无评论</text>
+    <text class="empty-desc">在案例详情页发表您的评价与感想</text>
+    <view class="empty-btn" bindtap="goExplore">
+      <text>浏览案例</text>
+    </view>
+  </view>
+
+  <!-- 评论列表 -->
+  <view class="comment-list" wx:else>
+    <view class="comment-card" wx:for="{{comments}}" wx:key="id">
+      <view class="cc-source" bindtap="goToCase" data-id="{{item.case_id}}">
+        <text class="ccs-label">评论了案例</text>
+        <text class="ccs-title">{{item.case_title}}</text>
+      </view>
+      <view class="cc-content">
+        <text class="ccc-text">{{item.content}}</text>
+        <view class="ccc-images" wx:if="{{item.images && item.images.length > 0}}">
+          <image wx:for="{{item.images}}" wx:for-item="img" wx:key="*this" src="{{img}}" mode="aspectFill" bindtap="previewImage" data-urls="{{item.images}}" data-current="{{img}}"/>
+        </view>
+      </view>
+      <view class="cc-bottom">
+        <text class="ccb-time">{{item.createdAt}}</text>
+        <view class="ccb-stats">
+          <view class="ccb-stat" bindtap="likeComment" data-id="{{item.id}}">
+            <text class="ccb-icon {{item.is_liked ? 'liked' : ''}}">{{item.is_liked ? '❤️' : '🤍'}}</text>
+            <text>{{item.like_count || 0}}</text>
+          </view>
+          <view class="ccb-stat" wx:if="{{item.reply_count > 0}}">
+            <text class="ccb-icon">💬</text>
+            <text>{{item.reply_count}}</text>
+          </view>
+        </view>
+        <view class="ccb-delete" catchtap="deleteComment" data-id="{{item.id}}">
+          <text>删除</text>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

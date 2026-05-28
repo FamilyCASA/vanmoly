@@ -4,16 +4,12 @@ Page({
   data: {
     selection: [],
     groupedSelection: [],
-    scheme: {
-      name: '',
-      room_type: '',
-      area: '',
-      remark: ''
-    },
+    scheme: { name: '', room_type: '', area: '', remark: '' },
     roomTypes: ['客厅', '卧室', '餐厅', '书房', '儿童房', '厨房', '卫生间', '阳台', '全屋'],
     showSchemeEdit: false,
     isEditing: false,
     selectedItems: [],
+    isAllSelected: false,
     totalCount: 0,
     totalAmount: 0,
     showSuccessModal: false
@@ -266,72 +262,52 @@ Page({
   },
 
   // 提交方案
-  async submitScheme() {
+  submitScheme() {
     const { selection, scheme, totalAmount } = this.data
 
     if (selection.length === 0) {
-      wx.showToast({
-        title: '选品清单为空',
-        icon: 'none'
-      })
+      wx.showToast({ title: '选品清单为空', icon: 'none' })
       return
     }
 
-    // 检查登录状态
     const token = wx.getStorageSync('token')
     if (!token) {
       wx.showModal({
         title: '需要登录',
         content: '提交方案需要先登录，是否前往登录？',
         success: (res) => {
-          if (res.confirm) {
-            wx.navigateTo({
-              url: '/pages/login/index'
-            })
-          }
+          if (res.confirm) wx.navigateTo({ url: '/pages/login/index' })
         }
       })
       return
     }
 
-    wx.showLoading({
-      title: '提交中...'
-    })
+    wx.showLoading({ title: '提交中...' })
 
-    try {
-      const res = await wx.request({
-        url: `${app.globalData.apiBaseUrl}/api/v3/schemes`,
-        method: 'POST',
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        data: {
-          name: scheme.name || '未命名方案',
-          room_type: scheme.room_type,
-          area: scheme.area,
-          remark: scheme.remark,
-          total_amount: totalAmount,
-          items: selection.map(item => ({
-            sku_id: item.id,
-            sku_code: item.sku_code,
-            name: item.name,
-            variant_name: item.variant_name,
-            main_image: item.main_image,
-            sale_price: item.sale_price,
-            quantity: item.quantity,
-            unit: item.unit
-          }))
-        }
-      })
-
-      wx.hideLoading()
-
-      if (res.statusCode === 200 || res.statusCode === 201) {
-        // 清空选品清单
+    app.request({
+      url: '/schemes',
+      method: 'POST',
+      data: {
+        name: scheme.name || '未命名方案',
+        room_type: scheme.room_type,
+        area: scheme.area,
+        remark: scheme.remark,
+        total_amount: totalAmount,
+        items: selection.map(item => ({
+          sku_id: item.id,
+          sku_code: item.sku_code,
+          name: item.name,
+          variant_name: item.variant_name,
+          main_image: item.main_image,
+          sale_price: item.sale_price,
+          quantity: item.quantity,
+          unit: item.unit
+        }))
+      },
+      success: () => {
+        wx.hideLoading()
         wx.removeStorageSync('selection')
         wx.removeStorageSync('scheme_info')
-
         this.setData({
           showSuccessModal: true,
           selection: [],
@@ -339,16 +315,13 @@ Page({
           totalCount: 0,
           totalAmount: 0
         })
-      } else {
-        throw new Error(res.data?.message || '提交失败')
+      },
+      fail: (err) => {
+        wx.hideLoading()
+        const msg = (err && err.message) || '提交失败'
+        wx.showToast({ title: msg, icon: 'error' })
       }
-    } catch (error) {
-      wx.hideLoading()
-      wx.showToast({
-        title: error.message || '提交失败',
-        icon: 'error'
-      })
-    }
+    })
   },
 
   // 关闭成功弹窗

@@ -7,6 +7,20 @@ from datetime import datetime
 from app import db
 from app.models.material_sku import MaterialSKU, MaterialCategory
 from sqlalchemy import text, or_
+from functools import wraps
+from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
+
+def jwt_required_v2(f):
+    """JWT验证装饰器"""
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        try:
+            verify_jwt_in_request()
+            current_user = get_jwt_identity()
+            return f(current_user, *args, **kwargs)
+        except Exception as e:
+            return jsonify({'code': 401, 'message': f'认证失败: {str(e)}'}), 401
+    return decorated
 
 material_bp = Blueprint('material', __name__)
 
@@ -95,6 +109,9 @@ def create_material():
             variant_options=data.get('variant_options', []),
             has_craft_parts=data.get('has_craft_parts', False),
             craft_parts=data.get('craft_parts', []),
+            color_name=data.get('color_name', ''),
+            env_level=data.get('env_level', '合格'),
+            supply_chain=data.get('supply_chain', '直供'),
             description=data.get('description'),
             detail_content=data.get('detail_content'),
             tags=data.get('tags', []),
@@ -219,6 +236,120 @@ def create_category():
     except Exception as e:
         db.session.rollback()
         return api_response(code=500, message=f'分类创建失败: {str(e)}')
+
+@material_bp.route('/materials/batch-import', methods=['POST'])
+@jwt_required_v2
+def batch_import_materials(current_user):
+    """批量导入物料，自动创建不重复的L2分类"""
+    data = request.get_json()
+    if not data or 'items' not in data:
+        return api_response(code=400, message='请提供物料列表(items)')
+    
+    items = data['items']
+    if not items or not isinstance(items, list):
+        return api_response(code=400, message='物料列表不能为空')
+    
+    # 加载所有现有分类（构建名称→ID映射）
+    all_cats = MaterialCategory.query.filter_by(is_deleted=False).all()
+    cat_name_map = {}  # "parent_id|name" → category object
+    for c in all_cats:
+        key = f"{c.parent_id or 0}|{c.name}"
+        cat_name_map[key] = c
+    # 也建立 L1 name → id 映射
+    l1_name_map = {c.name: c for c in all_cats if c.level == 1 and not c.is_deleted}
+    
+    results = {'created': 0, 'skipped': 0, 'errors': [], 'new_categories': []}
+    
+    for idx, item in enumerate(items):
+        try:
+            l1_name = item.get('category_level1', '').strip()
+            l2_name = item.get('category_level2', '').strip()
+            
+            if not l1_name:
+                results['errors'].append(f'第{idx+1}行: 缺少一级分类')
+                continue
+            
+            # 查找或创建 L1 分类
+            l1_cat = l1_name_map.get(l1_name)
+            if not l1_cat:
+                l1_cat = MaterialCategory(
+                    name=l1_name, level=1, sort_order=len(l1_name_map) + 1
+                )
+                db.session.add(l1_cat)
+                db.session.flush()
+                l1_name_map[l1_name] = l1_cat
+                cat_name_map[f"0|{l1_name}"] = l1_cat
+                results['new_categories'].append({'level': 1, 'name': l1_name, 'id': l1_cat.id})
+            
+            # 查找或创建 L2 分类
+            category_id = l1_cat.id
+            if l2_name:
+                key = f"{l1_cat.id}|{l2_name}"
+                l2_cat = cat_name_map.get(key)
+                if not l2_cat:
+                    # 查找现有最大sort_order
+                    max_sort = db.session.query(db.func.max(MaterialCategory.sort_order)).filter_by(
+                        parent_id=l1_cat.id, is_deleted=False
+                    ).scalar() or 0
+                    l2_cat = MaterialCategory(
+                        name=l2_name, parent_id=l1_cat.id, level=2, sort_order=max_sort + 1
+                    )
+                    db.session.add(l2_cat)
+                    db.session.flush()
+                    cat_name_map[key] = l2_cat
+                    results['new_categories'].append({'level': 2, 'name': l2_name, 'parent': l1_name, 'id': l2_cat.id})
+                category_id = l2_cat.id
+            
+            # 检查SKU编码是否已存在
+            sku_code = item.get('sku_code', '').strip()
+            if sku_code:
+                existing = MaterialSKU.query.filter_by(sku_code=sku_code).first()
+                if existing:
+                    results['skipped'] += 1
+                    continue
+            
+            # 创建SKU
+            sku = MaterialSKU(
+                sku_code=sku_code or f"AUTO-{idx+1:05d}",
+                name=item.get('name', '').strip(),
+                category_id=category_id,
+                brand=item.get('brand', ''),
+                model=item.get('model', ''),
+                specification=item.get('specification', ''),
+                material=item.get('material', ''),
+                origin=item.get('origin', ''),
+                main_image=item.get('main_image', ''),
+                color_name=item.get('color_name', ''),
+                env_level=item.get('env_level', '合格'),
+                supply_chain=item.get('supply_chain', '直供'),
+                cost_price=float(item.get('cost_price', 0) or 0),
+                sale_price=float(item.get('sale_price', 0) or 0),
+                market_price=float(item.get('market_price', 0) or 0) if item.get('market_price') else None,
+                unit=item.get('unit', '件'),
+                calc_type=item.get('calc_type', 'quantity'),
+                stock_quantity=int(item.get('stock_quantity', 0) or 0),
+                description=item.get('description', ''),
+                status=item.get('status', 'active'),
+                is_public=item.get('is_public', True),
+                created_by=current_user.id if current_user else None,
+            )
+            db.session.add(sku)
+            results['created'] += 1
+            
+        except Exception as e:
+            results['errors'].append(f'第{idx+1}行: {str(e)}')
+            db.session.rollback()
+            continue
+    
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=f'批量导入失败: {str(e)}')
+    
+    return api_response(code=200, message=f'批量导入完成: 创建{results["created"]}条, 跳过{results["skipped"]}条, 新分类{len(results["new_categories"])}个',
+                        data=results)
+
 
 
 @material_bp.route('/materials/categories/<int:cat_id>', methods=['PUT'])

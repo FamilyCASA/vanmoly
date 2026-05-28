@@ -3,13 +3,13 @@
     <el-aside width="220px" class="sidebar">
       <div class="logo">
         <span class="logo-text">D&B 帝标|设记家</span>
-        <span class="logo-version">V3.2</span>
+        <span class="logo-version">V3.3</span>
       </div>
       <el-menu
         :default-active="$route.path"
         router
-        background-color="#304156"
-        text-color="#bfcbd9"
+        background-color="#fff"
+        text-color="#333"
         active-text-color="#409EFF"
         :collapse="isCollapse"
       >
@@ -187,7 +187,7 @@
           <el-input v-model="passwordForm.newPassword" type="password" show-password placeholder="请输入新密码" />
         </el-form-item>
         <el-form-item label="确认新密码" prop="confirmPassword">
-          <el-input v-model="passwordForm.confirmPassword" type="password" show-password placeholder="请再次输入新密码" />
+          <el-input v-model="passwordForm.confirmPassword" type="password" show-Password placeholder="请再次输入新密码" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -223,7 +223,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DataLine, Picture, User, Calendar, Folder, Setting, Fold, Expand,
   UserFilled, Box, Connection, Document, OfficeBuilding,
-  Money, Shop, Tools,Briefcase, Share, Finished, Promotion,
+  Money, Shop, Tools, Briefcase, Share, Finished, Promotion,
   Lock, ArrowRight, Monitor
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -278,6 +278,7 @@ onMounted(() => {
 })
 
 // 加载积分余额
+
 
 const showChangePassword = () => {
   changePasswordVisible.value = true
@@ -337,8 +338,9 @@ const handleLogout = () => {
 }
 
 .sidebar {
-  background: #304156;
+  background: var(--bg-surface, #fff);
   transition: width 0.3s;
+  border-right: 1px solid var(--border, #e4e7ed);
 }
 
 .logo {
@@ -346,8 +348,8 @@ const handleLogout = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid #1f2d3d;
-  color: #fff;
+  border-bottom: 1px solid var(--border, #e4e7ed);
+  color: var(--text-title, #333);
 }
 
 .logo-text {
@@ -359,16 +361,18 @@ const handleLogout = () => {
   font-size: 12px;
   margin-left: 4px;
   padding: 2px 6px;
-  background: #409EFF;
+  background: var(--primary, #409EFF);
   border-radius: 4px;
+  color: #fff;
 }
 
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: #fff;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  background: var(--bg-surface, #fff);
+  box-shadow: var(--shadow, 0 1px 4px rgba(0,0,0,0.08));
+  color: var(--text-primary, #333);
 }
 
 .header-left {
@@ -380,16 +384,16 @@ const handleLogout = () => {
 .collapse-btn {
   font-size: 20px;
   cursor: pointer;
-  color: #666;
+  color: var(--text-secondary, #909399);
 }
 
 .collapse-btn:hover {
-  color: #409EFF;
+  color: var(--primary, #409EFF);
 }
 
 .breadcrumb {
   font-size: 14px;
-  color: #666;
+  color: var(--text-secondary, #909399);
 }
 
 .header-right {
@@ -406,13 +410,13 @@ const handleLogout = () => {
   border-radius: 20px;
   cursor: pointer;
   font-size: 14px;
-  color: #409EFF;
-  background: #ecf5ff;
+  color: var(--primary, #409EFF);
+  background: rgba(64, 158, 255, 0.08);
   transition: all 0.2s;
 }
 
 .my-btn:hover {
-  background: #d9ecff;
+  background: rgba(64, 158, 255, 0.25);
 }
 
 .user-info {
@@ -426,17 +430,18 @@ const handleLogout = () => {
 }
 
 .user-info:hover {
-  background: #f5f7fa;
+  background: var(--bg-surface-hover, #f5f7fa);
 }
 
 .username {
   font-size: 14px;
-  color: #333;
+  color: var(--text-primary, #E8E8E8);
 }
 
 .main-content {
-  background: #f0f2f5;
+  background: var(--bg-base, #f5f7fa);
   padding: 20px;
+  color: var(--text-primary, #333);
 }
 
 /* 我的抽屉样式 */
@@ -449,10 +454,11 @@ const handleLogout = () => {
   align-items: center;
   gap: 16px;
   padding: 16px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #ecf5ff 0%, #e0edff 100%);
   border-radius: 12px;
-  color: #fff;
+  color: var(--text-primary, #333);
   margin-bottom: 20px;
+  border: 1px solid var(--border, #e4e7ed);
 }
 
 .my-user-name {
@@ -464,6 +470,7 @@ const handleLogout = () => {
   font-size: 13px;
   opacity: 0.85;
   margin-top: 4px;
+  color: var(--text-secondary, #909399);
 }
 
 .my-section {
@@ -476,20 +483,20 @@ const handleLogout = () => {
   gap: 6px;
   font-size: 14px;
   font-weight: 600;
-  color: #262626;
+  color: var(--text-title, #333);
   margin-bottom: 12px;
 }
 
 .my-section-title .el-icon {
-  color: #8B5A2B;
+  color: var(--accent, #6C63FF);
 }
 
 .my-points-card {
   text-align: center;
   padding: 16px;
-  background: #fffbe6;
+  background: rgba(250, 140, 22, 0.1);
   border-radius: 8px;
-  border: 1px solid #ffe58f;
+  border: 1px solid rgba(250, 140, 22, 0.3);
   margin-bottom: 8px;
 }
 
@@ -502,7 +509,7 @@ const handleLogout = () => {
 
 .my-points-label {
   font-size: 12px;
-  color: #8c8c8c;
+  color: var(--text-secondary, #606266);
   margin-top: 4px;
 }
 
@@ -530,22 +537,23 @@ const handleLogout = () => {
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
-  background: #fafafa;
+  background: var(--bg-surface, #fff);
+  border: 1px solid var(--border, #e4e7ed);
 }
 
 .my-grid-item:hover {
-  background: #f0f0f0;
+  background: var(--bg-surface-hover, #22223a);
   transform: translateY(-1px);
 }
 
 .my-grid-item span {
   font-size: 12px;
-  color: #595959;
+  color: var(--text-secondary, #909399);
   white-space: nowrap;
 }
 
 .my-list {
-  border: 1px solid #f0f0f0;
+  border: 1px solid var(--border, #e4e7ed);
   border-radius: 8px;
   overflow: hidden;
 }
@@ -558,15 +566,20 @@ const handleLogout = () => {
   cursor: pointer;
   transition: background 0.2s;
   font-size: 14px;
-  color: #262626;
+  color: var(--text-primary, #333);
+  border-bottom: 1px solid var(--border, #e4e7ed);
+}
+
+.my-list-item:last-child {
+  border-bottom: none;
 }
 
 .my-list-item:hover {
-  background: #f5f5f5;
+  background: var(--bg-surface-hover, #f5f7fa);
 }
 
 .my-list-item .el-icon {
-  color: #bfbfbf;
+  color: var(--text-secondary, #909399);
 }
 
 /* 积分汇总 */
@@ -574,7 +587,7 @@ const handleLogout = () => {
   margin-top: 12px;
   text-align: right;
   font-size: 14px;
-  color: #595959;
+  color: var(--text-secondary, #606266);
 }
 
 .points-summary strong {
@@ -591,8 +604,8 @@ const handleLogout = () => {
   border-radius: 50%;
   font-size: 12px;
   font-weight: 600;
-  background: #f0f0f0;
-  color: #8c8c8c;
+  background: var(--bg-surface, #fff);
+  color: var(--text-secondary, #606266);
 }
 
 .rank-badge.rank-top {

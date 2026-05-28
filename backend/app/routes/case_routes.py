@@ -16,7 +16,7 @@ from app.models import (
     CaseNotification, CaseOperationLog,
     CaseWorkflowTimeline
 )
-from app.models.case import MorandiPalette, PantoneColorMap
+from app.models.case import MorandiPalette, PantoneColorMap, CaseSpaceMaterial, CaseSlideConfig, SlideTemplate
 from app.models.building import Building
 from app.models.hr import Employee
 from app.models.service_workflow import CustomerWorkflow, WorkflowNode
@@ -164,6 +164,15 @@ def get_cases(current_user):
             query = query.filter(CaseStudy.atmosphere == atmosphere)
         
         # 颜色筛选: 支持 hex 值或色系 key
+        
+        # 预算区间筛选 (单位：元)
+        price_min = request.args.get('price_min', type=int)
+        price_max = request.args.get('price_max', type=int)
+        if price_min:
+            query = query.filter(CaseStudy.total_price >= price_min)
+        if price_max:
+            query = query.filter(CaseStudy.total_price <= price_max)
+
         color_filter = request.args.get('color')  # e.g. #E8C5C5 or pink
         if color_filter:
             if color_filter.startswith('#'):
@@ -382,7 +391,7 @@ def update_case(current_user, id):
             'customer_requirements', 'design_highlights', 'customer_value',
             'total_price', 'deal_budget', 'package_type', 'price_detail', 'material_list',
             'construction_phase', 'owner_authorized', 'is_public', 'is_featured',
-            'atmosphere', 'responsible_id', 'enable_subscription', 'enable_notify',
+            'atmosphere', 'scene_tags', 'responsible_id', 'enable_subscription', 'enable_notify',
             'planner_id', 'designer_id', 'storage_plan', 'execution_detail',
             'is_top', 'top_position'
         ]
@@ -391,7 +400,17 @@ def update_case(current_user, id):
             if field in data:
                 setattr(case, field, data[field])
         
-        # 特殊处理tags字段：前端发送列表，数据库存储JSON字符串
+                # 处理场景标签：前端发送数组，数据库存储JSON字符串
+        if 'scene_tags' in data:
+            st_data = data['scene_tags']
+            if isinstance(st_data, list):
+                case.scene_tags = json.dumps(st_data, ensure_ascii=False)
+            elif isinstance(st_data, str):
+                case.scene_tags = st_data
+            else:
+                case.scene_tags = '[]'
+
+# 特殊处理tags字段：前端发送列表，数据库存储JSON字符串
         if 'tags' in data:
             tags_data = data['tags']
             if isinstance(tags_data, list):
@@ -1266,9 +1285,9 @@ def get_public_case(id):
             phases = CasePhase.query.filter_by(case_id=id).order_by(CasePhase.phase_number).all()
             phases_dict = {p.phase_number: p.to_dict() for p in phases}
             # 确保返回6个槽位
-            data['phases'] = {i: phases_dict.get(i) for i in range(1, 7)}
+            data['phases'] = {i: phases_dict.get(i) for i in range(1, 10)}
         except Exception:
-            data['phases'] = {i: None for i in range(1, 7)}
+            data['phases'] = {i: None for i in range(1, 10)}
         
         # spaces（空间效果图分组）
         try:
@@ -1911,7 +1930,10 @@ def update_case_phase(current_user, id, phase_num):
             3: '平面规划',
             4: '鸟瞰展示',
             5: '效果图首页',
-            6: '空间效果图'
+            6: '空间效果图',
+            7: '材质展示',
+            8: '物料展示',
+            9: '工法展示'
         }
         phase.phase_name = phase_names.get(phase_num, '')
         
@@ -1945,6 +1967,23 @@ def update_case_phase(current_user, id, phase_num):
                 phase.showcase_text_cn = data['showcase_text_cn']
             if 'showcase_text_en' in data:
                 phase.showcase_text_en = data['showcase_text_en']
+        elif phase_num == 6:
+            pass  # 阶段6通过空间效果图API单独管理
+        elif phase_num == 7:
+            if 'material_gallery' in data:
+                phase.material_gallery = json.dumps(data['material_gallery'])
+            if 'material_specs' in data:
+                phase.material_specs = data['material_specs']
+        elif phase_num == 8:
+            if 'product_gallery' in data:
+                phase.product_gallery = json.dumps(data['product_gallery'])
+            if 'product_list' in data:
+                phase.product_list = json.dumps(data['product_list'])
+        elif phase_num == 9:
+            if 'process_gallery' in data:
+                phase.process_gallery = json.dumps(data['process_gallery'])
+            if 'process_desc' in data:
+                phase.process_desc = data['process_desc']
         
         db.session.commit()
         return api_response(data=phase.to_dict())
@@ -2121,6 +2160,132 @@ def delete_rendering(current_user, rendering_id):
         return api_response(code=500, message=str(e))
 
 
+
+@case_bp.route('/cases/budget-stats', methods=['GET'])
+def get_budget_stats():
+    """获取预算分布统计（公开接口，供前台案例列表使用）"""
+    try:
+        from app.models.case import CaseStudy
+
+        rows = db.session.query(
+            CaseStudy.total_price
+        ).filter(
+            CaseStudy.status == '已发布',
+            CaseStudy.deleted_at.is_(None),
+            CaseStudy.total_price.isnot(None),
+            CaseStudy.total_price > 0
+        ).all()
+
+        prices = [r[0] for r in rows if r[0]]
+        if not prices:
+            return api_response(data={'min_wan': 10, 'max_wan': 100, 'buckets': [], 'total': 0})
+
+        min_price = min(prices)
+        max_price = max(prices)
+
+        # 构建直方图桶（每10万一档）
+        bucket_size = 100000
+        buckets = []
+        current = int(min_price // bucket_size) * bucket_size
+        max_buckets = 15
+
+        while current <= max_price + bucket_size and len(buckets) < max_buckets:
+            bucket_start = current
+            next_val = current + bucket_size
+
+            if current < 100000:
+                label = f'{current//10000}万以下'
+            elif next_val > max_price:
+                label = f'{current//10000}万+'
+            else:
+                label = f'{current//10000}-{next_val//10000}万'
+
+            count = sum(1 for p in prices if bucket_start <= p < next_val)
+            if next_val > max_price:
+                count = sum(1 for p in prices if bucket_start <= p)
+
+            buckets.append({'label': label, 'count': count, 'mid': current})
+            current += bucket_size
+
+        return api_response(data={
+            'min_wan': round(min_price / 10000, 1),
+            'max_wan': round(max_price / 10000, 1),
+            'min': min_price,
+            'max': max_price,
+            'buckets': buckets,
+            'total': len(prices)
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public', methods=['GET'])
+def list_public_cases():
+    """公开案例列表（无需认证，支持预算区间筛选）"""
+    try:
+        from app.models.case import CaseStudy
+        from sqlalchemy import or_
+
+        page = request.args.get('page', 1, type=int)
+        page_size = request.args.get('pageSize', 12, type=int)
+        is_featured = request.args.get('is_featured')
+        atmosphere = request.args.get('atmosphere')
+        workflow_phase = request.args.get('workflow_phase')
+        color = request.args.get('color')
+        price_min = request.args.get('price_min', type=int)
+        price_max = request.args.get('price_max', type=int)
+        keyword = request.args.get('keyword')
+
+        query = CaseStudy.query.filter(
+            CaseStudy.status == '已发布',
+            CaseStudy.deleted_at.is_(None)
+        )
+
+        if is_featured and is_featured not in ['', 'all']:
+            if is_featured.lower() == 'true':
+                query = query.filter(CaseStudy.is_featured == True)
+            elif is_featured.lower() == 'false':
+                query = query.filter(CaseStudy.is_featured == False)
+
+        if atmosphere:
+            query = query.filter(CaseStudy.atmosphere == atmosphere)
+
+        if workflow_phase:
+            query = query.filter(CaseStudy.workflow_phase == workflow_phase)
+
+        if color:
+            query = query.filter(or_(
+                CaseStudy.main_colors.contains(color),
+                CaseStudy.auxiliary_colors.contains(color),
+                CaseStudy.accent_colors.contains(color),
+                CaseStudy.background_colors.contains(color)
+            ))
+
+        if price_min:
+            query = query.filter(CaseStudy.total_price >= price_min)
+        if price_max:
+            query = query.filter(CaseStudy.total_price <= price_max)
+
+        if keyword:
+            query = query.filter(or_(
+                CaseStudy.title.contains(keyword),
+                CaseStudy.subtitle.contains(keyword),
+                CaseStudy.building_name.contains(keyword),
+                CaseStudy.design_style.contains(keyword)
+            ))
+
+        total = query.count()
+        items = query.order_by(
+            CaseStudy.is_featured.desc(),
+            CaseStudy.sort_order.desc(),
+            CaseStudy.created_at.desc()
+        ).offset((page - 1) * page_size).limit(page_size).all()
+
+        return api_response(items=[c.to_dict() for c in items], total=total, page=page, pageSize=page_size)
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
 @case_bp.route('/spaces/reorder', methods=['POST'])
 @jwt_required_v2
 def reorder_spaces(current_user):
@@ -2137,6 +2302,929 @@ def reorder_spaces(current_user):
         
         db.session.commit()
         return api_response(message='排序成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== V3.3 幻灯片演示 + 空间物料配置 ====================
+
+
+@case_bp.route('/cases/<int:id>/slide-config', methods=['GET'])
+@jwt_required_v2
+def get_slide_config(current_user, id):
+    """获取案例幻灯片配置"""
+    try:
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        if not config:
+            # 自动创建默认配置，自动关联模板
+            case = CaseStudy.query.get(id)
+            config = CaseSlideConfig(case_id=id, template_id=case.slide_template_id if case else None)
+            db.session.add(config)
+            db.session.commit()
+        return api_response(data=config.to_dict())
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/slide-config', methods=['PUT'])
+@jwt_required_v2
+def update_slide_config(current_user, id):
+    """更新案例幻灯片配置"""
+    try:
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        if not config:
+            config = CaseSlideConfig(case_id=id)
+            db.session.add(config)
+
+        data = request.get_json()
+        for field in ['template_id', 'template_style', 'primary_color', 'aspect_ratio',
+                       'cover_title', 'cover_subtitle', 'cover_bg_image',
+                       'inner_bg_image', 'back_bg_image',
+                       'about_title', 'about_content', 'about_image', 'about_subtitle',
+                       'show_about', 'show_team', 'show_toc', 'show_material',
+                       'show_product', 'show_process', 'show_summary']:
+            if field in data:
+                setattr(config, field, data[field])
+
+        db.session.commit()
+        return api_response(data=config.to_dict(), message='幻灯片配置已更新')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/slide-data', methods=['GET'])
+@jwt_required_v2
+def get_slide_data(current_user, id):
+    """获取案例幻灯片完整数据（用于前端渲染）"""
+    try:
+        from app.models.case import CasePhase, CaseSpaceRendering, CaseRenderingItem
+        from app.models.frontend_config import PageConfig
+        from app.models.hr import Employee
+
+        case = CaseStudy.query.get(id)
+        if not case:
+            return api_response(code=404, message='案例不存在')
+
+        case_data = case.to_dict(include_relations=True)
+
+        # 获取幻灯片配置
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        if config:
+            slide_config = config.to_dict()
+        else:
+            # 未创建配置时返回默认值，自动关联模板
+            slide_config = {
+                'id': None, 'case_id': id,
+                'template_id': case.slide_template_id if case.slide_template_id else None,
+                'template_style': 'dark', 'primary_color': '#8B4513',
+                'aspect_ratio': '16:9',
+                'cover_title': None, 'cover_subtitle': None, 'cover_bg_image': None,
+                'inner_bg_image': None, 'back_bg_image': None,
+                'about_title': '关于我们', 'about_content': None, 'about_image': None, 'about_subtitle': None,
+                'show_about': True, 'show_team': True, 'show_toc': True,
+                'show_material': True, 'show_product': True, 'show_process': True, 'show_summary': True,
+                'created_at': None, 'updated_at': None,
+            }
+
+        phases = CasePhase.query.filter_by(case_id=id).order_by(CasePhase.phase_number).all()
+        phases_data = {p.phase_number: p.to_dict() for p in phases}
+
+        spaces = CaseSpaceRendering.query.filter_by(case_id=id).order_by(CaseSpaceRendering.sort_order).all()
+        spaces_data = [s.to_dict(include_items=True) for s in spaces]
+
+        # 获取空间物料配置
+        materials = CaseSpaceMaterial.query.filter_by(case_id=id).order_by(
+            CaseSpaceMaterial.space_name, CaseSpaceMaterial.category_level1, CaseSpaceMaterial.sort_order
+        ).all()
+        materials_data = [m.to_dict() for m in materials]
+
+        # 如果案例没有物料配置，从物料库(MaterialSKU)读取作为备选数据
+        if not materials_data:
+            from app.models.material_sku import MaterialSKU, MaterialCategory
+            skus = MaterialSKU.query.filter_by(is_deleted=False).order_by(
+                MaterialSKU.category_id, MaterialSKU.sort_order
+            ).all()
+            # 构建分类映射
+            cat_map = {}
+            all_cats = MaterialCategory.query.filter_by(is_deleted=False).all()
+            for c in all_cats:
+                cat_map[c.id] = c.name
+                if c.parent_id:
+                    cat_map[str(c.id) + '_parent'] = c.parent_id
+            for sku in skus:
+                cat1_name = ''
+                cat2_name = cat_map.get(sku.category_id, '')
+                parent_id = cat_map.get(str(sku.category_id) + '_parent')
+                if parent_id:
+                    cat1_name = cat_map.get(parent_id, '')
+                materials_data.append({
+                    'id': sku.id,
+                    'space_id': None,
+                    'case_id': id,
+                    'sku_id': sku.id,
+                    'sku_code': sku.sku_code,
+                    'material_name': sku.name,
+                    'material_image': sku.main_image,
+                    'material': sku.material or '',
+                    'custom_name': '',
+                    'custom_measure': '',
+                    'sku_name': sku.name,
+                    'category_level1': cat1_name,
+                    'category_level2': cat2_name,
+                    'brand': sku.brand or '',
+                    'spec': sku.specification or '',
+                    'unit': sku.unit or '',
+                    'quantity': 1,
+                    'unit_price': float(sku.sale_price) if sku.sale_price else 0,
+                    'total_price': float(sku.sale_price) if sku.sale_price else 0,
+                    'env_level': sku.env_level or '合格',
+                    'supply_chain': sku.supply_chain or '直供',
+                    'color_name': sku.color_name or '',
+                    'width': None,
+                    'depth': None,
+                    'height': None,
+                })
+
+        # 按一级+二级分类聚合物料汇总
+        material_summary = {}
+        for m in materials_data:
+            l1 = m.get('category_level1') or '其他'
+            l2 = m.get('category_level2') or ''
+            cat_label = f"{l1}-{l2}" if l2 else l1
+            if cat_label not in material_summary:
+                material_summary[cat_label] = {
+                    'category': cat_label,
+                    'l1': l1,
+                    'l2': l2,
+                    'measure_total': 0,
+                    'measure_unit': '',
+                    'total': 0
+                }
+            ms = float(m.get('custom_measure') or 0)
+            if ms > 0:
+                material_summary[cat_label]['measure_total'] += ms
+                material_summary[cat_label]['measure_unit'] = m.get('unit') or '㎡'
+            material_summary[cat_label]['total'] += float(m.get('total_price', 0) or 0)
+
+
+        # 获取页面配置中的关于我们信息（系统设置）
+        page_about = {}
+        home_config = PageConfig.query.filter_by(page_key='home').first()
+        if home_config and home_config.sections:
+            for section in home_config.sections:
+                if section.get('component') == 'AboutSection':
+                    cfg = section.get('config', {})
+                    page_about = {
+                        'title': cfg.get('title', ''),
+                        'content': cfg.get('content', ''),
+                        'highlights': cfg.get('highlights', []),
+                    }
+                    break
+
+        # 获取设计团队员工数据
+        team_members = []
+        designers = Employee.query.filter_by(is_deleted=False, department_id=2).all()
+        for emp in designers:
+            if emp.title:  # 只展示有职称的员工
+                team_members.append({
+                    'id': emp.id,
+                    'name': emp.name,
+                    'title': emp.title,
+                    'avatar': emp.avatar,
+                    'showcase_photo': emp.showcase_photo,
+                    'bio': emp.bio,
+                    'department_name': emp.department.name if emp.department else None,
+                })
+
+        # 获取材质展示选中物料
+        showcase_materials = []
+        if config and config.showcase_material_ids:
+            from app.models.material_sku import MaterialSKU as _SKU, MaterialCategory as _MC
+            for sid in config.showcase_material_ids:
+                sku = _SKU.query.filter_by(id=sid, is_deleted=False).first()
+                if sku and sku.main_image:
+                    # 获取L1/L2名称
+                    l2_name = sku.category.name if sku.category else ''
+                    l1_name = ''
+                    if sku.category and sku.category.parent_id:
+                        parent = _MC.query.get(sku.category.parent_id)
+                        l1_name = parent.name if parent else ''
+                    showcase_materials.append({
+                        'sku_id': sku.id,
+                        'sku_name': sku.name,
+                        'main_image': sku.main_image,
+                        'spec': sku.specification or '',
+                        'brand': sku.brand or '',
+                        'l1': l1_name,
+                        'l2': l2_name,
+                    })
+
+        return api_response(data={
+            'case': case_data,
+            'slide_config': slide_config,
+            'phases': phases_data,
+            'spaces': spaces_data,
+            'materials': materials_data,
+            'material_summary': list(material_summary.values()),
+            'page_about': page_about,
+            'team_members': team_members,
+            'showcase_materials': showcase_materials,
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ===== 空间物料配置 CRUD =====
+
+@case_bp.route('/cases/<int:id>/space-materials', methods=['GET'])
+@jwt_required_v2
+def get_space_materials(current_user, id):
+    """获取案例所有空间物料配置"""
+    try:
+        materials = CaseSpaceMaterial.query.filter_by(case_id=id).order_by(
+            CaseSpaceMaterial.space_name, CaseSpaceMaterial.sort_order
+        ).all()
+        return api_response(data=[m.to_dict() for m in materials])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/spaces/<int:space_id>/materials', methods=['GET'])
+@jwt_required_v2
+def get_space_materials_by_space(current_user, space_id):
+    """获取某空间的物料配置"""
+    try:
+        materials = CaseSpaceMaterial.query.filter_by(space_id=space_id).order_by(
+            CaseSpaceMaterial.sort_order
+        ).all()
+        return api_response(data=[m.to_dict() for m in materials])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/spaces/<int:space_id>/materials', methods=['POST'])
+@jwt_required_v2
+def add_space_material(current_user, space_id):
+    """给空间添加物料配置"""
+    try:
+        from app.models.case import CaseSpaceRendering
+        space = CaseSpaceRendering.query.get(space_id)
+        if not space:
+            return api_response(code=404, message='空间不存在')
+
+        data = request.get_json()
+        material = CaseSpaceMaterial(
+            space_id=space_id,
+            case_id=space.case_id,
+            space_name=data.get('space_name', space.space_name),
+            room_name=data.get('room_name'),
+            sku_id=data.get('sku_id'),
+            sku_code=data.get('sku_code'),
+            material_name=data.get('material_name'),
+            material_image=data.get('material_image'),
+            category_level1=data.get('category_level1'),
+            category_level2=data.get('category_level2'),
+            category_level3=data.get('category_level3'),
+            brand=data.get('brand'),
+            spec=data.get('spec'),
+            unit=data.get('unit'),
+            quantity=data.get('quantity', 1),
+            unit_price=data.get('unit_price', 0),
+            total_price=data.get('total_price', 0),
+            sort_order=data.get('sort_order', 0),
+        )
+        db.session.add(material)
+        db.session.commit()
+        return api_response(data=material.to_dict(), message='物料配置已添加')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/spaces/<int:space_id>/full', methods=['PUT'])
+@jwt_required_v2
+def save_space_materials_full(current_user, space_id):
+    """保存空间物料配置（全量替换）"""
+    try:
+        from app.models.case import CaseSpaceRendering
+        space = CaseSpaceRendering.query.get(space_id)
+        if not space:
+            return api_response(code=404, message='空间不存在')
+
+        data = request.get_json()
+        configs = data.get('configs', [])
+
+        # 删除该空间原有物料配置
+        CaseSpaceMaterial.query.filter_by(space_id=space_id).delete()
+
+        # 批量写入新配置
+        for idx, c in enumerate(configs):
+            material = CaseSpaceMaterial(
+                space_id=space_id,
+                case_id=space.case_id,
+                space_name=space.space_name,
+                sku_id=c.get('material_id'),
+                sku_code=c.get('sku_code'),
+                material_name=c.get('name') or c.get('material_name'),
+                material_image=c.get('main_image'),
+                category_level1=c.get('category_level1'),
+                category_level2=c.get('category_level2'),
+                category_level3=c.get('category_level3'),
+                brand=c.get('brand'),
+                spec=c.get('spec'),
+                unit=c.get('unit'),
+                env_level=c.get('env_level'),
+                supply_chain=c.get('supply_chain'),
+                color_name=c.get('color_name'),
+                custom_name=c.get('custom_name'),
+                material=c.get('material'),
+                custom_measure=c.get('custom_measure'),
+                width=float(c['width']) if c.get('width') else None,
+                depth=float(c['depth']) if c.get('depth') else None,
+                height=float(c['height']) if c.get('height') else None,
+                quantity=float(c.get('quantity', 1) or 1),
+                unit_price=float(c.get('price', 0) or 0),
+                total_price=float(c.get('amount', 0) or 0),
+                sort_order=idx,
+            )
+            db.session.add(material)
+
+        db.session.commit()
+        return api_response(message='物料配置已保存')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/space-materials/<int:material_id>', methods=['PUT'])
+@jwt_required_v2
+def update_space_material(current_user, material_id):
+    """更新空间物料配置"""
+    try:
+        material = CaseSpaceMaterial.query.get(material_id)
+        if not material:
+            return api_response(code=404, message='物料配置不存在')
+
+        data = request.get_json()
+        for field in ['space_name', 'room_name', 'sku_id', 'sku_code', 'material_name',
+                       'material_image', 'category_level1', 'category_level2', 'category_level3',
+                       'brand', 'spec', 'unit', 'env_level', 'supply_chain', 'color_name',
+                       'custom_name', 'material', 'custom_measure', 'width', 'depth', 'height',
+                       'quantity', 'unit_price', 'total_price', 'sort_order']:
+            if field in data:
+                setattr(material, field, data[field])
+
+        db.session.commit()
+        return api_response(data=material.to_dict(), message='物料配置已更新')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/space-materials/<int:material_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_space_material(current_user, material_id):
+    """删除空间物料配置"""
+    try:
+        material = CaseSpaceMaterial.query.get(material_id)
+        if not material:
+            return api_response(code=404, message='物料配置不存在')
+
+        db.session.delete(material)
+        db.session.commit()
+        return api_response(message='物料配置已删除')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/space-materials/batch', methods=['POST'])
+@jwt_required_v2
+def batch_import_materials(current_user, id):
+    """批量导入物料配置（从报价单导入）"""
+    try:
+        from app.models.quote import QuoteItem
+        data = request.get_json()
+        quote_id = data.get('quote_id')
+
+        if not quote_id:
+            return api_response(code=400, message='请指定报价单ID')
+
+        # 获取该案例的空间列表
+        from app.models.case import CaseSpaceRendering
+        spaces = CaseSpaceRendering.query.filter_by(case_id=id).all()
+        space_map = {s.space_name: s for s in spaces}
+
+        # 获取报价单物料
+        quote_items = QuoteItem.query.filter_by(quote_id=quote_id).all()
+
+        added = 0
+        for item in quote_items:
+            # 按空间名匹配
+            space = space_map.get(item.space_name)
+            if not space:
+                continue
+
+            material = CaseSpaceMaterial(
+                space_id=space.id,
+                case_id=id,
+                space_name=item.space_name or space.space_name,
+                room_name=item.room_name,
+                sku_id=item.sku_id,
+                sku_code=item.sku_code,
+                material_name=item.material_name or item.name,
+                material_image=item.material_image,
+                category_level1=item.category_level1,
+                category_level2=item.category_level2,
+                category_level3=item.category_level3,
+                brand=item.brand,
+                spec=item.spec,
+                unit=item.unit,
+                quantity=float(item.quantity) if item.quantity else 1,
+                unit_price=float(item.unit_price) if item.unit_price else 0,
+                total_price=float(item.total_price) if item.total_price else 0,
+            )
+            db.session.add(material)
+            added += 1
+
+        db.session.commit()
+        return api_response(data={'added': added}, message=f'成功导入{added}条物料配置')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/public/cases/<int:id>/slide-data', methods=['GET'])
+def get_public_slide_data(id):
+    """公开接口：获取案例幻灯片数据"""
+    try:
+        from app.models.case import CasePhase, CaseSpaceRendering
+        from app.models.frontend_config import PageConfig
+        from app.models.hr import Employee
+
+        case = CaseStudy.query.get(id)
+        if not case:
+            return api_response(code=404, message='案例不存在')
+        if not case.is_public:
+            return api_response(code=403, message='该案例未公开')
+
+        case_data = case.to_dict(include_relations=True)
+
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        if config:
+            slide_config = config.to_dict()
+        else:
+            slide_config = {
+                'id': None, 'case_id': id,
+                'template_id': case.slide_template_id if case.slide_template_id else None,
+                'template_style': 'dark', 'primary_color': '#8B4513',
+                'aspect_ratio': '16:9',
+                'cover_title': None, 'cover_subtitle': None, 'cover_bg_image': None,
+                'inner_bg_image': None, 'back_bg_image': None,
+                'about_title': '关于我们', 'about_content': None, 'about_image': None, 'about_subtitle': None,
+                'show_about': True, 'show_team': True, 'show_toc': True,
+                'show_material': True, 'show_product': True, 'show_process': True, 'show_summary': True,
+                'created_at': None, 'updated_at': None,
+            }
+
+        # Apply template fallback: null config fields inherit from template
+        # This implements "default to public template" + personalized override
+        template_id = slide_config.get('template_id')
+        if not template_id:
+            template_id = case.slide_template_id
+        if template_id:
+            template = SlideTemplate.query.get(template_id)
+            if template:
+                tpl_dict = template.to_dict()
+                # For each template field: if slide_config value is None, use template value
+                for key, val in tpl_dict.items():
+                    if slide_config.get(key) is None and val is not None:
+                        slide_config[key] = val
+
+        phases = CasePhase.query.filter_by(case_id=id).order_by(CasePhase.phase_number).all()
+        phases_data = {p.phase_number: p.to_dict() for p in phases}
+
+        spaces = CaseSpaceRendering.query.filter_by(case_id=id).order_by(CaseSpaceRendering.sort_order).all()
+        spaces_data = [s.to_dict(include_items=True) for s in spaces]
+
+        materials = CaseSpaceMaterial.query.filter_by(case_id=id).order_by(
+            CaseSpaceMaterial.space_name, CaseSpaceMaterial.category_level1, CaseSpaceMaterial.sort_order
+        ).all()
+        materials_data = [m.to_dict() for m in materials]
+
+        # 如果案例没有物料配置，从物料库(MaterialSKU)读取作为备选数据
+        if not materials_data:
+            from app.models.material_sku import MaterialSKU, MaterialCategory
+            skus = MaterialSKU.query.filter_by(is_deleted=False).order_by(
+                MaterialSKU.category_id, MaterialSKU.sort_order
+            ).all()
+            cat_map = {}
+            all_cats = MaterialCategory.query.filter_by(is_deleted=False).all()
+            for c in all_cats:
+                cat_map[c.id] = c.name
+                if c.parent_id:
+                    cat_map[str(c.id) + '_parent'] = c.parent_id
+            for sku in skus:
+                cat1_name = ''
+                cat2_name = cat_map.get(sku.category_id, '')
+                parent_id = cat_map.get(str(sku.category_id) + '_parent')
+                if parent_id:
+                    cat1_name = cat_map.get(parent_id, '')
+                materials_data.append({
+                    'id': sku.id,
+                    'space_id': None,
+                    'case_id': id,
+                    'sku_id': sku.id,
+                    'sku_code': sku.sku_code,
+                    'material_name': sku.name,
+                    'material_image': sku.main_image,
+                    'material': sku.material or '',
+                    'custom_name': '',
+                    'custom_measure': '',
+                    'sku_name': sku.name,
+                    'category_level1': cat1_name,
+                    'category_level2': cat2_name,
+                    'brand': sku.brand or '',
+                    'spec': sku.specification or '',
+                    'unit': sku.unit or '',
+                    'quantity': 1,
+                    'unit_price': float(sku.sale_price) if sku.sale_price else 0,
+                    'total_price': float(sku.sale_price) if sku.sale_price else 0,
+                    'env_level': sku.env_level or '合格',
+                    'supply_chain': sku.supply_chain or '直供',
+                    'color_name': sku.color_name or '',
+                    'width': None,
+                    'depth': None,
+                    'height': None,
+                })
+
+        # 按一级+二级分类聚合物料汇总
+        material_summary = {}
+        for m in materials_data:
+            md = m if isinstance(m, dict) else m.to_dict()
+            l1 = md.get('category_level1') or '其他'
+            l2 = md.get('category_level2') or ''
+            cat_label = f"{l1}-{l2}" if l2 else l1
+            if cat_label not in material_summary:
+                material_summary[cat_label] = {
+                    'category': cat_label,
+                    'l1': l1,
+                    'l2': l2,
+                    'measure_total': 0,
+                    'measure_unit': '',
+                    'total': 0
+                }
+            ms = float(md.get('custom_measure') or 0)
+            if ms > 0:
+                material_summary[cat_label]['measure_total'] += ms
+                material_summary[cat_label]['measure_unit'] = md.get('unit') or '㎡'
+            material_summary[cat_label]['total'] += float(md.get('total_price', 0) if isinstance(m, dict) else (m.total_price or 0))
+
+
+        # 获取页面配置中的关于我们信息（系统设置）
+        page_about = {}
+        home_config = PageConfig.query.filter_by(page_key='home').first()
+        if home_config and home_config.sections:
+            for section in home_config.sections:
+                if section.get('component') == 'AboutSection':
+                    cfg = section.get('config', {})
+                    page_about = {
+                        'title': cfg.get('title', ''),
+                        'content': cfg.get('content', ''),
+                        'highlights': cfg.get('highlights', []),
+                    }
+                    break
+
+        # 获取设计团队员工数据
+        team_members = []
+        designers = Employee.query.filter_by(is_deleted=False, department_id=2).all()
+        for emp in designers:
+            if emp.title:  # 只展示有职称的员工
+                team_members.append({
+                    'id': emp.id,
+                    'name': emp.name,
+                    'title': emp.title,
+                    'avatar': emp.avatar,
+                    'showcase_photo': emp.showcase_photo,
+                    'bio': emp.bio,
+                    'department_name': emp.department.name if emp.department else None,
+                })
+
+        # 获取材质展示选中物料
+        showcase_materials = []
+        if config and config.showcase_material_ids:
+            from app.models.material_sku import MaterialSKU as _SKU2, MaterialCategory as _MC2
+            for sid in config.showcase_material_ids:
+                sku = _SKU2.query.filter_by(id=sid, is_deleted=False).first()
+                if sku and sku.main_image:
+                    l2_name = sku.category.name if sku.category else ''
+                    l1_name = ''
+                    if sku.category and sku.category.parent_id:
+                        parent = _MC2.query.get(sku.category.parent_id)
+                        l1_name = parent.name if parent else ''
+                    showcase_materials.append({
+                        'sku_id': sku.id,
+                        'sku_name': sku.name,
+                        'main_image': sku.main_image,
+                        'spec': sku.specification or '',
+                        'brand': sku.brand or '',
+                        'l1': l1_name,
+                        'l2': l2_name,
+                    })
+
+        return api_response(data={
+            'case': case_data,
+            'slide_config': slide_config,
+            'phases': phases_data,
+            'spaces': spaces_data,
+            'materials': materials_data,
+            'material_summary': list(material_summary.values()),
+            'page_about': page_about,
+            'team_members': team_members,
+            'showcase_materials': showcase_materials,
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+# ===== 材质展示（阶段7） =====
+
+# 收集候选物料的L2分类ID：固装家具-柜体投影/柜门，硬装主材-地面/墙面，软装饰品-布艺软装
+SHOWCASE_L2_IDS = [26, 27, 10, 11, 44]  # 柜体投影, 柜门, 地面主材, 墙面/顶面主材, 布艺软装
+
+
+@case_bp.route('/cases/<int:id>/showcase-candidates', methods=['GET'])
+@jwt_required_v2
+def get_showcase_candidates(current_user, id):
+    """获取案例材质展示候选物料（去重）"""
+    try:
+        from app.models.material_sku import MaterialSKU, MaterialCategory
+
+        case = CaseStudy.query.get(id)
+        if not case:
+            return api_response(code=404, message='案例不存在')
+
+        # 从案例物料配置中收集有sku_id的记录，按sku_id去重
+        materials = CaseSpaceMaterial.query.filter_by(case_id=id).all()
+        seen_sku_ids = set()
+        candidates = []
+
+        # 构建分类映射
+        cat_map = {}
+        all_cats = MaterialCategory.query.filter_by(is_deleted=False).all()
+        for c in all_cats:
+            cat_map[c.id] = {'name': c.name, 'parent_id': c.parent_id}
+
+        for m in materials:
+            if not m.sku_id or m.sku_id in seen_sku_ids:
+                continue
+            # 检查L2分类是否在收集范围
+            sku = MaterialSKU.query.filter_by(id=m.sku_id, is_deleted=False).first()
+            if not sku or not sku.main_image:
+                continue
+            cat_info = cat_map.get(sku.category_id)
+            if not cat_info:
+                continue
+            # 判断是否在SHOWCASE_L2_IDS范围内
+            if sku.category_id not in SHOWCASE_L2_IDS:
+                # 也检查parent_id对应的L1
+                continue
+            seen_sku_ids.add(m.sku_id)
+            # 获取L1名称
+            l2_name = cat_info['name']
+            l1_name = ''
+            if cat_info['parent_id'] and cat_info['parent_id'] in cat_map:
+                l1_name = cat_map[cat_info['parent_id']]['name']
+            candidates.append({
+                'sku_id': sku.id,
+                'sku_name': sku.name,
+                'main_image': sku.main_image,
+                'spec': sku.specification or '',
+                'brand': sku.brand or '',
+                'l1': l1_name,
+                'l2': l2_name,
+            })
+
+        # 获取当前已选中的ID列表
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        selected_ids = config.showcase_material_ids if config and config.showcase_material_ids else []
+
+        return api_response(data={
+            'candidates': candidates,
+            'selected_ids': selected_ids,
+        })
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/cases/<int:id>/showcase-materials', methods=['POST'])
+@jwt_required_v2
+def save_showcase_materials(current_user, id):
+    """保存案例材质展示选中的SKU ID列表"""
+    try:
+        case = CaseStudy.query.get(id)
+        if not case:
+            return api_response(code=404, message='案例不存在')
+
+        data = request.get_json()
+        selected_ids = data.get('selected_ids', [])
+
+        config = CaseSlideConfig.query.filter_by(case_id=id).first()
+        if not config:
+            config = CaseSlideConfig(case_id=id)
+            db.session.add(config)
+        config.showcase_material_ids = selected_ids
+        db.session.commit()
+        return api_response(data=config.to_dict(), message='材质展示配置已保存')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+# ==================== V3.4 幻灯片模板管理 ====================
+
+
+@case_bp.route('/slide-templates', methods=['GET'])
+@jwt_required_v2
+def list_slide_templates(current_user):
+    """获取幻灯片模板列表"""
+    try:
+        templates = SlideTemplate.query.order_by(SlideTemplate.is_default.desc(), SlideTemplate.id).all()
+        return api_response(data=[t.to_dict() for t in templates])
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/slide-templates/<int:template_id>', methods=['GET'])
+@jwt_required_v2
+def get_slide_template(current_user, template_id):
+    """获取单个幻灯片模板"""
+    try:
+        template = SlideTemplate.query.get(template_id)
+        if not template:
+            return api_response(code=404, message='模板不存在')
+        return api_response(data=template.to_dict())
+    except Exception as e:
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/slide-templates', methods=['POST'])
+@jwt_required_v2
+def create_slide_template(current_user):
+    """创建幻灯片模板"""
+    try:
+        data = request.get_json()
+        name = data.get('name', '').strip()
+        if not name:
+            return api_response(code=400, message='模板名称不能为空')
+
+        existing = SlideTemplate.query.filter_by(name=name).first()
+        if existing:
+            return api_response(code=400, message=f'模板名称"{name}"已存在')
+
+        template = SlideTemplate(
+            name=name,
+            description=data.get('description', ''),
+            template_style=data.get('template_style', 'dark'),
+            primary_color=data.get('primary_color', '#8B4513'),
+            aspect_ratio=data.get('aspect_ratio', '16:9'),
+            cover_title=data.get('cover_title', ''),
+            cover_subtitle=data.get('cover_subtitle', ''),
+            brand_name=data.get('brand_name', 'DESIGNARY'),
+            cover_bg_image=data.get('cover_bg_image', ''),
+            inner_bg_image=data.get('inner_bg_image', ''),
+            back_bg_image=data.get('back_bg_image', ''),
+            about_title=data.get('about_title', '关于我们'),
+            about_subtitle=data.get('about_subtitle', ''),
+            about_content=data.get('about_content', ''),
+            about_image=data.get('about_image', ''),
+            show_about=data.get('show_about', True),
+            show_team=data.get('show_team', True),
+            show_toc=data.get('show_toc', True),
+            show_material=data.get('show_material', True),
+            show_product=data.get('show_product', True),
+            show_process=data.get('show_process', True),
+            show_summary=data.get('show_summary', True),
+            is_default=data.get('is_default', False),
+            is_active=data.get('is_active', True),
+        )
+        db.session.add(template)
+        db.session.commit()
+        return api_response(data=template.to_dict(), message='模板创建成功')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/slide-templates/<int:template_id>', methods=['PUT'])
+@jwt_required_v2
+def update_slide_template(current_user, template_id):
+    """更新幻灯片模板"""
+    try:
+        template = SlideTemplate.query.get(template_id)
+        if not template:
+            return api_response(code=404, message='模板不存在')
+
+        data = request.get_json()
+
+        name = data.get('name', '').strip()
+        if name and name != template.name:
+            existing = SlideTemplate.query.filter(
+                SlideTemplate.name == name,
+                SlideTemplate.id != template_id
+            ).first()
+            if existing:
+                return api_response(code=400, message=f'模板名称"{name}"已被其他模板使用')
+
+        for field in ['name', 'description', 'template_style', 'primary_color',
+                       'aspect_ratio', 'cover_title', 'cover_subtitle', 'brand_name',
+                       'cover_bg_image', 'inner_bg_image', 'back_bg_image',
+                       'about_title', 'about_subtitle', 'about_content',
+                       'about_image', 'show_about', 'show_team', 'show_toc',
+                       'show_material', 'show_product', 'show_process',
+                       'show_summary', 'is_default', 'is_active']:
+            if field in data:
+                setattr(template, field, data[field])
+
+        db.session.commit()
+        return api_response(data=template.to_dict(), message='模板已更新')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/slide-templates/<int:template_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_slide_template(current_user, template_id):
+    """删除幻灯片模板"""
+    try:
+        template = SlideTemplate.query.get(template_id)
+        if not template:
+            return api_response(code=404, message='模板不存在')
+
+        referenced_count = CaseStudy.query.filter(
+            CaseStudy.slide_template_id == template_id,
+            CaseStudy.deleted_at == None
+        ).count()
+
+        if referenced_count > 0:
+            return api_response(code=400, message=f'该模板已被 {referenced_count} 个案例使用，请先解除引用再删除')
+
+        db.session.delete(template)
+        db.session.commit()
+        return api_response(message='模板已删除')
+    except Exception as e:
+        db.session.rollback()
+        return api_response(code=500, message=str(e))
+
+
+@case_bp.route('/slide-templates/<int:template_id>/duplicate', methods=['POST'])
+@jwt_required_v2
+def duplicate_slide_template(current_user, template_id):
+    """复制幻灯片模板"""
+    try:
+        data = request.get_json() or {}
+        source = SlideTemplate.query.get(template_id)
+        if not source:
+            return api_response(code=404, message='模板不存在')
+
+        new_name = data.get('name', f'{source.name} (副本)').strip()
+        base_name = new_name
+        counter = 1
+        while SlideTemplate.query.filter_by(name=new_name).first():
+            new_name = f'{base_name} ({counter})'
+            counter += 1
+
+        clone = SlideTemplate(
+            name=new_name,
+            description=source.description,
+            template_style=source.template_style,
+            primary_color=source.primary_color,
+            aspect_ratio=source.aspect_ratio,
+            cover_title=source.cover_title,
+            cover_subtitle=source.cover_subtitle,
+            cover_bg_image=source.cover_bg_image,
+            inner_bg_image=source.inner_bg_image,
+            back_bg_image=source.back_bg_image,
+            about_title=source.about_title,
+            about_subtitle=source.about_subtitle,
+            about_content=source.about_content,
+            about_image=source.about_image,
+            show_about=source.show_about,
+            show_team=source.show_team,
+            show_toc=source.show_toc,
+            show_material=source.show_material,
+            show_product=source.show_product,
+            show_process=source.show_process,
+            show_summary=source.show_summary,
+            is_default=False,
+            is_active=True,
+        )
+        db.session.add(clone)
+        db.session.commit()
+        return api_response(data=clone.to_dict(), message='模板已复制')
     except Exception as e:
         db.session.rollback()
         return api_response(code=500, message=str(e))

@@ -1,0 +1,63 @@
+<!-- 我的积分 -->
+<view class="page">
+  <!-- 积分头部 -->
+  <view class="points-header">
+    <view class="ph-label">当前积分</view>
+    <view class="ph-value">{{points}}</view>
+    <view class="ph-row">
+      <view class="ph-item">
+        <text class="phi-value {{points < 0 ? 'negative' : ''}}">{{monthlyGain || 0}}</text>
+        <text class="phi-label">本月获得</text>
+      </view>
+      <view class="ph-item">
+        <text class="phi-value negative">{{monthlyUsed || 0}}</text>
+        <text class="phi-label">本月消耗</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 操作按钮 -->
+  <view class="action-row">
+    <view class="action-item" bindtap="goExchange">
+      <text class="ai-icon">🎁</text>
+      <text class="ai-name">积分兑换</text>
+    </view>
+    <view class="action-item" bindtap="goTasks">
+      <text class="ai-icon">🎯</text>
+      <text class="ai-name">赚积分</text>
+    </view>
+    <view class="action-item" bindtap="goRules">
+      <text class="ai-icon">📖</text>
+      <text class="ai-name">积分规则</text>
+    </view>
+  </view>
+
+  <!-- 积分明细 -->
+  <view class="section-title">
+    <text>积分明细</text>
+  </view>
+
+  <!-- 加载态 -->
+  <view class="loading-wrap" wx:if="{{loading}}">
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:elif="{{!loading && records.length === 0}}">
+    <text class="empty-icon">💎</text>
+    <text class="empty-title">暂无积分记录</text>
+    <text class="empty-desc">完成每日任务即可获取积分</text>
+  </view>
+
+  <!-- 明细列表 -->
+  <view class="record-list" wx:else>
+    <view class="record-item" wx:for="{{records}}" wx:key="id">
+      <view class="ri-info">
+        <text class="ri-title">{{item.title || item.description}}</text>
+        <text class="ri-time">{{item.createdAt}}</text>
+      </view>
+      <text class="ri-value {{item.amount > 0 ? 'gain' : 'used'}}">{{item.amount > 0 ? '+' : ''}}{{item.amount}}</text>
+    </view>
+  </view>
+</view>

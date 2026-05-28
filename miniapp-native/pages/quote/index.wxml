@@ -1,50 +1,57 @@
-<view class="container">
+<!-- 报价列表 - 暗黑深空风格 -->
+<view class="page">
+
   <!-- 页面标题 -->
   <view class="page-header">
     <text class="page-title">{{isAdmin ? '报价管理' : '我的报价'}}</text>
-    <button class="create-btn" bindtap="createQuote" wx:if="{{isAdmin}}">+ 新建报价</button>
+    <view class="create-btn" bindtap="createQuote" wx:if="{{isAdmin}}">
+      <text>+ 新建</text>
+    </view>
   </view>
 
   <!-- 报价列表 -->
-  <view class="quote-list">
+  <view class="quote-list" wx:if="{{quotes.length > 0}}">
     <view class="quote-card" wx:for="{{quotes}}" wx:key="id" bindtap="goToDetail" data-id="{{item.id}}">
-      <view class="quote-header">
-        <text class="quote-no">{{item.quote_no}}</text>
-        <text class="quote-status {{item.status}}">{{statusText[item.status]}}</text>
-      </view>
-      <view class="quote-body">
-        <view class="info-row">
-          <text class="label">客户：</text>
-          <text class="value">{{item.customer_name}}</text>
-        </view>
-        <view class="info-row">
-          <text class="label">金额：</text>
-          <text class="value amount">¥{{item.total_amount}}</text>
-        </view>
-        <view class="info-row">
-          <text class="label">日期：</text>
-          <text class="value">{{item.created_at}}</text>
+      <view class="qc-top">
+        <text class="qc-no">{{item.quote_no}}</text>
+        <view class="qc-status-badge {{item.status}}">
+          <text>{{statusText[item.status]}}</text>
         </view>
       </view>
-      <view class="quote-footer">
-        <text class="creator" wx:if="{{isAdmin}}">创建人：{{item.creator_name}}</text>
-        <view class="actions">
-          <text class="action" bindtap="previewQuote" data-id="{{item.id}}">预览</text>
-          <text class="action" bindtap="shareQuote" data-id="{{item.id}}">分享</text>
+      <view class="qc-info">
+        <view class="qc-row">
+          <text class="qr-label">客户</text>
+          <text class="qr-val">{{item.customer_name}}</text>
+        </view>
+        <view class="qc-row">
+          <text class="qr-label">金额</text>
+          <text class="qr-val amount">¥{{item.total_amount}}</text>
+        </view>
+        <view class="qc-row">
+          <text class="qr-label">日期</text>
+          <text class="qr-val">{{item.created_at}}</text>
+        </view>
+      </view>
+      <view class="qc-footer">
+        <text class="qc-creator" wx:if="{{isAdmin}}">创建人：{{item.creator_name}}</text>
+        <view class="qc-actions">
+          <view class="qa-btn" catchtap="previewQuote" data-id="{{item.id}}"><text>预览</text></view>
+          <view class="qa-btn" catchtap="shareQuote" data-id="{{item.id}}"><text>分享</text></view>
         </view>
       </view>
     </view>
   </view>
 
   <!-- 空状态 -->
-  <view class="empty-state" wx:if="{{quotes.length === 0}}">
-    <text class="empty-icon">📋</text>
-    <text class="empty-text">暂无报价单</text>
-    <button class="empty-btn" bindtap="createQuote" wx:if="{{isAdmin}}">创建报价</button>
+  <view class="empty-state" wx:if="{{quotes.length === 0 && !loading}}">
+    <text class="es-icon">📋</text>
+    <text class="es-text">暂无报价单</text>
+    <view class="es-btn" bindtap="createQuote" wx:if="{{isAdmin}}"><text>创建报价</text></view>
   </view>
 
   <!-- 加载更多 -->
-  <view class="load-more" wx:if="{{hasMore}}">
-    <text bindtap="loadMore">加载更多</text>
+  <view class="load-more" wx:if="{{hasMore}}" bindtap="loadMore">
+    <text class="lm-text">加载更多</text>
   </view>
+
 </view>

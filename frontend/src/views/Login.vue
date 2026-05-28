@@ -1,7 +1,7 @@
 <template>
   <div class="login-page">
     <div class="login-box">
-      <h2>D&B 帝标|设记家 V3.2</h2>
+      <h2>D&B 帝标|设记家 V3.3.0</h2>
       <p>全案服务管理系统</p>
       
       <el-form :model="form" :rules="rules" ref="formRef">
@@ -90,32 +90,51 @@ const handleLogin = async () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #1a1a2e 0%, #0a0a1a 100%);
 }
 
 .login-box {
   width: 400px;
   padding: 40px;
-  background: #fff;
+  background: #1a1a2e;
   border-radius: 8px;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
 }
 
 .login-box h2 {
   text-align: center;
   margin-bottom: 8px;
-  color: #333;
+  color: #E8E8E8;
 }
 
 .login-box p {
   text-align: center;
-  color: #999;
+  color: #A0A0B8;
   margin-bottom: 32px;
 }
 
 .tip {
   margin-top: 16px;
   font-size: 12px;
-  color: #999;
+  color: #A0A0B8;
+}
+
+/* 暗黑模式 - 表单元素覆盖 */
+:deep(.el-input__wrapper) {
+  background-color: #0a0a1a !important;
+  border: 1px solid #2a2a3e;
+}
+:deep(.el-input__inner) {
+  color: #E8E8E8 !important;
+}
+:deep(.el-input__inner::placeholder) {
+  color: #606080 !important;
+}
+:deep(.el-form-item__label) {
+  color: #A0A0B8;
+}
+:deep(.el-button--primary) {
+  background-color: #409EFF;
+  border-color: #409EFF;
 }
 </style>

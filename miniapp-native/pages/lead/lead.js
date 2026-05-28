@@ -2,51 +2,22 @@ const app = getApp();
 
 Page({
   data: {
-    // 页面标题
     title: '获取免费设计方案',
-    
-    // 表单数据
-    form: {
-      name: '',
-      phone: '',
-      area: '',
-      budget: '',
-      houseType: '',
-      intention: ''
-    },
-    
-    // 选项
+    form: { name: '', phone: '', area: '', budget: '', houseType: '', intention: '' },
+    benefits: [
+      { icon: '📐', title: '免费量尺', desc: '专业团队上门' },
+      { icon: '🎨', title: '设计方案', desc: '3D效果图' },
+      { icon: '📋', title: '精准报价', desc: '0增项承诺' }
+    ],
     areaOptions: ['70㎡以下', '70-90㎡', '90-120㎡', '120-150㎡', '150㎡以上'],
     budgetOptions: ['10万以下', '10-15万', '15-20万', '20-30万', '30-50万', '50万以上'],
     houseTypeOptions: ['一室一厅', '两室一厅', '两室两厅', '三室一厅', '三室两厅', '四室及以上', '别墅'],
     houseTypeIndex: -1,
-    
-    // 评价数据
     reviews: [
-      {
-        id: 1,
-        name: '张先生',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=1',
-        date: '3天前',
-        content: '提交后10分钟就有顾问联系我，很专业，已经预约了量尺时间。'
-      },
-      {
-        id: 2,
-        name: '李女士',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=2',
-        date: '1周前',
-        content: '设计师很用心，充分考虑了我们一家三口的需求，方案很满意！'
-      },
-      {
-        id: 3,
-        name: '王先生',
-        avatar: 'https://api.dicebear.com/7.x/avataaars/svg?seed=3',
-        date: '2周前',
-        content: '免费量尺服务很贴心，报价透明，已经签约开工了。'
-      }
+      { id: 1, name: '张先生', date: '3天前', content: '提交后10分钟就有顾问联系我，很专业，已经预约了量尺时间。' },
+      { id: 2, name: '李女士', date: '1周前', content: '设计师很用心，充分考虑了我们一家三口的需求，方案很满意！' },
+      { id: 3, name: '王先生', date: '2周前', content: '免费量尺服务很贴心，报价透明，已经签约开工了。' }
     ],
-    
-    // 状态
     submitting: false,
     showSuccess: false
   },
@@ -174,20 +145,12 @@ Page({
     this.setData({ showSuccess: false });
     wx.navigateBack();
   },
-
-  // 跳转到案例页
+  preventBubble() {},
   goToCases() {
     this.setData({ showSuccess: false });
-    wx.switchTab({
-      url: '/pages/cases/cases'
-    });
+    wx.switchTab({ url: '/pages/cases/cases' });
   },
-
-  // 用户点击右上角分享
   onShareAppMessage() {
-    return {
-      title: 'D&B 帝标|设记家家装 - 免费获取设计方案',
-      path: '/pages/lead/lead'
-    };
+    return { title: 'D&B 帝标·设记家 — 免费获取设计方案', path: '/pages/lead/lead' };
   }
 });

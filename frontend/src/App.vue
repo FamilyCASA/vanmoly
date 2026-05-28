@@ -3,7 +3,7 @@
 </template>
 
 <script setup>
-// 根组件
+// 根组件 - 暗黑深空主题已通过 main.js 初始化
 </script>
 
 <style>
@@ -17,8 +17,8 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  color: #333;
-  background-color: #f5f7fa;
+  color: var(--text-primary, #E8E8E8);
+  background-color: var(--bg-base, #0a0a1a);
 }
 
 #app {

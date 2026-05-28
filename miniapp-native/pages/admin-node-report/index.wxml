@@ -1,0 +1,114 @@
+<!-- 节点填报 - 拍摄/上传/报告 -->
+<view class="page">
+
+  <!-- 选择案例和节点 -->
+  <view class="section" wx:if="{{!selectedCase}}">
+    <text class="sec-title">选择案例</text>
+    <view class="search-bar">
+      <input placeholder="搜索案例名称/客户姓名" bindinput="onSearchCase" value="{{caseKeyword}}"/>
+    </view>
+    <view class="case-list">
+      <view class="case-item" wx:for="{{caseList}}" wx:key="id" bindtap="selectCase" data-item="{{item}}">
+        <image src="{{item.cover}}" mode="aspectFill" class="case-cover"/>
+        <view class="case-info">
+          <text class="case-title">{{item.title}}</text>
+          <text class="case-customer">{{item.customer_name}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <view class="section" wx:if="{{selectedCase && !selectedNode}}">
+    <text class="sec-title">选择节点</text>
+    <view class="node-list">
+      <view class="node-group" wx:for="{{workflowPhases}}" wx:key="code">
+        <text class="ng-title">{{item.name}}</text>
+        <view class="ng-nodes">
+          <view class="node-item {{n.status}}" wx:for="{{item.nodes}}" wx:for-item="n" wx:key="code" bindtap="selectNode" data-node="{{n}}">
+            <text class="ni-name">{{n.name}}</text>
+            <text class="ni-status">{{n.status === 'completed' ? '已完成' : n.status === 'ongoing' ? '进行中' : '待处理'}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 填报表单 -->
+  <view class="form-section" wx:if="{{selectedCase && selectedNode}}">
+    <view class="form-header">
+      <text class="fh-title">{{selectedNode.name}}</text>
+      <text class="fh-case">{{selectedCase.title}}</text>
+    </view>
+
+    <!-- 拍摄照片 -->
+    <view class="form-group">
+      <text class="fg-label">现场照片</text>
+      <view class="photo-grid">
+        <view class="photo-item" wx:for="{{photos}}" wx:key="*this">
+          <image src="{{item}}" mode="aspectFill" class="photo-img"/>
+          <view class="photo-remove" bindtap="removePhoto" data-index="{{index}}">×</view>
+        </view>
+        <view class="photo-add" bindtap="takePhoto">
+          <text class="pa-icon">📷</text>
+          <text class="pa-text">拍照</text>
+        </view>
+        <view class="photo-add" bindtap="chooseImage">
+          <text class="pa-icon">🖼️</text>
+          <text class="pa-text">相册</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 拍摄视频 -->
+    <view class="form-group">
+      <text class="fg-label">现场视频</text>
+      <view class="video-area">
+        <view class="video-item" wx:if="{{video}}">
+          <video src="{{video}}" class="video-preview"/>
+          <view class="video-remove" bindtap="removeVideo">×</view>
+        </view>
+        <view class="video-add" wx:else bindtap="takeVideo">
+          <text class="va-icon">🎬</text>
+          <text class="va-text">拍摄视频</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 报告文案 -->
+    <view class="form-group">
+      <text class="fg-label">完成报告</text>
+      <textarea class="report-input" placeholder="请描述节点完成情况、施工细节、注意事项等..." bindinput="onReportInput" value="{{report}}"/>
+    </view>
+
+    <!-- 上传凭证 -->
+    <view class="form-group">
+      <text class="fg-label">上传凭证</text>
+      <view class="file-list">
+        <view class="file-item" wx:for="{{files}}" wx:key="path">
+          <text class="fi-icon">📎</text>
+          <text class="fi-name">{{item.name}}</text>
+          <text class="fi-remove" bindtap="removeFile" data-index="{{index}}">×</text>
+        </view>
+      </view>
+      <view class="file-actions">
+        <view class="fa-btn" bindtap="chooseFile">
+          <text>📁 选择文件</text>
+        </view>
+        <view class="fa-btn" bindtap="chooseWechatFile">
+          <text>💬 微信文件</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 提交 -->
+    <view class="submit-section">
+      <view class="submit-btn" bindtap="submitReport">
+        <text>提交填报</text>
+      </view>
+      <view class="save-draft" bindtap="saveDraft">
+        <text>保存草稿</text>
+      </view>
+    </view>
+  </view>
+
+</view>

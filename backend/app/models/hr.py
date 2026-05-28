@@ -119,6 +119,7 @@ class Employee(db.Model):
     # 个人简介
     title = db.Column(db.String(100), comment='职称/头衔(如全案规划师)')
     bio = db.Column(db.Text, comment='个人简介')
+    showcase_photo = db.Column(db.String(500), comment='对外展示半身工作照')
 
     # 系统字段
     is_deleted = db.Column(db.Boolean, default=False, comment='是否删除')
@@ -144,6 +145,7 @@ class Employee(db.Model):
             'avatar': self.avatar,
             'title': self.title,
             'bio': self.bio,
+            'showcase_photo': self.showcase_photo,
             'username': self.username,
             'department_name': self.department.name if self.department else None,
             'position_name': self.position.name if self.position else None,

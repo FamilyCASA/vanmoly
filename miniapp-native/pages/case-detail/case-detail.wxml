@@ -1,2 +1,570 @@
-<!--pages/case-detail/case-detail.wxml-->
-<text>pages/case-detail/case-detail.wxml</text>
+<!-- 案例详情页 — 深化版 -->
+<view class="page">
+
+  <!-- ===== 加载态 ===== -->
+  <view class="loading-screen" wx:if="{{loading}}">
+    <view class="skeleton-line w60"></view>
+    <view class="skeleton-line w80"></view>
+    <view class="skeleton-line w40"></view>
+    <view class="skeleton-card"></view>
+    <view class="skeleton-card"></view>
+  </view>
+
+  <!-- ===== 案例内容 ===== -->
+  <block wx:else>
+
+    <!-- ========== Hero 轮播 ========== -->
+    <view class="hero-section">
+      <view class="hero-mag-header">
+        <text class="mag-brand">DESIGNARY</text>
+        <text class="mag-brand-sub">D&B 帝标·设记家</text>
+      </view>
+      <swiper class="hero-swiper" indicator-dots="{{heroImages.length > 1}}" indicator-color="rgba(255,255,255,0.3)" indicator-active-color="#D4AF37" autoplay circular interval="4000" duration="600" bindchange="onHeroChange">
+        <swiper-item wx:for="{{heroImages}}" wx:key="index">
+          <image src="{{item}}" mode="aspectFill" class="hero-img" lazy-load bindtap="onHeroTap" data-idx="{{index}}"/>
+        </swiper-item>
+      </swiper>
+      <view class="hero-overlay"></view>
+
+      <view class="hero-back" bindtap="goBack"><text class="icon-arrow">‹</text></view>
+      <view class="hero-counter" wx:if="{{heroImages.length > 1}}"><text>{{currentHero + 1}} / {{heroImages.length}}</text></view>
+
+      <!-- 右侧工具栏 -->
+      <view class="hero-actions">
+        <view class="ha-item fav-btn {{isFavorited ? 'favorited' : ''}}" bindtap="toggleFavorite">
+          <text class="ha-icon">{{isFavorited ? '♥' : '♡'}}</text>
+        </view>
+        <view class="ha-item" bindtap="onHeroMore"><text class="ha-icon">≡</text></view>
+      </view>
+
+      <!-- Hero 文案 -->
+      <view class="hero-content">
+        <view class="hero-badges">
+          <text class="badge-featured" wx:if="{{caseDetail.is_featured}}">精选</text>
+          <text class="badge-real" wx:if="{{caseDetail.is_real_case}}">真实案例</text>
+          <text class="badge-location" wx:if="{{caseDetail.location}}">📍 {{caseDetail.location}}</text>
+        </view>
+        <text class="hero-title">{{caseDetail.title}}</text>
+        <text class="hero-subtitle" wx:if="{{caseDetail.subtitle || caseDetail.style}}">{{caseDetail.subtitle || (caseDetail.style + ' · ' + (caseDetail.area || '') + '㎡')}}</text>
+        <view class="hero-tags">
+          <text class="htag" wx:if="{{caseDetail.style}}">{{caseDetail.style}}</text>
+          <text class="htag" wx:if="{{caseDetail.house_type}}">{{caseDetail.house_type}}</text>
+          <text class="htag" wx:if="{{caseDetail.area}}">{{caseDetail.area}}㎡</text>
+          <text class="htag highlight" wx:if="{{caseDetail.package_type}}">{{caseDetail.package_type}}</text>
+        </view>
+        <view class="hero-budget" wx:if="{{budgetStr}}" bindtap="showQuote">
+          <text class="budget-label">{{caseDetail.is_real_case ? '真实造价' : '参考造价'}}</text>
+          <text class="budget-value">¥{{budgetStr}}</text>
+          <text class="budget-arrow">›</text>
+        </view>
+      </view>
+
+      <view class="hero-scroll-hint"><text class="scroll-hint-text">向下滑动</text><text class="scroll-hint-arrow">↓</text></view>
+    </view>
+
+    <!-- ========== 服务团队 ========== -->
+    <view class="team-section" wx:if="{{team.length > 0}}">
+      <view class="section-header-row">
+        <text class="section-title-lg">服务团队</text>
+        <text class="section-subtitle">专业团队为您服务</text>
+      </view>
+      <scroll-view class="team-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="team-card" wx:for="{{team}}" wx:key="role" bindtap="goToDesigner" data-id="{{item.id}}">
+          <view class="tc-avatar-wrap">
+            <image src="{{item.avatar}}" mode="aspectFill" class="tc-avatar" wx:if="{{item.avatar}}"/>
+            <view class="tc-avatar-placeholder" wx:else>{{item.name[0]}}</view>
+          </view>
+          <view class="tc-info">
+            <text class="tc-name">{{item.name}}</text>
+            <text class="tc-role">{{item.roleLabel}}</text>
+            <view class="tc-tags" wx:if="{{item.styles && item.styles.length > 0}}">
+              <text class="tc-tag" wx:for="{{item.styles}}" wx:for-item="s" wx:key="*this">{{s}}</text>
+            </view>
+          </view>
+          <view class="tc-arrow">›</view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ========== 案例标签云 ========== -->
+    <view class="tags-section" wx:if="{{caseTags.length > 0}}">
+      <scroll-view class="tags-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="tag-item {{item.type}}" wx:for="{{caseTags}}" wx:key="value">
+          <view class="ti-color" wx:if="{{item.type === 'color'}}" style="background: {{item.value}};"></view>
+          <text class="ti-text">{{item.type === 'color' ? '' : item.value}}</text>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ========== 色彩材质面板 ========== -->
+    <view class="palette-section" wx:if="{{colorPalettes.length > 0}}">
+      <view class="section-header-row">
+        <text class="section-title-lg">色彩搭配</text>
+        <text class="section-subtitle">主色·辅色·点缀</text>
+      </view>
+      <view class="palette-groups">
+        <view class="pg-item" wx:for="{{colorPalettes}}" wx:key="name">
+          <view class="pg-label">{{item.label}}</view>
+          <view class="pg-colors">
+            <view class="pgc-item" wx:for="{{item.colors}}" wx:for-item="c" wx:key="hex">
+              <view class="pgc-swatch" style="background: {{c.hex}};" bindtap="onColorTap" data-hex="{{c.hex}}"></view>
+              <text class="pgc-name">{{c.name || c.hex}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 设计概念引言 ========== -->
+    <view class="editorial-lead" wx:if="{{designConceptFormatted}}">
+      <view class="editorial-ornament">◆</view>
+      <rich-text class="editorial-text" nodes="{{designConceptFormatted}}"></rich-text>
+      <view class="editorial-ornament">◆</view>
+    </view>
+
+    <!-- ========== 项目概览 ========== -->
+    <view class="overview-section" wx:if="{{overviewItems.length > 0}}">
+      <view class="section-chapter-label">PROJECT DATA</view>
+      <view class="overview-grid">
+        <view class="ov-item {{item.highlight ? 'gold' : ''}} {{item.clickable ? 'clickable' : ''}}" wx:for="{{overviewItems}}" wx:key="label" bindtap="{{item.clickable ? 'showQuote' : ''}}">
+          <text class="ov-label">{{item.label}}</text>
+          <text class="ov-value">{{item.value}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 案例视频 ========== -->
+    <view class="video-section" wx:if="{{caseVideo}}">
+      <view class="section-header-row">
+        <text class="section-title-lg">视频解读</text>
+        <text class="section-subtitle">身临其境感受设计</text>
+      </view>
+      <view class="video-card" bindtap="playVideo">
+        <image src="{{caseVideo.thumbnail || heroImages[0]}}" mode="aspectFill" class="video-cover"/>
+        <view class="video-play-btn">▶</view>
+        <view class="video-duration" wx:if="{{caseVideo.duration}}">{{caseVideo.duration}}</view>
+      </view>
+    </view>
+
+    <!-- ========== 全屋图片画廊 ========== -->
+    <view class="gallery-section">
+      <view class="section-header-row">
+        <text class="section-title-lg">全屋图片</text>
+        <text class="section-subtitle">{{totalImageCount}} 张</text>
+      </view>
+      <view class="gallery-grid">
+        <view class="gallery-item {{index === 0 ? 'featured' : ''}}" wx:for="{{allImages}}" wx:key="url" bindtap="previewImage" data-idx="{{index}}" data-list="{{allImages}}">
+          <image src="{{item.url}}" mode="aspectFill" class="gi-img" lazy-load/>
+          <view class="gi-overlay" wx:if="{{item.space}}">
+            <text class="gi-space">{{item.space}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="gallery-more" wx:if="{{allImages.length > 12}}" bindtap="showFullGallery">
+        <text>查看全部 {{allImages.length}} 张图片 ›</text>
+      </view>
+    </view>
+
+    <!-- ========== 6阶段 Tab 导航 ========== -->
+    <view class="phase-tabs-wrap">
+      <scroll-view class="phase-tabs" scroll-x enhanced show-scrollbar="{{false}}" scroll-into-view="tab-{{activeCategory}}" scroll-with-animation>
+        <view class="tab-item {{activeCategory === item.key ? 'active' : ''}}" id="tab-{{item.key}}" wx:for="{{categories}}" wx:key="key" data-key="{{item.key}}" bindtap="onTabChange">
+          <text>{{item.label}}</text>
+        </view>
+      </scroll-view>
+      <view class="tab-scroll-hint"><text class="tab-hint-arrow">›</text></view>
+    </view>
+
+    <!-- ===== 设计意境 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'mood'}}">
+      <block wx:if="{{phase2.moodImages.length > 0 || (phase2.moodText || phase2.mood_text)}}">
+        <view class="magazine-hero-img" wx:if="{{phase2.moodImages.length > 0}}" data-idx="0" data-list="{{phase2.moodImages}}" bindtap="previewImage">
+          <image src="{{phase2.moodImages[0]}}" mode="aspectFill" class="mag-hero-img" lazy-load/>
+          <view class="mag-hero-gradient"></view>
+        </view>
+        <view class="mag-quote-block" wx:if="{{phase2.moodFormatted}}">
+          <view class="mag-quote-mark">"</view>
+          <rich-text class="mag-quote-body" nodes="{{phase2.moodFormatted}}"></rich-text>
+          <view class="mag-quote-line"></view>
+        </view>
+        <view class="mood-grid" wx:if="{{phase2.moodImages.length > 1}}">
+          <view class="mood-card {{index % 3 === 0 ? 'large' : ''}}" wx:for="{{phase2.moodImages}}" wx:key="index" wx:if="{{index > 0}}" data-idx="{{index}}" data-list="{{phase2.moodImages}}" bindtap="previewImage">
+            <image src="{{item}}" mode="aspectFill" class="mood-img" lazy-load/>
+          </view>
+        </view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">🎨</text><text class="empty-text">暂无设计意境内容</text></view>
+    </view>
+
+    <!-- ===== 户型分析 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'layout'}}">
+      <block wx:if="{{phase1.layoutImages.length > 0 || phase1.layout_analysis}}">
+        <view class="mag-chapter"><text class="mag-chapter-num">01</text><view class="mag-chapter-divider"></view><text class="mag-chapter-title">户型分析</text></view>
+        <view class="layout-images" wx:if="{{phase1.layoutImages.length > 0}}">
+          <view class="layout-img-card" wx:for="{{phase1.layoutImages}}" wx:key="index" data-idx="{{index}}" data-list="{{phase1.layoutImages}}" bindtap="previewImage">
+            <image src="{{item}}" mode="aspectFill" class="layout-img" lazy-load/>
+          </view>
+        </view>
+        <view class="mag-prose" wx:if="{{phase1.analysisFormatted}}"><rich-text class="mag-prose-text" nodes="{{phase1.analysisFormatted}}"></rich-text></view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">📐</text><text class="empty-text">暂无户型分析内容</text></view>
+    </view>
+
+    <!-- ===== 户型规划 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'plan'}}">
+      <block wx:if="{{phase3.planImage || phase3.plan_text}}">
+        <view class="mag-chapter"><text class="mag-chapter-num">02</text><view class="mag-chapter-divider"></view><text class="mag-chapter-title">户型规划</text></view>
+        <view class="plan-img-wrap" wx:if="{{phase3.planImage}}" data-idx="0" data-list="{{[phase3.planImage]}}" bindtap="previewImage">
+          <image src="{{phase3.planImage}}" mode="widthFix" class="plan-img" lazy-load/>
+        </view>
+        <view class="mag-prose" wx:if="{{phase3.planFormatted}}"><rich-text class="mag-prose-text" nodes="{{phase3.planFormatted}}"></rich-text></view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">📐</text><text class="empty-text">暂无户型规划内容</text></view>
+    </view>
+
+    <!-- ===== 鸟瞰图 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'birdview'}}">
+      <block wx:if="{{phase4.birdviewImages.length > 0}}">
+        <view class="mag-chapter"><text class="mag-chapter-num">03</text><view class="mag-chapter-divider"></view><text class="mag-chapter-title">鸟瞰展示</text></view>
+        <view class="birdview-stack">
+          <view class="birdview-item" wx:for="{{phase4.birdviewImages}}" wx:key="index" data-idx="{{index}}" data-list="{{phase4.birdviewImages}}" bindtap="previewImage">
+            <image src="{{item}}" mode="widthFix" class="birdview-img" lazy-load/>
+          </view>
+        </view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">🏔️</text><text class="empty-text">暂无鸟瞰图内容</text></view>
+    </view>
+
+    <!-- ===== 设计意向图 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'showcase'}}">
+      <block wx:if="{{phase5.showcaseImages.length > 0}}">
+        <view class="mag-chapter"><text class="mag-chapter-num">04</text><view class="mag-chapter-divider"></view><text class="mag-chapter-title">{{phase5.showcase_title1 || '设计意向'}}</text></view>
+        <text class="mag-chapter-en" wx:if="{{phase5.showcase_title2}}">{{phase5.showcase_title2}}</text>
+        <scroll-view class="showcase-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+          <view class="showcase-img-item" wx:for="{{phase5.showcaseImages}}" wx:key="index" data-idx="{{index}}" data-list="{{phase5.showcaseImages}}" bindtap="previewImage">
+            <image src="{{item}}" mode="aspectFill" class="showcase-img" lazy-load/>
+          </view>
+        </scroll-view>
+        <view class="mag-pull-quote" wx:if="{{phase5.quoteFormatted}}">
+          <view class="pull-quote-bar"></view>
+          <view class="pull-quote-content">
+            <rich-text class="pull-quote-text" nodes="{{phase5.quoteFormatted}}"></rich-text>
+            <text class="pull-quote-en" wx:if="{{phase5.showcase_quote_en}}">{{phase5.showcase_quote_en}}</text>
+          </view>
+        </view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">🖼️</text><text class="empty-text">暂无设计意向图内容</text></view>
+    </view>
+
+    <!-- ===== 空间效果图 ===== -->
+    <view class="phase-panel" wx:if="{{activeCategory === 'spaces'}}">
+      <block wx:if="{{spacesByName.length > 0}}">
+        <view class="mag-chapter"><text class="mag-chapter-num">05</text><view class="mag-chapter-divider"></view><text class="mag-chapter-title">空间效果图</text></view>
+        <view class="space-group" wx:for="{{spacesByName}}" wx:key="name">
+          <view class="mag-space-header"><view class="space-header-line"></view><text class="mag-space-name">{{item.name}}</text><view class="space-header-line"></view></view>
+          <view class="space-grid">
+            <view class="space-card" wx:for="{{item.items}}" wx:for-item="rendering" wx:key="index" data-idx="{{index}}" data-list="{{item.items}}" bindtap="previewImage">
+              <image src="{{rendering.url}}" mode="aspectFill" class="space-img" lazy-load/>
+              <view class="space-desc" wx:if="{{rendering.title || rendering.description}}">
+                <text class="space-desc-title">{{rendering.title}}</text>
+                <text class="space-desc-text" wx:if="{{rendering.description}}">{{rendering.description}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </block>
+      <view class="empty-state" wx:else><text class="empty-icon">🏠</text><text class="empty-text">暂无空间效果图内容</text></view>
+    </view>
+
+    <!-- ========== VR 全景 ========== -->
+    <view class="vr-section" wx:if="{{vrLink}}">
+      <view class="section-header-row"><text class="section-title-lg">360° 全景体验</text></view>
+      <view class="vr-card" bindtap="openVR">
+        <image src="{{heroImages[0]}}" mode="aspectFill" class="vr-bg"/>
+        <view class="vr-overlay">
+          <view class="vr-play-icon">▶</view>
+          <text class="vr-text">点击体验沉浸式 VR 全景</text>
+        </view>
+      </view>
+      <view class="vr-qrcode-section" wx:if="{{vrQrcode}}">
+        <text class="vrs-label">扫码在VR设备中查看</text>
+        <image src="{{vrQrcode}}" mode="aspectFit" class="vrs-qrcode"/>
+      </view>
+    </view>
+
+    <!-- ========== 案例二维码 ========== -->
+    <view class="case-qr-section">
+      <view class="section-header-row"><text class="section-title-lg">案例名片</text></view>
+      <view class="case-qr-card">
+        <view class="cqc-left">
+          <image src="{{heroImages[0]}}" mode="aspectFill" class="cqc-thumb"/>
+        </view>
+        <view class="cqc-center">
+          <text class="cqc-title">{{caseDetail.title}}</text>
+          <text class="cqc-sub" wx:if="{{caseDetail.style}}">{{caseDetail.style}} · {{caseDetail.area}}㎡</text>
+          <text class="cqc-desc">扫码查看完整案例详情</text>
+        </view>
+        <view class="cqc-right">
+          <image src="{{caseQrcode}}" mode="aspectFit" class="cqc-qr" bindtap="previewQrcode"/>
+          <text class="cqc-hint">长按保存</text>
+        </view>
+      </view>
+      <view class="case-qr-actions">
+        <view class="cqa-btn" bindtap="saveQrcode"><text>保存二维码</text></view>
+        <view class="cqa-btn primary" bindtap="shareCase"><text>分享案例</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 施工进度 ========== -->
+    <view class="workflow-section" wx:if="{{workflowProgress || (timelineList.length > 0)}}">
+      <view class="section-header-row"><text class="section-title-lg">施工进度</text></view>
+      <view class="progress-overview" wx:if="{{workflowProgress}}">
+        <view class="progress-bar-wrap">
+          <view class="progress-bar"><view class="progress-fill" style="width: {{workflowProgress.progress_pct || 0}}%"></view></view>
+          <text class="progress-pct">{{workflowProgress.progress_pct || 0}}%</text>
+        </view>
+        <text class="progress-current">当前阶段：<text class="highlight-text">{{workflowProgress.current_phase || '待启动'}}</text></text>
+      </view>
+      <view class="timeline-list">
+        <view class="tl-group" wx:for="{{groupedTimeline}}" wx:key="index" wx:for-item="nodes" wx:for-index="phaseName">
+          <text class="tl-phase-title">{{phaseName}}</text>
+          <view class="tl-item {{node.status}}" wx:for="{{nodes}}" wx:key="id" wx:for-item="node">
+            <view class="tl-dot"></view>
+            <view class="tl-content">
+              <view class="tl-header">
+                <text class="tl-name">{{node.node_name}}</text>
+                <text class="tl-status {{node.status}}">{{node.status === 'completed' ? '已完成' : node.status === 'ongoing' ? '进行中' : '待开始'}}</text>
+              </view>
+              <view class="tl-photos" wx:if="{{node.photos && node.photos.length > 0}}">
+                <image wx:for="{{node.photos}}" wx:key="index" wx:for-item="p" wx:if="{{index < 4}}" src="{{p}}" mode="aspectFill" class="tl-photo" data-idx="{{index}}" data-list="{{node.photos}}" bindtap="previewImage"/>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 相关产品 ========== -->
+    <view class="products-section" wx:if="{{relatedProducts.length > 0}}">
+      <view class="section-header-row"><text class="section-title-lg">使用产品</text><text class="section-subtitle">{{relatedProducts.length}} 件</text></view>
+      <scroll-view class="products-scroll" scroll-x enhanced show-scrollbar="{{false}}">
+        <view class="product-card" wx:for="{{relatedProducts}}" wx:key="id" data-id="{{item.id}}" bindtap="goToProduct">
+          <image src="{{item.mainImage}}" mode="aspectFill" class="product-img" lazy-load/>
+          <view class="product-info">
+            <text class="product-name">{{item.name}}</text>
+            <text class="product-brand">{{item.brand}}</text>
+            <text class="product-price">¥{{item.salePriceStr}}</text>
+          </view>
+        </view>
+      </scroll-view>
+    </view>
+
+    <!-- ========== 用户评论 ========== -->
+    <view class="comments-section">
+      <view class="section-header-row">
+        <text class="section-title-lg">用户评价</text>
+        <text class="section-subtitle">{{comments.length}} 条</text>
+      </view>
+      <view class="comments-list" wx:if="{{comments.length > 0}}">
+        <view class="comment-item" wx:for="{{comments}}" wx:key="id">
+          <view class="ci-avatar-wrap">
+            <image src="{{item.avatar}}" mode="aspectFill" class="ci-avatar" wx:if="{{item.avatar}}"/>
+            <view class="ci-avatar-placeholder" wx:else>{{item.name[0]}}</view>
+          </view>
+          <view class="ci-content">
+            <view class="ci-header">
+              <text class="ci-name">{{item.name}}</text>
+              <text class="ci-time">{{item.timeAgo}}</text>
+            </view>
+            <text class="ci-text">{{item.content}}</text>
+            <view class="ci-actions">
+              <view class="ci-action" bindtap="likeComment" data-id="{{item.id}}">
+                <text class="cia-icon">{{item.isLiked ? '❤️' : '🤍'}}</text>
+                <text class="cia-count">{{item.likeCount || 0}}</text>
+              </view>
+              <view class="ci-action" bindtap="replyComment" data-id="{{item.id}}" data-name="{{item.name}}">
+                <text class="cia-icon">💬</text>
+                <text class="cia-count">回复</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+      <view class="empty-comments" wx:else>
+        <text class="ec-icon">💭</text>
+        <text class="ec-text">暂无评论，快来发表您的看法吧</text>
+      </view>
+      <view class="comment-input-bar">
+        <input class="cib-input" placeholder="发表评论..." value="{{commentInput}}" bindinput="onCommentInput" bindconfirm="submitComment"/>
+        <view class="cib-send {{commentInput ? 'active' : ''}}" bindtap="submitComment"><text>发送</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 相似案例推荐 ========== -->
+    <view class="similar-section" wx:if="{{similarCases.length > 0}}">
+      <view class="section-header-row">
+        <text class="section-title-lg">相似案例</text>
+        <text class="section-subtitle">根据风格推荐</text>
+      </view>
+      <view class="similar-grid">
+        <view class="similar-card" wx:for="{{similarCases}}" wx:key="id" data-id="{{item.id}}" bindtap="goToCaseDetail">
+          <image src="{{item.cover}}" mode="aspectFill" class="sc-cover" lazy-load/>
+          <view class="sc-overlay">
+            <text class="sc-atmo">{{item.atmosphere}}</text>
+            <view class="sc-info">
+              <text class="sc-title">{{item.title}}</text>
+              <text class="sc-meta">{{item.house_type}} · {{item.area}}㎡</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== CTA ========== -->
+    <view class="cta-section">
+      <view class="cta-ornament">◆</view>
+      <text class="cta-title">喜欢这套设计？</text>
+      <text class="cta-desc">预约设计师，获取专属方案</text>
+      <view class="cta-buttons">
+        <view class="cta-btn-primary" bindtap="goConsult"><text>免费咨询</text></view>
+        <view class="cta-btn-outline" bindtap="handleSubscribe"><text>{{isSubscribed ? '已订阅' : '订阅更新'}}</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 更多案例 ========== -->
+    <view class="more-cases" wx:if="{{relatedCases.length > 0}}">
+      <view class="section-header-row">
+        <text class="section-title-lg">更多案例</text>
+        <text class="section-subtitle" bindtap="goToCaseList">查看全部 ›</text>
+      </view>
+      <view class="cases-grid">
+        <view class="case-card" wx:for="{{relatedCases}}" wx:key="id" data-id="{{item.id}}" bindtap="goToCaseDetail">
+          <image src="{{item.cover}}" mode="aspectFill" class="case-cover" lazy-load/>
+          <view class="case-overlay">
+            <text class="case-atmo">{{item.atmosphere}}</text>
+            <view class="case-bottom">
+              <text class="case-card-title">{{item.title}}</text>
+              <view class="case-card-meta">
+                <text wx:if="{{item.house_type}}">{{item.house_type}}</text>
+                <text wx:if="{{item.area}}">{{item.area}}㎡</text>
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 底部统计 ========== -->
+    <view class="footer-section">
+      <view class="footer-stats">
+        <text class="stat-text">👁 {{viewCount}} 浏览</text>
+        <text class="stat-text">⭐ {{likeCount}} 收藏</text>
+        <text class="stat-text">🔔 {{subCount}} 订阅</text>
+      </view>
+      <text class="copyright">© D&B 帝标|设记家全案服务</text>
+    </view>
+
+    <view style="height: 140rpx;"></view>
+
+    <!-- ========== 底部操作栏 ========== -->
+    <view class="bottom-bar">
+      <view class="bar-actions">
+        <view class="bar-icon-btn" bindtap="handleLike">
+          <text class="bar-icon {{isLiked ? 'liked' : ''}}">{{isLiked ? '★' : '☆'}}</text>
+          <text class="bar-label">{{likeCount}}</text>
+        </view>
+        <view class="bar-icon-btn" bindtap="handleCollect">
+          <text class="bar-icon {{isCollected ? 'collected' : ''}}">📥</text>
+          <text class="bar-label">{{isCollected ? '已收藏' : '收藏'}}</text>
+        </view>
+        <view class="bar-icon-btn" bindtap="handleSubscribe">
+          <text class="bar-icon {{isSubscribed ? 'subed' : ''}}">🔔</text>
+          <text class="bar-label">{{subCount}}</text>
+        </view>
+        <button class="bar-share-btn" open-type="share">
+          <text class="bar-icon">↗</text>
+          <text class="bar-label">分享</text>
+        </button>
+      </view>
+      <view class="bar-btn-consult" bindtap="goConsult"><text>预约咨询</text></view>
+      <view class="bar-btn-selection" bindtap="onAddToSelection"><text>{{inSelection ? '已加入' : '加入选品单'}}</text></view>
+    </view>
+
+    <!-- ========== 报价弹窗 ========== -->
+    <view class="popup-mask" wx:if="{{showQuotePopup}}" bindtap="closeQuote">
+      <view class="popup-content quote-popup" catchtap="">
+        <text class="popup-title">造价分项报价</text>
+        <view class="quote-total-row" wx:if="{{budgetStr}}">
+          <text class="quote-total-label">总造价</text>
+          <text class="quote-total-value">¥{{budgetStr}}</text>
+        </view>
+        <view class="quote-items" wx:if="{{quoteItems.length > 0}}">
+          <view class="quote-item-row" wx:for="{{quoteItems}}" wx:key="index">
+            <text class="qi-name">{{item.name}}</text>
+            <text class="qi-amount">¥{{item.amount}}</text>
+          </view>
+        </view>
+        <view class="empty-state small" wx:else><text class="empty-text">暂无报价明细</text></view>
+        <view class="popup-close-btn" bindtap="closeQuote"><text>关闭</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 留资弹窗 ========== -->
+    <view class="popup-mask" wx:if="{{showLeadForm}}" bindtap="closeLeadForm">
+      <view class="popup-content lead-popup" catchtap="" wx:if="{{showLeadSuccess}}">
+        <text class="success-icon">✓</text>
+        <text class="success-title">提交成功！</text>
+        <text class="success-desc">我们将尽快联系您，为您量身打造专属方案</text>
+        <view class="popup-close-btn" bindtap="closeLeadForm"><text>好的</text></view>
+      </view>
+      <view class="popup-content lead-popup" catchtap="" wx:else>
+        <text class="popup-title">获取专属方案</text>
+        <view class="lead-form">
+          <view class="form-group">
+            <text class="form-label">您的称呼</text>
+            <input class="form-input" placeholder="如：王先生" data-field="name" bindinput="onLeadInput" value="{{leadForm.name}}"/>
+          </view>
+          <view class="form-group">
+            <text class="form-label">联系电话</text>
+            <input class="form-input" type="number" maxlength="11" placeholder="请输入手机号" data-field="phone" bindinput="onLeadInput" value="{{leadForm.phone}}"/>
+          </view>
+          <view class="form-group">
+            <text class="form-label">房屋面积（选填）</text>
+            <input class="form-input" type="number" placeholder="如：120" data-field="area" bindinput="onLeadInput" value="{{leadForm.area}}"/>
+          </view>
+        </view>
+        <view class="lead-submit-btn {{leadSubmitting ? 'disabled' : ''}}" bindtap="{{leadSubmitting ? '' : 'submitLead'}}">
+          <text>{{leadSubmitting ? '提交中...' : '立即提交'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ========== 分享海报弹窗 ========== -->
+    <view class="popup-mask" wx:if="{{showPoster}}" bindtap="closePoster">
+      <view class="poster-popup" catchtap="">
+        <text class="pp-title">分享海报</text>
+        <image src="{{posterImage}}" mode="widthFix" class="pp-image"/>
+        <view class="pp-actions">
+          <view class="pp-btn" bindtap="savePoster"><text>保存图片</text></view>
+          <view class="pp-btn primary" bindtap="sharePoster"><text>分享好友</text></view>
+        </view>
+        <view class="pp-close" bindtap="closePoster"><text>×</text></view>
+      </view>
+    </view>
+
+    <!-- ========== 全图画廊弹窗 ========== -->
+    <view class="gallery-popup" wx:if="{{showGallery}}" bindtap="closeGallery">
+      <view class="gp-header">
+        <text class="gp-title">全部图片</text>
+        <text class="gp-count">{{allImages.length}} 张</text>
+        <view class="gp-close" bindtap="closeGallery"><text>×</text></view>
+      </view>
+      <scroll-view class="gp-grid" scroll-y>
+        <view class="gpg-item" wx:for="{{allImages}}" wx:key="url" bindtap="previewImage" data-idx="{{index}}" data-list="{{allImages}}">
+          <image src="{{item.url}}" mode="aspectFill" class="gpg-img"/>
+        </view>
+      </scroll-view>
+    </view>
+
+  </block>
+</view>

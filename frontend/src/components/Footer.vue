@@ -70,8 +70,8 @@ import { ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 <style scoped>
 .footer {
   padding: 80px 0 32px;
-  background: #1a1a1a;
-  color: #fff;
+  background: var(--bg-base, #0a0a1a);
+  color: var(--text-primary, #E8E8E8);
 }
 
 .footer-container {
@@ -97,7 +97,7 @@ import { ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 .footer-brand .logo-icon {
   width: 40px;
   height: 40px;
-  color: #fff;
+  color: var(--text-title, #FFFFFF);
 }
 
 .footer-brand .logo-icon svg {
@@ -113,19 +113,19 @@ import { ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 .footer-brand .brand-name {
   font-size: 20px;
   font-weight: 600;
-  color: #fff;
+  color: var(--text-title, #FFFFFF);
   letter-spacing: 2px;
 }
 
 .footer-brand .brand-tag {
   font-size: 10px;
-  color: rgba(255,255,255,0.5);
+  color: var(--text-secondary, #A0A0B8);
   letter-spacing: 3px;
 }
 
 .footer-desc {
   font-size: 14px;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary, #A0A0B8);
   margin-bottom: 24px;
   max-width: 280px;
   line-height: 1.6;
@@ -139,20 +139,20 @@ import { ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
 .social-link {
   width: 40px;
   height: 40px;
-  background: rgba(255,255,255,0.1);
+  background: rgba(255, 255, 255, 0.1);
   border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: var(--text-primary, #E8E8E8);
   font-size: 18px;
   transition: all 0.3s;
   text-decoration: none;
 }
 
 .social-link:hover {
-  background: #fff;
-  color: #1a1a1a;
+  background: rgba(255, 255, 255, 0.2);
+  color: var(--text-title, #FFFFFF);
 }
 
 .footer-links {
@@ -165,37 +165,37 @@ import { ChatDotRound, Share, Collection } from '@element-plus/icons-vue'
   font-size: 14px;
   font-weight: 600;
   margin-bottom: 20px;
-  color: #fff;
+  color: var(--text-title, #FFFFFF);
 }
 
 .footer-col a {
   display: block;
   font-size: 14px;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary, #A0A0B8);
   text-decoration: none;
   margin-bottom: 12px;
   transition: color 0.3s;
 }
 
 .footer-col a:hover {
-  color: #fff;
+  color: var(--text-title, #FFFFFF);
 }
 
 .footer-col p {
   font-size: 14px;
-  color: rgba(255,255,255,0.6);
+  color: var(--text-secondary, #A0A0B8);
   margin-bottom: 8px;
 }
 
 .footer-bottom {
   padding-top: 32px;
-  border-top: 1px solid rgba(255,255,255,0.1);
+  border-top: 1px solid var(--border, #2a2a3e);
   text-align: center;
 }
 
 .footer-bottom p {
   font-size: 13px;
-  color: rgba(255,255,255,0.4);
+  color: var(--text-placeholder, #606080);
 }
 
 /* 响应式 */

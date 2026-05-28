@@ -1,0 +1,49 @@
+<!-- 设置 -->
+<view class="page">
+  <view class="menu-group">
+    <view class="menu-item" bindtap="goProfileDetail">
+      <text class="mi-name">个人资料</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="bindPhone">
+      <text class="mi-name">手机绑定</text>
+      <text class="mi-desc">{{phoneBound ? '已绑定' : '未绑定'}}</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="changePassword">
+      <text class="mi-name">修改密码</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+  <view class="menu-group">
+    <view class="menu-item" bindtap="toggleMessage">
+      <text class="mi-name">消息通知</text>
+      <switch checked="{{messageEnabled}}" color="#D4AF37" bindchange="onMessageChange"/>
+    </view>
+    <view class="menu-item" bindtap="clearCache">
+      <text class="mi-name">清除缓存</text>
+      <text class="mi-desc">{{cacheSize}}</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+  <view class="menu-group">
+    <view class="menu-item" bindtap="goAbout">
+      <text class="mi-name">关于我们</text>
+      <text class="mi-desc">v1.0.0</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goFeedback">
+      <text class="mi-name">意见反馈</text>
+      <text class="mi-arrow">›</text>
+    </view>
+    <view class="menu-item" bindtap="goHelp">
+      <text class="mi-name">帮助中心</text>
+      <text class="mi-arrow">›</text>
+    </view>
+  </view>
+  <view class="menu-group" wx:if="{{isLoggedIn}}">
+    <view class="menu-item logout-item" bindtap="logout">
+      <text class="mi-name mi-danger">退出登录</text>
+    </view>
+  </view>
+</view>

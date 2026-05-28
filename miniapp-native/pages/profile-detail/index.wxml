@@ -1,0 +1,69 @@
+<!-- 个人资料 -->
+<view class="page">
+  <!-- 头像区 -->
+  <view class="avatar-section" bindtap="changeAvatar">
+    <image class="avatar-img" src="{{userInfo.avatar}}" mode="aspectFill" wx:if="{{userInfo.avatar}}"/>
+    <view class="avatar-placeholder" wx:else>{{userInfo.nickName ? userInfo.nickName[0] : '?'}}</view>
+    <view class="avatar-action">
+      <text>修改头像</text>
+      <text class="arrow">›</text>
+    </view>
+  </view>
+
+  <!-- 资料表单 -->
+  <view class="form-group">
+    <view class="form-item">
+      <text class="fi-label">昵称</text>
+      <view class="fi-right">
+        <input class="fi-input" value="{{userInfo.nickName}}" bindblur="onNickNameChange" placeholder="请输入昵称"/>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="fi-label">手机号</text>
+      <view class="fi-right">
+        <text class="fi-value" wx:if="{{userInfo.phone}}">{{userInfo.phone}}</text>
+        <text class="fi-placeholder" wx:else>未绑定</text>
+        <view class="fi-btn" bindtap="bindPhone">
+          <text>{{userInfo.phone ? '更换' : '绑定'}}</text>
+        </view>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="fi-label">真实姓名</text>
+      <view class="fi-right">
+        <input class="fi-input" value="{{userInfo.realName}}" bindblur="onRealNameChange" placeholder="请输入真实姓名"/>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="fi-label">性别</text>
+      <view class="fi-right">
+        <picker mode="selector" range="{{genderOptions}}" value="{{genderIndex}}" bindchange="onGenderChange">
+          <text class="fi-value" wx:if="{{userInfo.gender !== undefined}}">{{genderOptions[genderIndex]}}</text>
+          <text class="fi-placeholder" wx:else>请选择</text>
+          <text class="arrow">›</text>
+        </picker>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="fi-label">生日</text>
+      <view class="fi-right">
+        <picker mode="date" value="{{userInfo.birthday}}" bindchange="onBirthdayChange">
+          <text class="fi-value" wx:if="{{userInfo.birthday}}">{{userInfo.birthday}}</text>
+          <text class="fi-placeholder" wx:else>请选择</text>
+          <text class="arrow">›</text>
+        </picker>
+      </view>
+    </view>
+    <view class="form-item">
+      <text class="fi-label">所在城市</text>
+      <view class="fi-right">
+        <input class="fi-input" value="{{userInfo.city}}" bindblur="onCityChange" placeholder="请输入所在城市"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- 保存按钮 -->
+  <view class="save-btn" bindtap="saveProfile">
+    <text>保存修改</text>
+  </view>
+</view>

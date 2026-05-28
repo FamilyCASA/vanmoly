@@ -48,6 +48,30 @@
           :quote-id="quoteId"
         />
       </el-collapse-item>
+
+      <!-- 阶段7：材质展示 -->
+      <el-collapse-item title="阶段7：材质展示" name="7">
+        <PhaseMaterialEditor 
+          v-model="phasesData[7]"
+          @update:modelValue="onPhaseUpdate(7, $event)"
+        />
+      </el-collapse-item>
+
+      <!-- 阶段8：物料展示 -->
+      <el-collapse-item title="阶段8：物料展示" name="8">
+        <PhaseProductEditor 
+          v-model="phasesData[8]"
+          @update:modelValue="onPhaseUpdate(8, $event)"
+        />
+      </el-collapse-item>
+
+      <!-- 阶段9：工法展示 -->
+      <el-collapse-item title="阶段9：工法展示" name="9">
+        <PhaseProcessEditor 
+          v-model="phasesData[9]"
+          @update:modelValue="onPhaseUpdate(9, $event)"
+        />
+      </el-collapse-item>
     </el-collapse>
   </div>
 </template>
@@ -62,6 +86,9 @@ import PhasePlanEditor from './phases/PhasePlanEditor.vue'
 import PhaseBirdviewEditor from './phases/PhaseBirdviewEditor.vue'
 import PhaseShowcaseEditor from './phases/PhaseShowcaseEditor.vue'
 import PhaseSpaceRenderingsEditor from './phases/PhaseSpaceRenderingsEditor.vue'
+import PhaseMaterialEditor from './phases/PhaseMaterialEditor.vue'
+import PhaseProductEditor from './phases/PhaseProductEditor.vue'
+import PhaseProcessEditor from './phases/PhaseProcessEditor.vue'
 
 const props = defineProps({
   caseId: {
@@ -86,7 +113,10 @@ const phasesData = ref({
   3: null,
   4: null,
   5: null,
-  6: null
+  6: null,
+  7: null,
+  8: null,
+  9: null
 })
 
 // 加载阶段数据
@@ -95,7 +125,7 @@ const loadPhases = async () => {
     const res = await request.get(`/cases/${props.caseId}/phases`)
     if (res) {
       // 合并返回的数据
-      for (let i = 1; i <= 6; i++) {
+      for (let i = 1; i <= 9; i++) {
         if (res[i]) {
           phasesData.value[i] = res[i]
         }

@@ -1,8 +1,8 @@
 {
   "navigationBarTitleText": "我的选品清单",
-  "navigationBarBackgroundColor": "#fff",
-  "navigationBarTextStyle": "black",
+  "navigationBarBackgroundColor": "#1a1a2e",
+  "navigationBarTextStyle": "white",
   "enablePullDownRefresh": false,
   "usingComponents": {},
-  "backgroundColor": "#f5f5f5"
+  "backgroundColor": "#0a0a1a"
 }

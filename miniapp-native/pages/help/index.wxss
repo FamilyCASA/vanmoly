@@ -1,0 +1,20 @@
+/* 帮助中心 */
+.page { background: #0a0a1a; min-height: 100vh; }
+.search-bar { padding: 24rpx; }
+.search-input { background: #1a1a2e; border: 1rpx solid rgba(255,255,255,0.06); border-radius: 32rpx; padding: 20rpx 28rpx; font-size: 28rpx; color: #fff; }
+.section { padding: 0 24rpx 24rpx; }
+.section-title { font-size: 30rpx; font-weight: 600; color: #fff; display: block; margin-bottom: 16rpx; padding-left: 8rpx; }
+.faq-list { background: #1a1a2e; border-radius: 16rpx; overflow: hidden; border: 1rpx solid rgba(255,255,255,0.06); }
+.faq-item { border-bottom: 1rpx solid rgba(255,255,255,0.04); }
+.faq-item:last-child { border-bottom: none; }
+.faq-q { display: flex; justify-content: space-between; align-items: center; padding: 28rpx 24rpx; }
+.faq-q-text { font-size: 28rpx; color: rgba(255,255,255,0.85); flex: 1; padding-right: 16rpx; }
+.faq-arrow { font-size: 32rpx; color: #606080; transition: transform 0.2s; }
+.faq-arrow.open { transform: rotate(90deg); }
+.faq-a { padding: 0 24rpx 28rpx; }
+.faq-a text { font-size: 26rpx; color: rgba(255,255,255,0.5); line-height: 1.6; }
+.contact-section { padding: 24rpx; display: flex; gap: 16rpx; }
+.contact-item { flex: 1; background: #1a1a2e; border-radius: 16rpx; padding: 28rpx; display: flex; flex-direction: column; align-items: center; gap: 8rpx; border: 1rpx solid rgba(255,255,255,0.06); }
+.ci-icon { font-size: 40rpx; }
+.ci-name { font-size: 28rpx; color: #fff; font-weight: 600; }
+.ci-desc { font-size: 22rpx; color: rgba(255,255,255,0.4); }

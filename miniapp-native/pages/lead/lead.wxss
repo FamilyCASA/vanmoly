@@ -1,165 +1,208 @@
-/* 留资页面样式 */
+/* 留资页面 - 暗黑深空风格 */
+.page {
+  background: #0a0a1a;
+  min-height: 100vh;
+  padding-bottom: 40rpx;
+}
 
+/* 头部激励 */
 .lead-header {
   text-align: center;
-  padding: 40rpx 0;
+  padding: 48rpx 32rpx 32rpx;
 }
 
-.header-icon {
-  width: 120rpx;
-  height: 120rpx;
-  margin-bottom: 20rpx;
+.lh-badge {
+  font-size: 64rpx;
+  margin-bottom: 16rpx;
 }
 
-.header-title {
+.lh-title {
   font-size: 40rpx;
   font-weight: 700;
-  color: #333;
+  color: #FFFFFF;
   display: block;
   margin-bottom: 12rpx;
 }
 
-.header-desc {
-  font-size: 28rpx;
-  color: #666;
+.lh-desc {
+  font-size: 26rpx;
+  color: #A0A0B8;
+  display: block;
 }
 
-/* 福利展示 */
-.benefits {
+/* 福利卡片 */
+.benefits-row {
   display: flex;
-  justify-content: space-around;
-  padding: 30rpx 20rpx;
-  margin-bottom: 20rpx;
+  gap: 16rpx;
+  padding: 0 24rpx 32rpx;
 }
 
-.benefit-item {
+.benefit-card {
+  flex: 1;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16rpx;
+  padding: 24rpx 16rpx;
   display: flex;
   flex-direction: column;
   align-items: center;
 }
 
-.benefit-icon {
-  font-size: 48rpx;
-  margin-bottom: 12rpx;
+.bc-icon {
+  font-size: 40rpx;
+  margin-bottom: 10rpx;
 }
 
-.benefit-title {
-  font-size: 28rpx;
+.bc-title {
+  font-size: 26rpx;
   font-weight: 600;
-  color: #333;
-  margin-bottom: 6rpx;
+  color: #FFFFFF;
+  display: block;
+  margin-bottom: 4rpx;
 }
 
-.benefit-desc {
-  font-size: 22rpx;
-  color: #999;
+.bc-desc {
+  font-size: 20rpx;
+  color: #A0A0B8;
+  display: block;
 }
 
 /* 表单 */
 .form-card {
-  padding: 30rpx;
-  margin-bottom: 30rpx;
+  background: #1a1a2e;
+  margin: 0 24rpx 24rpx;
+  border-radius: 20rpx;
+  padding: 32rpx 28rpx;
+  border: 1px solid rgba(255,255,255,0.06);
 }
 
 .form-item {
-  margin-bottom: 30rpx;
+  margin-bottom: 24rpx;
 }
 
 .form-label {
-  font-size: 28rpx;
-  color: #333;
+  font-size: 26rpx;
+  color: #E8E8E8;
   font-weight: 500;
   display: block;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
 }
 
 .required {
-  color: #f5222d;
+  color: #FF6B6B;
 }
 
 .form-input {
   height: 88rpx;
-  border: 2rpx solid #e5e5e5;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 12rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  transition: border-color 0.3s;
+  color: #E8E8E8;
 }
 
-.form-input:focus {
-  border-color: #8B4513;
+.ph {
+  color: #606080;
 }
 
-/* 面积选择器 */
-.area-selector, .budget-selector {
+/* 选项网格 */
+.option-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 16rpx;
+  gap: 12rpx;
 }
 
-.area-option, .budget-option {
-  padding: 16rpx 30rpx;
+.opt-item {
+  padding: 14rpx 24rpx;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 12rpx;
   font-size: 26rpx;
-  color: #666;
-  background: #f5f5f5;
-  border: 2rpx solid transparent;
-  transition: all 0.3s;
+  color: #A0A0B8;
 }
 
-.area-option.active, .budget-option.active {
-  background: rgba(139, 69, 19, 0.1);
-  color: #8B4513;
-  border-color: #8B4513;
+.opt-item.active {
+  background: rgba(212,175,55,0.12);
+  border-color: #D4AF37;
+  color: #D4AF37;
 }
 
-/* 选择器 */
+/* picker */
 .picker-value {
   height: 88rpx;
-  border: 2rpx solid #e5e5e5;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 12rpx;
   padding: 0 24rpx;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  font-size: 28rpx;
-  color: #333;
 }
 
-.picker-arrow {
-  color: #999;
+.pv-text {
+  font-size: 28rpx;
+  color: #E8E8E8;
+}
+
+.pv-ph {
+  font-size: 28rpx;
+  color: #606080;
+}
+
+.pv-arrow {
+  font-size: 28rpx;
+  color: #606080;
 }
 
 /* 文本域 */
 .form-textarea {
   width: 100%;
-  height: 200rpx;
-  border: 2rpx solid #e5e5e5;
+  height: 160rpx;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
   border-radius: 12rpx;
   padding: 20rpx 24rpx;
   font-size: 28rpx;
+  color: #E8E8E8;
   box-sizing: border-box;
+  line-height: 1.6;
 }
 
-.textarea-count {
+.char-count {
   text-align: right;
-  font-size: 22rpx;
-  color: #999;
-  margin-top: 8rpx;
+  font-size: 20rpx;
+  color: #606080;
   display: block;
+  margin-top: 6rpx;
 }
 
 /* 提交按钮 */
-.submit-btn {
-  margin: 0 20rpx 30rpx;
+.submit-wrap {
+  padding: 0 24rpx 24rpx;
 }
 
+.submit-btn {
+  height: 96rpx;
+  background: linear-gradient(135deg, #D4AF37, #B8962E);
+  border-radius: 16rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0a0a1a;
+}
+
+.submit-btn:active { opacity: 0.85; }
+.submit-btn.loading { opacity: 0.7; }
+
 /* 信任背书 */
-.trust-section {
+.trust-row {
   display: flex;
   justify-content: center;
-  gap: 30rpx;
-  margin-bottom: 40rpx;
+  gap: 24rpx;
+  padding: 0 24rpx 32rpx;
 }
 
 .trust-item {
@@ -168,94 +211,107 @@
   gap: 8rpx;
 }
 
-.trust-icon {
-  width: 32rpx;
-  height: 32rpx;
-  background: #52c41a;
-  color: #fff;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.ti-icon {
   font-size: 20rpx;
+  color: #52c41a;
 }
 
-.trust-text {
-  font-size: 24rpx;
-  color: #666;
+.ti-text {
+  font-size: 22rpx;
+  color: #A0A0B8;
 }
 
-/* 评价区域 */
+/* 客户评价 */
 .reviews-section {
-  padding: 0 20rpx;
+  padding: 0 24rpx;
 }
 
-.reviews-section .section-title {
-  text-align: center;
-  font-size: 28rpx;
-  color: #999;
+.rs-title {
+  font-size: 26rpx;
+  color: #A0A0B8;
   display: block;
+  text-align: center;
   margin-bottom: 20rpx;
+}
+
+.rs-num {
+  color: #D4AF37;
+  font-weight: 600;
 }
 
 .review-scroll {
   display: flex;
-  gap: 20rpx;
-  overflow-x: auto;
+  gap: 16rpx;
 }
 
 .review-card {
   flex-shrink: 0;
-  width: 500rpx;
-  background: #fff;
+  width: 480rpx;
+  background: #1a1a2e;
+  border: 1px solid rgba(255,255,255,0.06);
   border-radius: 16rpx;
   padding: 24rpx;
-  box-shadow: 0 2rpx 12rpx rgba(0,0,0,0.06);
 }
 
-.review-header {
+.rc-header {
   display: flex;
   align-items: center;
   margin-bottom: 16rpx;
 }
 
-.review-avatar {
+.rc-avatar {
   width: 64rpx;
   height: 64rpx;
   border-radius: 50%;
+  background: linear-gradient(135deg, #D4AF37, #B8962E);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #0a0a1a;
   margin-right: 16rpx;
+  flex-shrink: 0;
 }
 
-.review-info {
-  flex: 1;
+.rc-info {
+  display: flex;
+  flex-direction: column;
 }
 
-.review-name {
+.rc-name {
   font-size: 28rpx;
   font-weight: 500;
-  color: #333;
-  display: block;
+  color: #E8E8E8;
 }
 
-.review-date {
-  font-size: 22rpx;
-  color: #999;
+.rc-date {
+  font-size: 20rpx;
+  color: #606080;
 }
 
-.review-content {
+.rc-content {
   font-size: 26rpx;
-  color: #666;
+  color: #A0A0B8;
   line-height: 1.6;
+}
+
+/* 底部 */
+.page-footer {
+  text-align: center;
+  padding: 32rpx 32rpx 20rpx;
+}
+
+.f-copy {
+  font-size: 22rpx;
+  color: rgba(255,255,255,0.25);
 }
 
 /* 成功弹窗 */
 .success-popup {
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0,0,0,0.6);
+  inset: 0;
+  background: rgba(0,0,0,0.75);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -263,12 +319,15 @@
 }
 
 .success-content {
-  background: #fff;
+  background: #1a1a2e;
+  border: 1px solid rgba(212,175,55,0.25);
   border-radius: 24rpx;
-  padding: 60rpx 40rpx;
-  width: 80%;
-  max-width: 600rpx;
+  padding: 56rpx 40rpx;
+  width: 600rpx;
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .success-icon {
@@ -281,38 +340,59 @@
   justify-content: center;
   font-size: 60rpx;
   color: #fff;
-  margin: 0 auto 30rpx;
+  margin-bottom: 28rpx;
 }
 
 .success-title {
-  font-size: 40rpx;
+  font-size: 38rpx;
   font-weight: 700;
-  color: #333;
+  color: #FFFFFF;
   display: block;
-  margin-bottom: 16rpx;
+  margin-bottom: 12rpx;
 }
 
 .success-desc {
-  font-size: 28rpx;
-  color: #666;
+  font-size: 26rpx;
+  color: #A0A0B8;
   display: block;
-  margin-bottom: 30rpx;
+  margin-bottom: 20rpx;
 }
 
 .success-tips {
-  background: #f8f8f8;
-  border-radius: 16rpx;
-  padding: 20rpx;
-  margin-bottom: 30rpx;
+  background: rgba(212,175,55,0.08);
+  border: 1px solid rgba(212,175,55,0.15);
+  border-radius: 12rpx;
+  padding: 16rpx 20rpx;
+  margin-bottom: 24rpx;
+  width: 100%;
 }
 
-.tip-item {
-  font-size: 26rpx;
-  color: #333;
+.stip {
+  font-size: 24rpx;
+  color: #D4AF37;
   display: block;
-  padding: 8rpx 0;
+  padding: 4rpx 0;
 }
 
-.mt-20 {
-  margin-top: 20rpx;
+.success-btn {
+  width: 100%;
+  height: 88rpx;
+  background: #D4AF37;
+  border-radius: 12rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: #0a0a1a;
+  margin-bottom: 16rpx;
+}
+
+.success-link {
+  padding: 8rpx;
+}
+
+.success-link text {
+  font-size: 26rpx;
+  color: #D4AF37;
 }

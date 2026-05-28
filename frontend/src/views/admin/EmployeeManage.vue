@@ -260,6 +260,39 @@
               </el-col>
             </el-row>
           </el-tab-pane>
+
+          <el-tab-pane label="对外展示" name="showcase">
+            <el-form-item label="职称/头衔">
+              <el-input v-model="form.title" placeholder="如：全案规划师、资深设计师" maxlength="100" show-word-limit />
+            </el-form-item>
+
+            <el-form-item label="半身工作照">
+              <el-upload
+                class="showcase-photo-uploader"
+                :action="uploadUrl"
+                :headers="uploadHeaders"
+                :show-file-list="false"
+                :on-success="handleShowcasePhotoSuccess"
+                accept="image/*"
+              >
+                <img v-if="form.showcase_photo" :src="form.showcase_photo" class="showcase-photo-preview" />
+                <el-icon v-else class="showcase-photo-uploader-icon"><Plus /></el-icon>
+              </el-upload>
+              <div class="upload-tip">建议上传 375×500 像素的半身工作照</div>
+            </el-form-item>
+
+            <el-form-item label="个人简介">
+              <el-input
+                v-model="form.bio"
+                type="textarea"
+                :rows="8"
+                maxlength="400"
+                show-word-limit
+                placeholder="请输入个人简介，最多400字。可包含：简历、头衔、主创案例等，用于建立信任背书。"
+              />
+              <div class="bio-tip">每行约50字，最多8行。建议填写：从业年限、擅长风格、代表案例等</div>
+            </el-form-item>
+          </el-tab-pane>
         </el-tabs>
       </el-form>
 
@@ -332,6 +365,22 @@ const pageSize = ref(10)
 const total = ref(0)
 const activeTab = ref('basic')
 
+// 上传配置
+const uploadUrl = '/api/v3/upload/image'
+const uploadHeaders = {
+  Authorization: 'Bearer ' + localStorage.getItem('token')
+}
+
+// 半身工作照上传成功回调
+const handleShowcasePhotoSuccess = (response) => {
+  // axios 拦截器解包后，response 是 { code, message, data: { file_url, ... }, timestamp }
+  if (response && response.data && response.data.file_url) {
+    form.showcase_photo = response.data.file_url
+  } else {
+    ElMessage.error('上传失败')
+  }
+}
+
 const filterForm = reactive({
   keyword: '',
   department_id: null,
@@ -368,7 +417,10 @@ const form = reactive({
   emergency_contact: '',
   emergency_phone: '',
   formal_date: null,
-  remark: ''
+  remark: '',
+  title: '',
+  bio: '',
+  showcase_photo: ''
 })
 
 const rules = {
@@ -618,4 +670,42 @@ onMounted(() => {
   color: #262626;
   font-weight: 500;
 }
+
+/* 对外展示 - 半身工作照上传 */
+.showcase-photo-uploader {
+  width: 150px;
+  height: 200px;
+  border: 1px dashed #d9d9d9;
+  border-radius: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fafafa;
+  transition: border-color 0.3s;
+}
+
+.showcase-photo-uploader:hover {
+  border-color: #409eff;
+}
+
+.showcase-photo-preview {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.showcase-photo-uploader-icon {
+  font-size: 28px;
+  color: #8c939d;
+}
+
+.upload-tip, .bio-tip {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 8px;
+  line-height: 1.5;
+}
+
 </style>

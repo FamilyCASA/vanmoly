@@ -1,3 +1,8 @@
 {
+  "navigationBarTitleText": "精选案例",
+  "navigationBarBackgroundColor": "#0a0a1a",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "backgroundColor": "#0a0a1a",
   "usingComponents": {}
 }

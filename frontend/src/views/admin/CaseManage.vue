@@ -202,6 +202,7 @@
       <el-table-column label="操作" width="180" fixed="right">
         <template #default="{ row }">
           <el-button type="primary" link @click="handleView(row)">查看</el-button>
+          <el-button type="success" link @click="handleSlide(row)">幻灯片</el-button>
           <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
           <el-dropdown @command="(cmd) => handleMoreCommand(cmd, row)">
             <el-button type="primary" link>更多<el-icon class="el-icon--right"><arrow-down /></el-icon></el-button>
@@ -534,6 +535,11 @@ const handleView = (row) => {
 // 编辑
 const handleEdit = (row) => {
   router.push(`/admin/cases/edit/${row.id}`)
+}
+
+// 幻灯片演示
+const handleSlide = (row) => {
+  window.open(`/slides/${row.id}`, '_blank')
 }
 
 // 置顶/取消置顶

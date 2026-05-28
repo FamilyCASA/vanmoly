@@ -306,7 +306,7 @@ const shareToWechat = () => {
   ElMessageBox.alert(
     `<div style="text-align:center">
       <p>请使用微信扫一扫分享</p>
-      <div style="margin:20px 0;padding:20px;background:#f5f5f5;border-radius:8px">
+      <div style="margin:20px 0;padding:20px;background:#0a0a1a;border-radius:8px">
         <p style="font-size:12px;color:#999;word-break:break-all">${shareData.link}</p>
       </div>
     </div>`,
@@ -382,7 +382,7 @@ onMounted(() => {
 <style scoped>
 .product-detail-v2 {
   min-height: 100vh;
-  background: #f5f5f5;
+  background: #0a0a1a;
 }
 
 .product-container {
@@ -419,7 +419,7 @@ onMounted(() => {
   aspect-ratio: 1;
   border-radius: 8px;
   overflow: hidden;
-  background: #f8f8f8;
+  background: #1a1a2e;
 }
 
 .main-image :deep(.el-image) {
@@ -461,7 +461,7 @@ onMounted(() => {
 }
 
 .thumb-item.active {
-  border-color: #8B5A2B;
+  border-color: #409EFF;
 }
 
 .thumb-item :deep(.el-image) {
@@ -495,7 +495,7 @@ onMounted(() => {
   grid-template-columns: repeat(2, 1fr);
   gap: 12px;
   padding: 15px;
-  background: #f8f8f8;
+  background: #1a1a2e;
   border-radius: 6px;
 }
 
@@ -539,7 +539,7 @@ onMounted(() => {
 .price-value.sale {
   font-size: 28px;
   font-weight: bold;
-  color: #8B5A2B;
+  color: #409EFF;
 }
 
 .price-value.market {
@@ -575,11 +575,11 @@ onMounted(() => {
 }
 
 .variant-item:hover {
-  border-color: #c0a080;
+  border-color: #A0A0B8;
 }
 
 .variant-item.active {
-  border-color: #8B5A2B;
+  border-color: #409EFF;
   background: #fdf6f0;
 }
 
@@ -614,7 +614,7 @@ onMounted(() => {
 
 .variant-price {
   font-size: 11px;
-  color: #8B5A2B;
+  color: #409EFF;
 }
 
 /* 数量选择 */
@@ -650,13 +650,13 @@ onMounted(() => {
 }
 
 .action-section .el-button--primary {
-  background: #8B5A2B;
-  border-color: #8B5A2B;
+  background: #409EFF;
+  border-color: #409EFF;
 }
 
 .action-section .el-button--primary:hover {
-  background: #6d4620;
-  border-color: #6d4620;
+  background: #3a8ee6;
+  border-color: #3a8ee6;
 }
 
 /* 服务标签 */
@@ -705,8 +705,8 @@ onMounted(() => {
 }
 
 .share-btn:hover {
-  border-color: #8B5A2B;
-  color: #8B5A2B;
+  border-color: #409EFF;
+  color: #409EFF;
   background: #fdf6f0;
 }
 
@@ -763,7 +763,7 @@ onMounted(() => {
 }
 
 .rich-content :deep(th) {
-  background: #f5f5f5;
+  background: #0a0a1a;
 }
 
 .empty-content {

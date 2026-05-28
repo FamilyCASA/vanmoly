@@ -6,10 +6,10 @@ VANMOLY-SYS V3.2
 import secrets
 import hashlib
 from datetime import datetime, timedelta
-from functools import wraps
 from flask import Blueprint, request, jsonify
 from app import db
 from app.models.knowledge import KnowledgeBase, KnowledgeNode, KnowledgeShare, FrontUser
+from app.routes.auth_routes_v2 import jwt_required_v2
 
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/v3/knowledge')
 
@@ -25,22 +25,6 @@ def make_token():
 def hash_pwd(password):
     import hashlib
     return hashlib.sha256(password.encode()).hexdigest()
-
-
-def jwt_required_v2(f):
-    """JWT 验证装饰器（Flask-JWT-Extended 4.x 无括号直接用）"""
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        from flask_jwt_extended import verify_jwt_in_request, get_jwt_identity
-        try:
-            verify_jwt_in_request()
-            current_user_id = get_jwt_identity()
-            if not current_user_id:
-                return jsonify({'code': 401, 'message': '未授权'}), 401
-            return f(current_user_id, *args, **kwargs)
-        except Exception:
-            return jsonify({'code': 401, 'message': 'Token无效或已过期'}), 401
-    return wrapper
 
 
 def parse_bool(val):

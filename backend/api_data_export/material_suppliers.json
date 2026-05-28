@@ -1,0 +1,41 @@
+[
+  {
+    "id": 1,
+    "tenant_id": "0",
+    "name": "帝标家居",
+    "contact_person": "张经理",
+    "phone": "13800138100",
+    "email": "zhang@dibiao.com",
+    "address": "成都市武侯区家具产业园",
+    "status": "active",
+    "remark": null,
+    "is_deleted": 0,
+    "created_at": "2026-04-27 00:25:40.621076"
+  },
+  {
+    "id": 2,
+    "tenant_id": "0",
+    "name": "高晟家具",
+    "contact_person": "李经理",
+    "phone": "13800138101",
+    "email": "li@gaosheng.com",
+    "address": "成都市新都区家具城",
+    "status": "active",
+    "remark": null,
+    "is_deleted": 0,
+    "created_at": "2026-04-27 00:25:40.621080"
+  },
+  {
+    "id": 3,
+    "tenant_id": "0",
+    "name": "梵木里定制",
+    "contact_person": "王经理",
+    "phone": "13800138102",
+    "email": "wang@fanmoli.com",
+    "address": "成都市高新区设计中心",
+    "status": "active",
+    "remark": null,
+    "is_deleted": 0,
+    "created_at": "2026-04-27 00:25:40.621082"
+  }
+]

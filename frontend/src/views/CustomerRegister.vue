@@ -9,21 +9,21 @@
           
           <div class="feature-list">
             <div class="feature-item">
-              <el-icon :size="24" color="#8B5A2B"><Collection /></el-icon>
+              <el-icon :size="24" color="#409EFF"><Collection /></el-icon>
               <div>
                 <h4>专属选品中心</h4>
                 <p>保存您的心仪产品，随时查看对比</p>
               </div>
             </div>
             <div class="feature-item">
-              <el-icon :size="24" color="#8B5A2B"><DocumentChecked /></el-icon>
+              <el-icon :size="24" color="#409EFF"><DocumentChecked /></el-icon>
               <div>
                 <h4>智能方案推荐</h4>
                 <p>根据您的选择，推荐最适合的套餐</p>
               </div>
             </div>
             <div class="feature-item">
-              <el-icon :size="24" color="#8B5A2B"><Service /></el-icon>
+              <el-icon :size="24" color="#409EFF"><Service /></el-icon>
               <div>
                 <h4>一对一服务</h4>
                 <p>专业顾问为您提供专属服务</p>
@@ -312,7 +312,7 @@ const goToHome = () => {
 <style scoped>
 .customer-register-page {
   min-height: 100vh;
-  background: #f5f7fa;
+  background: #0a0a1a;
 }
 
 .register-container {
@@ -323,7 +323,7 @@ const goToHome = () => {
 /* 左侧欢迎区 */
 .welcome-section {
   flex: 1;
-  background: linear-gradient(135deg, #8B5A2B 0%, #A67B5B 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #6C63FF 100%);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -428,14 +428,14 @@ const goToHome = () => {
   width: 100%;
   height: 48px;
   font-size: 16px;
-  background: #8B5A2B;
-  border-color: #8B5A2B;
+  background: #409EFF;
+  border-color: #409EFF;
   margin-top: 8px;
 }
 
 .submit-btn:hover {
-  background: #6B4423;
-  border-color: #6B4423;
+  background: #3a8ee6;
+  border-color: #3a8ee6;
 }
 
 .divider {

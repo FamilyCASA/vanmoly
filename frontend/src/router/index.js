@@ -5,13 +5,13 @@ const routes = [
     path: '/',
     name: 'Home',
     component: () => import('@/views/Home.vue'),
-    meta: { title: '首页' }
+    meta: { title: '首页', hasHero: true }
   },
   {
     path: '/cases',
     name: 'CaseList',
     component: () => import('@/views/cases/CaseList.vue'),
-    meta: { title: '案例展示' }
+    meta: { title: '案例展示', hasHero: true }
   },
   {
     path: '/cases/:id',
@@ -29,13 +29,19 @@ const routes = [
     path: '/products',
     name: 'ProductList',
     component: () => import('@/views/products/ProductList.vue'),
-    meta: { title: '产品中心' }
+    meta: { title: '产品中心', hasHero: true }
   },
   {
     path: '/products/:id',
     name: 'ProductDetail',
     component: () => import('@/views/products/ProductDetailV2.vue'),
     meta: { title: '产品详情' }
+  },
+  {
+    path: '/proposals',
+    name: 'ProposalList',
+    component: () => import('@/views/proposals/ProposalList.vue'),
+    meta: { title: '提案中心', hasHero: true }
   },
   {
     path: '/knowledge',
@@ -53,7 +59,7 @@ const routes = [
     path: '/book',
     name: 'Appointment',
     component: () => import('@/views/Appointment.vue'),
-    meta: { title: '预约量尺' }
+    meta: { title: '预约量尺', hasHero: true }
   },
   {
     path: '/login',
@@ -225,6 +231,12 @@ const routes = [
         meta: { title: '用户权限' }
       }
     ]
+  },
+  {
+    path: '/slides/:id',
+    name: 'CaseSlidePreview',
+    component: () => import('@/views/cases/CaseSlidePreview.vue'),
+    meta: { title: '案例幻灯片', public: true }
   },
   {
     path: '/:pathMatch(.*)*',

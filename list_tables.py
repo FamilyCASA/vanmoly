@@ -1,9 +1,13 @@
+import sys
+sys.stdout.reconfigure(encoding='utf-8')
 import sqlite3
 
-db_path = r'D:\desktop\VANMOLY-SYS-V3.0\backend\instance\vanmoly_v3.db'
-conn = sqlite3.connect(db_path)
-cur = conn.cursor()
-cur.execute("SELECT name FROM sqlite_master WHERE type='table'")
-tables = [t[0] for t in cur.fetchall()]
-print('All tables:', tables)
+# 直接查数据库
+conn = sqlite3.connect(r'D:\desktop\VANMOLY-SYS-V3.0\backend\instance\vanmoly_v3.db')
+cursor = conn.cursor()
+
+# 列出所有表
+cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+tables = cursor.fetchall()
+print('所有表:', [t[0] for t in tables])
 conn.close()

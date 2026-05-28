@@ -31,34 +31,59 @@
 
     <!-- 筛选栏 -->
     <el-card class="filter-card">
-      <el-row :gutter="20">
+      <!-- 第一行：主要筛选 -->
+      <el-row :gutter="16" class="filter-row">
         <el-col :span="6">
-          <el-input v-model="filters.keyword" placeholder="搜索物料名称/编码" clearable />
+          <el-input v-model="filters.keyword" placeholder="搜索物料名称/编码" clearable clear-icon="Close" />
         </el-col>
-        <el-col :span="5">
+        <el-col :span="6">
           <el-cascader
             v-model="filters.category"
             :options="categoryOptions"
-            :props="{ value: 'id', label: 'name', children: 'children', checkStrictly: true }"
+            :props="{ value: 'id', label: 'name', children: 'children', checkStrictly: true, expandTrigger: 'hover' }"
             placeholder="选择分类"
             clearable
+            filterable
             style="width: 100%"
           />
         </el-col>
-        <el-col :span="5">
-          <el-select v-model="filters.brand" placeholder="选择品牌" clearable style="width: 100%">
+        <el-col :span="4">
+          <el-select v-model="filters.brand" placeholder="品牌" clearable filterable style="width: 100%">
             <el-option v-for="b in brands" :key="b" :label="b" :value="b" />
           </el-select>
         </el-col>
-        <el-col :span="5">
-          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 100%">
-            <el-option label="在售" value="active" />
-            <el-option label="草稿" value="draft" />
-            <el-option label="停售" value="discontinued" />
+        <el-col :span="4">
+          <el-select v-model="filters.unit" placeholder="单位" clearable filterable allow-create style="width: 100%">
+            <el-option v-for="u in units" :key="u" :label="u" :value="u" />
           </el-select>
         </el-col>
-        <el-col :span="3">
-          <el-button type="primary" @click="loadData">查询</el-button>
+        <el-col :span="4">
+          <el-select v-model="filters.supply_chain" placeholder="供应链" clearable filterable style="width: 100%">
+            <el-option v-for="s in supplyChains" :key="s" :label="s" :value="s" />
+          </el-select>
+        </el-col>
+      </el-row>
+      <!-- 第二行：次要筛选 + 查询按钮 -->
+      <el-row :gutter="16" class="filter-row" style="margin-top: 12px;">
+        <el-col :span="4">
+          <el-select v-model="filters.env_level" placeholder="环保等级" clearable filterable style="width: 100%">
+            <el-option v-for="e in envLevels" :key="e" :label="e" :value="e" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
+          <el-select v-model="filters.status" placeholder="状态" clearable style="width: 100%">
+            <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
+          </el-select>
+        </el-col>
+        <el-col :span="4">
+          <el-button type="primary" @click="loadData" style="width: 100%">
+            <el-icon><Search /></el-icon> 查询
+          </el-button>
+        </el-col>
+        <el-col :span="12">
+          <div style="text-align: right; line-height: 32px; color: #909399; font-size: 13px;">
+            共 <strong>{{ pagination.total }}</strong> 条物料
+          </div>
         </el-col>
       </el-row>
     </el-card>
@@ -103,7 +128,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="name" label="物料名称" min-width="200" />
-        <el-table-column prop="category_name" label="分类" width="120" />
+        <el-table-column prop="category_name" label="分类" width="160" />
         <el-table-column prop="brand" label="品牌" width="100" />
         <el-table-column label="价格" width="150">
           <template #default="{ row }">
@@ -181,14 +206,25 @@
               </el-col>
             </el-row>
             
-            <el-form-item label="分类" required>
-              <el-cascader
-                v-model="editDialog.form.category_id"
-                :options="categoryOptions"
-                :props="{ value: 'id', label: 'name', children: 'children', emitPath: false }"
-                placeholder="选择分类"
+            <el-form-item label="一级分类" required>
+              <el-select v-model="editL1Id" placeholder="选择一级分类" style="width: 100%" @change="handleL1Change">
+                <el-option v-for="c in l1Categories" :key="c.id" :label="c.name" :value="c.id" />
+              </el-select>
+            </el-form-item>
+            <el-form-item label="二级分类">
+              <el-select
+                v-model="editL2Id"
+                placeholder="选择或输入二级分类"
                 style="width: 100%"
-              />
+                filterable
+                allow-create
+                default-first-option
+                :disabled="!editL1Id"
+                @change="handleL2Change"
+              >
+                <el-option v-for="c in l2Categories" :key="c.id" :label="c.name" :value="c.id" />
+              </el-select>
+              <div style="font-size:12px;color:#909399;margin-top:4px;">输入新名称可直接创建二级分类</div>
             </el-form-item>
 
             <el-row :gutter="20">
@@ -204,13 +240,23 @@
               </el-col>
               <el-col :span="8">
                 <el-form-item label="单位">
-                  <el-select v-model="editDialog.form.unit" style="width: 100%">
-                    <el-option label="件" value="件" />
-                    <el-option label="套" value="套" />
-                    <el-option label="米" value="米" />
-                    <el-option label="平方米" value="平方米" />
-                    <el-option label="立方米" value="立方米" />
-                  </el-select>
+                              <el-select
+              v-model="editDialog.form.unit"
+              style="width: 100%"
+              allow-create
+              filterable
+              default-first-option
+            >
+              <el-option label="件" value="件" />
+              <el-option label="套" value="套" />
+              <el-option label="组" value="组" />
+              <el-option label="项" value="项" />
+              <el-option label="张" value="张" />
+              <el-option label="次" value="次" />
+              <el-option label="米" value="米" />
+              <el-option label="平方米" value="平方米" />
+              <el-option label="立方米" value="立方米" />
+            </el-select>
                 </el-form-item>
               </el-col>
             </el-row>
@@ -240,6 +286,34 @@
             <el-form-item label="材质">
               <el-input v-model="editDialog.form.material" placeholder="如: 橡木实木+环保漆" />
             </el-form-item>
+
+            <el-row :gutter="20">
+              <el-col :span="8">
+                <el-form-item label="花色">
+                  <el-input v-model="editDialog.form.color_name" placeholder="如: 胡桃木纹" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="环保等级">
+                  <el-select v-model="editDialog.form.env_level" style="width: 100%">
+                    <el-option label="合格" value="合格" />
+                    <el-option label="E1" value="E1" />
+                    <el-option label="E0" value="E0" />
+                    <el-option label="ENF" value="ENF" />
+                    <el-option label="CARB P2" value="CARB P2" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :span="8">
+                <el-form-item label="供应链">
+                  <el-select v-model="editDialog.form.supply_chain" style="width: 100%">
+                    <el-option label="直供" value="直供" />
+                    <el-option label="经销商" value="经销商" />
+                    <el-option label="代采" value="代采" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+            </el-row>
 
             <el-form-item label="简短描述">
               <el-input v-model="editDialog.form.description" type="textarea" :rows="2" placeholder="简短描述，显示在列表中" />
@@ -499,7 +573,7 @@
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Grid } from '@element-plus/icons-vue'
+import { Plus, Grid, Search } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import ImageCropperUpload from '@/components/ImageCropperUpload.vue'
 
@@ -516,6 +590,9 @@ const filters = reactive({
   keyword: '',
   category: null,
   brand: '',
+  unit: '',
+  supply_chain: '',
+  env_level: '',
   status: ''
 })
 
@@ -534,7 +611,17 @@ const pagination = reactive({
 
 // 分类和品牌选项
 const categoryOptions = ref([])
+const l1Categories = ref([])  // 一级分类列表（用于筛选栏）
+const l2Categories = ref([])  // 当前一级分类下的二级分类
+const l1CategoriesWithMaterials = ref([])  // 有实际物料的一级分类（用于编辑弹窗）
+const editL1Id = ref(null)     // 编辑时选中的一级分类ID
+const editL2Id = ref(null)     // 编辑时选中的二级分类ID
+const editL2Input = ref('')    // L2自定义输入
 const brands = ref([])
+const units = ref([])
+const supplyChains = ref([])
+const envLevels = ref([])
+const statusOptions = ref([])
 
 // 上传配置
 const uploadUrl = '/api/v3/upload'
@@ -619,6 +706,9 @@ const loadData = async () => {
         keyword: filters.keyword,
         category_id: filters.category,
         brand: filters.brand,
+        unit: filters.unit,
+        supply_chain: filters.supply_chain,
+        env_level: filters.env_level,
         status: filters.status
       }
     })
@@ -651,10 +741,52 @@ const loadCategories = async () => {
   try {
     const res = await request.get('/materials/categories')
     categoryOptions.value = res || []
+    l1Categories.value = (res || []).filter(c => c.level === 1)
   } catch (error) {
     console.error('加载分类失败', error)
   }
+  try {
+    const res2 = await request.get('/materials/categories-with-materials')
+    l1CategoriesWithMaterials.value = res2 || []
+  } catch (error) {
+    console.error('加载有物料的分类失败', error)
+    // fallback: 用全量分类
+    l1CategoriesWithMaterials.value = l1Categories.value
+  }
 }
+
+
+// 在分类树中查找分类
+const findCategoryById = (id, tree) => {
+  for (const c of tree) {
+    if (c.id == id) return c  // 宽松相等，处理 number/string 类型不一致
+    if (c.children) {
+      const found = findCategoryById(id, c.children)
+      if (found) return found
+    }
+  }
+  return null
+}
+// 一级分类切换时加载二级分类（从全量分类树）
+const handleL1Change = (l1Id) => {
+  const l1 = categoryOptions.value.find(c => c.id == l1Id)
+  l2Categories.value = (l1?.children || []).filter(c => c.level === 2)
+  editL2Id.value = null
+  editDialog.form.category_id = l1Id
+}
+
+// 二级分类切换
+const handleL2Change = (val) => {
+  if (typeof val === 'number') {
+    // 选择了已有分类
+    editDialog.form.category_id = val
+  } else if (typeof val === 'string' && val.trim()) {
+    // 自定义输入新分类名，暂存名称，保存时创建
+    editDialog.form.category_id = editL1Id.value
+    editDialog.form._new_l2_name = val.trim()
+  }
+}
+
 
 // 加载品牌
 const loadBrands = async () => {
@@ -666,6 +798,25 @@ const loadBrands = async () => {
   }
 }
 
+// 加载筛选下拉的动态选项（从数据库真实数据提取）
+const loadFilterOptions = async () => {
+  try {
+    const res = await request.get('/materials/filter-options')
+    units.value = res.units || []
+    supplyChains.value = res.supply_chains || []
+    envLevels.value = res.env_levels || []
+    statusOptions.value = res.statuses || []
+  } catch (error) {
+    console.error('加载筛选选项失败', error)
+    // fallback：使用基本状态选项
+    statusOptions.value = [
+      { value: 'active', label: '在售' },
+      { value: 'draft', label: '草稿' },
+      { value: 'discontinued', label: '停售' }
+    ]
+  }
+}
+
 // 打开编辑对话框
 const openEditDialog = (row = null) => {
   editDialog.isEdit = !!row
@@ -673,7 +824,27 @@ const openEditDialog = (row = null) => {
   if (row) {
     editDialog.form = { ...row, variants: row.variants || [] }
     variantOptions.value = row.variant_options || []
+    // 设置分类选择器
+    if (row.category_id) {
+      const cat = findCategoryById(row.category_id, categoryOptions.value)
+      if (cat) {
+        if (cat.level === 2) {
+          editL1Id.value = cat.parent_id
+          // 手动加载二级分类，避免 handleL1Change 清空 editL2Id
+          const l1 = categoryOptions.value.find(c => c.id == cat.parent_id)
+          l2Categories.value = (l1?.children || []).filter(c => c.level === 2)
+          editL2Id.value = cat.id
+        } else if (cat.level === 1) {
+          editL1Id.value = cat.id
+          editL2Id.value = null
+          handleL1Change(cat.id)
+        }
+      }
+    }
   } else {
+    editL1Id.value = null
+    editL2Id.value = null
+    l2Categories.value = []
     editDialog.form = {
       sku_code: '',
       name: '',
@@ -693,7 +864,10 @@ const openEditDialog = (row = null) => {
       has_variants: false,
       variant_options: [],
       variants: [],
-      is_public: true
+      is_public: true,
+      color_name: '',
+      env_level: '合格',
+      supply_chain: '直供'
     }
     variantOptions.value = []
   }
@@ -717,11 +891,28 @@ const stripApiPrefix = (url) => {
 const handleSave = async () => {
   editDialog.saving = true
   try {
-    const data = {
+    let data = {
       ...editDialog.form,
       images: (editDialog.form.images || []).map(stripApiPrefix),
       main_image: stripApiPrefix(editDialog.form.main_image),
       variant_options: variantOptions.value
+    }
+    // 如果有新建二级分类，先创建分类再保存物料
+    if (data._new_l2_name && editL1Id.value) {
+      try {
+        const catRes = await request.post('/materials/categories', {
+          name: data._new_l2_name,
+          parent_id: editL1Id.value,
+          level: 2
+        })
+        if (catRes?.id) {
+          data.category_id = catRes.id
+          editL2Id.value = catRes.id
+        }
+      } catch (e) {
+        console.error('创建二级分类失败', e)
+      }
+      delete data._new_l2_name
     }
     if (editDialog.isEdit) {
       await request.put(`/materials/${editDialog.form.id}`, data)
@@ -733,6 +924,7 @@ const handleSave = async () => {
     editDialog.visible = false
     loadData()
     loadStats()
+    loadCategories()
   } catch (error) {
     ElMessage.error('保存失败')
   } finally {
@@ -1001,6 +1193,7 @@ onMounted(() => {
   loadStats()
   loadCategories()
   loadBrands()
+  loadFilterOptions()
 })
 </script>
 
@@ -1049,6 +1242,10 @@ onMounted(() => {
 
 .filter-card {
   margin-bottom: 20px;
+}
+
+.filter-row {
+  align-items: center;
 }
 
 .cost-price {

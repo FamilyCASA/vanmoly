@@ -593,7 +593,7 @@ onMounted(() => {
 .login-page {
   min-height: 100vh;
   display: flex;
-  background: #f5f7fa;
+  background: #0a0a1a;
 }
 
 .login-container {
@@ -611,7 +611,7 @@ onMounted(() => {
 /* 左侧品牌区 */
 .brand-section {
   flex: 1;
-  background: linear-gradient(135deg, #8B5A2B 0%, #A67B5B 100%);
+  background: linear-gradient(135deg, #409EFF 0%, #6C63FF 100%);
   color: #fff;
   display: flex;
   flex-direction: column;
@@ -693,7 +693,7 @@ onMounted(() => {
   display: flex;
   gap: 8px;
   margin-bottom: 24px;
-  background: #f5f7fa;
+  background: #0a0a1a;
   padding: 4px;
   border-radius: 8px;
 }
@@ -713,12 +713,12 @@ onMounted(() => {
 }
 
 .tab-item:hover {
-  color: #8B5A2B;
+  color: #409EFF;
 }
 
 .tab-item.active {
   background: #fff;
-  color: #8B5A2B;
+  color: #409EFF;
   font-weight: 500;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
@@ -739,13 +739,13 @@ onMounted(() => {
   width: 100%;
   height: 44px;
   font-size: 16px;
-  background: #8B5A2B;
-  border-color: #8B5A2B;
+  background: #409EFF;
+  border-color: #409EFF;
 }
 
 .login-btn:hover {
-  background: #6B4423;
-  border-color: #6B4423;
+  background: #3a8ee6;
+  border-color: #3a8ee6;
 }
 
 .default-password-tip {
@@ -766,7 +766,7 @@ onMounted(() => {
   width: 180px;
   height: 180px;
   margin: 0 auto 16px;
-  background: #f5f5f5;
+  background: #0a0a1a;
   border-radius: 8px;
   display: flex;
   align-items: center;

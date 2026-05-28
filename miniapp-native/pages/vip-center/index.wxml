@@ -1,0 +1,44 @@
+<!-- 会员中心 -->
+<view class="page">
+  <!-- VIP头部 -->
+  <view class="vip-header">
+    <view class="vh-badge" wx:if="{{isVip}}">
+      <text>👑 VIP会员</text>
+    </view>
+    <view class="vh-info">
+      <text class="vhi-name">{{userInfo.nickName || '用户'}}</text>
+      <text class="vhi-expire" wx:if="{{isVip && vipExpire}}">有效期至 {{vipExpire}}</text>
+      <text class="vhi-desc" wx:else>开通VIP享受专属特权</text>
+    </view>
+    <view class="vh-btn" wx:if="{{!isVip}}" bindtap="openVip">
+      <text>立即开通</text>
+    </view>
+    <view class="vh-btn renew" wx:else bindtap="renewVip">
+      <text>续费</text>
+    </view>
+  </view>
+
+  <!-- 特权列表 -->
+  <view class="privilege-list">
+    <view class="privilege-item" wx:for="{{privileges}}" wx:key="name">
+      <text class="pi-icon">{{item.icon}}</text>
+      <text class="pi-name">{{item.name}}</text>
+      <text class="pi-desc">{{item.desc}}</text>
+      <view class="pi-badge" wx:if="{{isVip}}">
+        <text>已享</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 开通套餐 -->
+  <view class="section-title" wx:if="{{!isVip}}">
+    <text>选择套餐</text>
+  </view>
+  <view class="plan-list" wx:if="{{!isVip}}">
+    <view class="plan-card {{selectedPlan === index ? 'selected' : ''}}" wx:for="{{plans}}" wx:key="index" bindtap="selectPlan" data-index="{{index}}">
+      <text class="pc-duration">{{item.duration}}</text>
+      <text class="pc-price">¥{{item.price}}</text>
+      <text class="pc-original" wx:if="{{item.originalPrice}}">¥{{item.originalPrice}}</text>
+    </view>
+  </view>
+</view>

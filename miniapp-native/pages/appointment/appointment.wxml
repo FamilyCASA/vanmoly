@@ -1,101 +1,380 @@
-<!-- 预约量尺页面 -->
-<view class="container">
-  
-  <!-- 头部 -->
-  <view class="appointment-header">
-    <text class="header-title">预约免费量尺</text>
-    <text class="header-desc">专业设计师上门，精准测量 + 方案建议</text>
+<!-- 预约量尺 - 深化设计版 -->
+<view class="appointment-page">
+
+  <!-- Hero区域 -->
+  <view class="hero-section">
+    <view class="hero-bg">
+      <image src="https://images.unsplash.com/photo-1600585154340-be6161a56a0c?w=1200" mode="aspectFill" class="hero-img"/>
+      <view class="hero-overlay"></view>
+    </view>
+    <view class="hero-content">
+      <text class="hero-eyebrow">D&B 帝标·设记家</text>
+      <text class="hero-title">预约服务</text>
+      <text class="hero-subtitle">专业设计师团队，为您量身定制理想家居</text>
+      
+      <!-- 服务类型快捷入口 -->
+      <view class="service-types-hero">
+        <view class="sth-item {{selectedServiceType === 'measure' ? 'active' : ''}}" bindtap="quickSelectType" data-type="measure">
+          <text class="sth-icon">📐</text>
+          <text class="sth-name">免费量尺</text>
+        </view>
+        <view class="sth-item {{selectedServiceType === 'consult' ? 'active' : ''}}" bindtap="quickSelectType" data-type="consult">
+          <text class="sth-icon">💬</text>
+          <text class="sth-name">设计咨询</text>
+        </view>
+        <view class="sth-item {{selectedServiceType === 'soft' ? 'active' : ''}}" bindtap="quickSelectType" data-type="soft">
+          <text class="sth-icon">🛋️</text>
+          <text class="sth-name">软装搭配</text>
+        </view>
+        <view class="sth-item {{selectedServiceType === 'full' ? 'active' : ''}}" bindtap="quickSelectType" data-type="full">
+          <text class="sth-icon">🏠</text>
+          <text class="sth-name">全案设计</text>
+        </view>
+      </view>
+      
+      <view class="hero-scroll-btn" bindtap="scrollToForm">
+        <text>立即预约</text><text class="scroll-arrow">↓</text>
+      </view>
+    </view>
+    
+    <!-- 客服快捷入口 -->
+    <view class="hero-contact">
+      <view class="hc-item" bindtap="callService">
+        <text class="hci-icon">📞</text>
+        <text class="hci-text">电话咨询</text>
+      </view>
+      <view class="hc-item" bindtap="openWechat">
+        <text class="hci-icon">💬</text>
+        <text class="hci-text">微信客服</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 服务特色 -->
+  <view class="features-section">
+    <view class="section-header">
+      <text class="section-title">为什么选择我们</text>
+    </view>
+    <view class="features-grid">
+      <view class="feature-card">
+        <view class="feature-icon-wrap"><text class="feature-icon">👤</text></view>
+        <text class="feature-title">专业设计师</text>
+        <text class="feature-desc">资深设计师一对一服务，根据您的生活习惯和审美偏好量身定制</text>
+      </view>
+      <view class="feature-card">
+        <view class="feature-icon-wrap"><text class="feature-icon">📐</text></view>
+        <text class="feature-title">精准测量</text>
+        <text class="feature-desc">专业测量工具，毫米级精度，确保每个尺寸准确无误</text>
+      </view>
+      <view class="feature-card">
+        <view class="feature-icon-wrap"><text class="feature-icon">🖥️</text></view>
+        <text class="feature-title">3D效果图</text>
+        <text class="feature-desc">量尺后3-5天出具3D效果图，提前预览未来家的样子</text>
+      </view>
+      <view class="feature-card">
+        <view class="feature-icon-wrap"><text class="feature-icon">🛡️</text></view>
+        <text class="feature-title">品质保证</text>
+        <text class="feature-desc">严选环保材料，10年质保承诺，让您安心入住</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 设计师团队 -->
+  <view class="designers-section">
+    <view class="section-header">
+      <text class="section-title">设计师团队</text>
+      <text class="section-sub">可选择您偏好的设计师</text>
+    </view>
+    <scroll-view class="designers-scroll" scroll-x>
+      <view class="designer-card {{form.designer_id === item.id ? 'selected' : ''}}" wx:for="{{designers}}" wx:key="id" bindtap="selectDesigner" data-item="{{item}}">
+        <image src="{{item.avatar}}" mode="aspectFill" class="dc-avatar"/>
+        <text class="dc-name">{{item.name}}</text>
+        <text class="dc-title">{{item.title}}</text>
+        <view class="dc-tags">
+          <text class="dc-tag" wx:for="{{item.styles}}" wx:for-item="s" wx:key="*this">{{s}}</text>
+        </view>
+        <view class="dc-stats">
+          <text class="dcs-item">案例 {{item.case_count || 0}}</text>
+          <text class="dcs-item">好评 {{item.rating || '5.0'}}</text>
+        </view>
+        <view class="dc-check" wx:if="{{form.designer_id === item.id}}">✓</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 预约表单 -->
+  <view class="form-section" id="booking-form">
+    <view class="form-wrapper">
+
+      <view class="form-header">
+        <text class="fh-title">填写预约信息</text>
+        <text class="fh-sub">我们将在24小时内与您联系确认</text>
+      </view>
+
+      <!-- 步骤指示器 -->
+      <view class="step-indicator">
+        <view class="step-item {{currentStep >= 1 ? 'active' : ''}} {{currentStep > 1 ? 'completed' : ''}}">
+          <view class="step-circle">1</view>
+          <text class="step-label">基本信息</text>
+        </view>
+        <view class="step-line {{currentStep > 1 ? 'done' : ''}}"></view>
+        <view class="step-item {{currentStep >= 2 ? 'active' : ''}} {{currentStep > 2 ? 'completed' : ''}}">
+          <view class="step-circle">2</view>
+          <text class="step-label">房屋信息</text>
+        </view>
+        <view class="step-line {{currentStep > 2 ? 'done' : ''}}"></view>
+        <view class="step-item {{currentStep >= 3 ? 'active' : ''}} {{currentStep > 3 ? 'completed' : ''}}">
+          <view class="step-circle">3</view>
+          <text class="step-label">风格偏好</text>
+        </view>
+        <view class="step-line {{currentStep > 3 ? 'done' : ''}}"></view>
+        <view class="step-item {{currentStep >= 4 ? 'active' : ''}}">
+          <view class="step-circle">4</view>
+          <text class="step-label">预约时间</text>
+        </view>
+      </view>
+
+      <!-- 步骤1: 基本信息 -->
+      <view class="form-step" wx:if="{{currentStep === 1}}">
+        <view class="form-field">
+          <text class="field-label">服务类型 <text class="required">*</text></text>
+          <view class="service-type-grid">
+            <view class="st-option {{form.service_type === item.value ? 'active' : ''}}" wx:for="{{serviceTypes}}" wx:key="value" bindtap="selectServiceType" data-value="{{item.value}}">
+              <text class="sto-icon">{{item.icon}}</text>
+              <text class="sto-name">{{item.name}}</text>
+              <text class="sto-desc">{{item.desc}}</text>
+            </view>
+          </view>
+        </view>
+        <view class="form-row">
+          <view class="form-field">
+            <text class="field-label">您的姓名 <text class="required">*</text></text>
+            <input class="field-input" placeholder="请输入您的姓名" value="{{form.customer_name}}" bindinput="onFieldInput" data-key="customer_name"/>
+          </view>
+          <view class="form-field">
+            <text class="field-label">手机号码 <text class="required">*</text></text>
+            <input class="field-input" type="number" placeholder="请输入手机号" value="{{form.phone}}" bindinput="onFieldInput" data-key="phone" maxlength="11"/>
+          </view>
+        </view>
+        <view class="form-field">
+          <text class="field-label">微信号（选填）</text>
+          <input class="field-input" placeholder="方便微信沟通" value="{{form.wechat}}" bindinput="onFieldInput" data-key="wechat"/>
+        </view>
+      </view>
+
+      <!-- 步骤2: 房屋信息 -->
+      <view class="form-step" wx:if="{{currentStep === 2}}">
+        <view class="form-field">
+          <text class="field-label">房屋地址 <text class="required">*</text></text>
+          <view class="address-input-wrap">
+            <input class="field-input flex-1" placeholder="请输入详细地址" value="{{form.house_address}}" bindinput="onFieldInput" data-key="house_address"/>
+            <view class="location-btn" bindtap="getLocation">
+              <text class="lb-icon">📍</text>
+            </view>
+          </view>
+        </view>
+        <view class="form-row">
+          <view class="form-field">
+            <text class="field-label">楼盘名称</text>
+            <input class="field-input" placeholder="如：万科城" value="{{form.community}}" bindinput="onFieldInput" data-key="community"/>
+          </view>
+          <view class="form-field">
+            <text class="field-label">户型</text>
+            <picker mode="selector" range="{{houseTypeOptions}}" bindchange="onPickerChange" data-key="house_type">
+              <view class="picker-trigger {{form.house_type ? '' : 'empty'}}">
+                <text class="{{form.house_type ? 'pv-text' : 'pv-placeholder'}}">{{form.house_type || '选择户型'}}</text>
+                <text class="pv-arrow">›</text>
+              </view>
+            </picker>
+          </view>
+        </view>
+        <view class="form-row">
+          <view class="form-field">
+            <text class="field-label">房屋面积</text>
+            <picker mode="selector" range="{{areaOptions}}" bindchange="onPickerChange" data-key="area">
+              <view class="picker-trigger {{form.area ? '' : 'empty'}}">
+                <text class="{{form.area ? 'pv-text' : 'pv-placeholder'}}">{{form.area || '选择面积'}}</text>
+                <text class="pv-arrow">›</text>
+              </view>
+            </picker>
+          </view>
+          <view class="form-field">
+            <text class="field-label">装修预算</text>
+            <picker mode="selector" range="{{budgetOptions}}" bindchange="onPickerChange" data-key="budget">
+              <view class="picker-trigger {{form.budget ? '' : 'empty'}}">
+                <text class="{{form.budget ? 'pv-text' : 'pv-placeholder'}}">{{form.budget || '选择预算'}}</text>
+                <text class="pv-arrow">›</text>
+              </view>
+            </picker>
+          </view>
+        </view>
+        <view class="form-field">
+          <text class="field-label">房屋现状</text>
+          <view class="status-options">
+            <view class="so-item {{form.house_status === item ? 'active' : ''}}" wx:for="{{houseStatusOptions}}" wx:key="*this" bindtap="selectHouseStatus" data-value="{{item}}">
+              <text>{{item}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 步骤3: 风格偏好 -->
+      <view class="form-step" wx:if="{{currentStep === 3}}">
+        <view class="form-field">
+          <text class="field-label">喜欢的装修风格（可多选）</text>
+          <view class="style-grid">
+            <view class="style-option {{form.styles.indexOf(item.value) > -1 ? 'active' : ''}}" wx:for="{{styleOptions}}" wx:key="value" bindtap="toggleStyle" data-value="{{item.value}}">
+              <image src="{{item.image}}" mode="aspectFill" class="so-img"/>
+              <view class="so-overlay">
+                <text class="so-name">{{item.name}}</text>
+                <view class="so-check" wx:if="{{form.styles.indexOf(item.value) > -1}}">✓</view>
+              </view>
+            </view>
+          </view>
+        </view>
+        <view class="form-field">
+          <text class="field-label">上传参考图片（可选）</text>
+          <view class="ref-images">
+            <view class="ref-img-item" wx:for="{{form.ref_images}}" wx:key="*this">
+              <image src="{{item}}" mode="aspectFill" class="ri-img"/>
+              <view class="ri-remove" bindtap="removeRefImage" data-index="{{index}}">×</view>
+            </view>
+            <view class="ref-img-add" wx:if="{{form.ref_images.length < 9}}" bindtap="addRefImage">
+              <text class="ria-icon">+</text>
+              <text class="ria-text">添加图片</text>
+            </view>
+          </view>
+          <text class="field-hint">可上传您喜欢的案例图片，帮助设计师了解您的偏好</text>
+        </view>
+        <view class="form-field">
+          <text class="field-label">其他需求说明</text>
+          <textarea class="field-textarea" placeholder="请描述您的具体需求、特殊要求等..." value="{{form.requirements}}" bindinput="onFieldInput" data-key="requirements" maxlength="500"/>
+        </view>
+      </view>
+
+      <!-- 步骤4: 预约时间 -->
+      <view class="form-step" wx:if="{{currentStep === 4}}">
+        <view class="form-field">
+          <text class="field-label">选择设计师（可选）</text>
+          <view class="selected-designer" wx:if="{{form.designer_id}}">
+            <image src="{{selectedDesigner.avatar}}" mode="aspectFill" class="sd-avatar"/>
+            <view class="sd-info">
+              <text class="sd-name">{{selectedDesigner.name}}</text>
+              <text class="sd-title">{{selectedDesigner.title}}</text>
+            </view>
+            <view class="sd-remove" bindtap="clearDesigner">更换</view>
+          </view>
+          <view class="no-designer" wx:else bindtap="scrollToDesigners">
+            <text class="nd-icon">👤</text>
+            <text class="nd-text">点击选择设计师，或由系统自动分配</text>
+          </view>
+        </view>
+        
+        <!-- 日历选择 -->
+        <view class="form-field">
+          <text class="field-label">预约日期 <text class="required">*</text></text>
+          <view class="calendar-wrap">
+            <view class="cw-header">
+              <view class="cw-nav" bindtap="prevMonth">‹</view>
+              <text class="cw-title">{{calendarTitle}}</text>
+              <view class="cw-nav" bindtap="nextMonth">›</view>
+            </view>
+            <view class="cw-weekdays">
+              <text wx:for="{{weekdays}}" wx:key="*this">{{item}}</text>
+            </view>
+            <view class="cw-days">
+              <view class="cwd-item {{item.disabled ? 'disabled' : ''}} {{item.selected ? 'selected' : ''}} {{item.today ? 'today' : ''}}" 
+                    wx:for="{{calendarDays}}" wx:key="date" 
+                    bindtap="selectDate" data-item="{{item}}">
+                <text>{{item.day}}</text>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <!-- 时间段选择 -->
+        <view class="form-field">
+          <text class="field-label">预约时间 <text class="required">*</text></text>
+          <view class="time-slots">
+            <view class="ts-group" wx:for="{{timeGroups}}" wx:key="label">
+              <text class="tsg-label">{{item.label}}</text>
+              <view class="tsg-slots">
+                <view class="ts-slot {{form.appointment_time === t.time ? 'active' : ''}} {{t.disabled ? 'disabled' : ''}}" 
+                      wx:for="{{item.slots}}" wx:for-item="t" wx:key="time"
+                      bindtap="selectTime" data-time="{{t.time}}" data-disabled="{{t.disabled}}">
+                  <text>{{t.time}}</text>
+                </view>
+              </view>
+            </view>
+          </view>
+        </view>
+        
+        <view class="form-field">
+          <text class="field-label">备注说明</text>
+          <textarea class="field-textarea" placeholder="如有其他说明请填写..." value="{{form.remark}}" bindinput="onFieldInput" data-key="remark" maxlength="300"/>
+        </view>
+      </view>
+
+      <!-- 按钮组 -->
+      <view class="form-actions">
+        <view class="btn-prev {{currentStep > 1 ? '' : 'hidden'}}" bindtap="prevStep">
+          <text>上一步</text>
+        </view>
+        <view class="btn-next {{currentStep < 4 ? '' : 'hidden'}}" bindtap="nextStep">
+          <text>下一步</text>
+        </view>
+        <view class="btn-submit {{currentStep === 4 ? '' : 'hidden'}}" bindtap="handleSubmit">
+          <text wx:if="{{!submitting}}">提交预约</text>
+          <text wx:else>提交中...</text>
+        </view>
+      </view>
+
+    </view>
   </view>
 
   <!-- 服务流程 -->
-  <view class="process-section card">
-    <view class="process-item">
-      <view class="process-num">1</view>
-      <text class="process-title">在线预约</text>
-      <text class="process-desc">填写基本信息</text>
+  <view class="process-section">
+    <view class="section-header">
+      <text class="section-title">服务流程</text>
     </view>
-    <view class="process-arrow">→</view>
-    <view class="process-item">
-      <view class="process-num">2</view>
-      <text class="process-title">确认时间</text>
-      <text class="process-desc">顾问电话确认</text>
-    </view>
-    <view class="process-arrow">→</view>
-    <view class="process-item">
-      <view class="process-num">3</view>
-      <text class="process-title">上门量尺</text>
-      <text class="process-desc">设计师上门</text>
-    </view>
-    <view class="process-arrow">→</view>
-    <view class="process-item">
-      <view class="process-num">4</view>
-      <text class="process-title">获取方案</text>
-      <text class="process-desc">3D效果图</text>
+    <view class="process-timeline">
+      <view class="timeline-item" wx:for="{{processSteps}}" wx:key="idx">
+        <view class="timeline-icon"><text class="t-num">0{{index + 1}}</text></view>
+        <text class="t-title">{{item.title}}</text>
+        <text class="t-desc">{{item.desc}}</text>
+      </view>
     </view>
   </view>
 
-  <!-- 表单 -->
-  <view class="form-card card">
-    <view class="form-item">
-      <text class="form-label">您的称呼 <text class="required">*</text></text>
-      <input class="form-input" placeholder="如：张先生" value="{{form.name}}" bindinput="onInput" data-field="name"/>
-    </view>
+  <!-- 固定悬浮预约按钮 -->
+  <view class="sticky-book-btn {{showSticky ? 'visible' : ''}}" bindtap="scrollToForm">
+    <text class="sticky-icon">✏️</text>
+    <text class="sticky-text">立即预约</text>
+  </view>
 
-    <view class="form-item">
-      <text class="form-label">手机号码 <text class="required">*</text></text>
-      <input class="form-input" type="number" placeholder="请输入手机号" value="{{form.phone}}" bindinput="onInput" data-field="phone" maxlength="11"/>
-    </view>
-
-    <view class="form-item">
-      <text class="form-label">房屋地址 <text class="required">*</text></text>
-      <input class="form-input" placeholder="如：XX小区X栋X单元" value="{{form.address}}" bindinput="onInput" data-field="address"/>
-    </view>
-
-    <view class="form-item">
-      <text class="form-label">期望量尺日期</text>
-      <picker mode="date" start="{{today}}" bindchange="onDateChange">
-        <view class="picker-value">
-          {{form.date || '请选择日期'}}
-          <text class="picker-arrow">→</text>
+  <!-- 成功弹窗 -->
+  <view class="success-modal" wx:if="{{successDialogVisible}}" bindtap="handleSuccessClose">
+    <view class="success-box" catchtap="preventBubble">
+      <view class="success-icon">✓</view>
+      <text class="success-title">预约提交成功！</text>
+      <text class="success-desc">我们的客服将在24小时内与您联系确认</text>
+      <view class="appointment-info">
+        <text class="ai-label">预约编号</text>
+        <text class="ai-id">{{appointmentId}}</text>
+      </view>
+      <view class="success-tips">
+        <text class="st-item">📞 客服电话：400-888-8888</text>
+        <text class="st-item">💬 客服微信：DB-Design</text>
+      </view>
+      <view class="success-actions">
+        <view class="sa-btn secondary" bindtap="handleSuccessClose">
+          <text>返回首页</text>
         </view>
-      </picker>
-    </view>
-
-    <view class="form-item">
-      <text class="form-label">期望时间段</text>
-      <view class="time-selector">
-        <view class="time-option {{form.time === item ? 'active' : ''}}" wx:for="{{timeOptions}}" wx:key="*this" bindtap="onTimeSelect" data-time="{{item}}">
-          {{item}}
+        <view class="sa-btn primary" bindtap="viewAppointment">
+          <text>查看预约</text>
         </view>
       </view>
     </view>
-
-    <view class="form-item">
-      <text class="form-label">备注</text>
-      <textarea class="form-textarea" placeholder="如有特殊要求请说明" value="{{form.remark}}" bindinput="onInput" data-field="remark" maxlength="200"/>
-    </view>
   </view>
 
-  <!-- 提交 -->
-  <button class="btn btn-primary submit-btn" bindtap="submitForm">
-    <text wx:if="{{!submitting}}">立即预约</text>
-    <text wx:else>提交中...</text>
-  </button>
-
-  <!-- 提示 -->
-  <view class="tips">
-    <text class="tip-item">✓ 量尺服务完全免费，不收取任何费用</text>
-    <text class="tip-item">✓ 设计师携带专业工具，测量精准</text>
-    <text class="tip-item">✓ 量尺后3个工作日内提供初步方案</text>
-  </view>
-</view>
-
-<!-- 成功弹窗 -->
-<view class="success-popup" wx:if="{{showSuccess}}">
-  <view class="success-content">
-    <view class="success-icon">✓</view>
-    <text class="success-title">预约成功！</text>
-    <text class="success-desc">顾问将在2小时内与您确认上门时间</text>
-    <button class="btn btn-primary" bindtap="closeSuccess">知道了</button>
-  </view>
 </view>

@@ -1,181 +1,295 @@
-<!-- 首页 - 品牌门面 + 获客引擎 -->
-<view class="container">
-  
-  <!-- Banner轮播 - 视觉冲击 -->
-  <swiper class="banner" indicator-dots autoplay circular interval="5000" duration="500">
-    <swiper-item wx:for="{{banners}}" wx:key="id" bindtap="onBannerTap" data-item="{{item}}">
-      <image src="{{item.image}}" mode="aspectFill" class="banner-img"/>
-      <view class="banner-overlay">
-        <text class="banner-title">{{item.title}}</text>
-        <text class="banner-subtitle">{{item.subtitle}}</text>
+<!-- 首页 - 高端杂志风格 · 暗黑深空 -->
+<view class="page">
+
+  <!-- ========== Hero 全屏轮播 ========== -->
+  <swiper class="hero-swiper" indicator-dots="{{heroSlides.length > 1}}" indicator-color="rgba(255,255,255,0.25)" indicator-active-color="#D4AF37" autoplay circular interval="5000" duration="800">
+    <swiper-item wx:for="{{heroSlides}}" wx:key="id">
+      <image wx:if="{{item.url}}" src="{{item.url}}" mode="aspectFill" class="hero-bg" binderror="onHeroImageError"/>
+      <view wx:else class="hero-bg-placeholder">
+        <text class="placeholder-icon">🏠</text>
+        <text class="placeholder-text">D&B 帝标·设记家</text>
       </view>
     </swiper-item>
   </swiper>
 
-  <!-- 快速入口 - 4大核心功能 -->
-  <view class="quick-entry card">
-    <view class="entry-item" bindtap="goToCases">
-      <view class="entry-icon case-icon">
-        <text class="icon">🏠</text>
-      </view>
-      <text class="entry-text">装修案例</text>
-      <text class="entry-desc">实景参考</text>
-    </view>
-    <view class="entry-item" bindtap="goToLead">
-      <view class="entry-icon lead-icon">
-        <text class="icon">💬</text>
-      </view>
-      <text class="entry-text">免费咨询</text>
-      <text class="entry-desc">专家解答</text>
-    </view>
-    <view class="entry-item" bindtap="goToAppointment">
-      <view class="entry-icon appoint-icon">
-        <text class="icon">📏</text>
-      </view>
-      <text class="entry-text">预约量尺</text>
-      <text class="entry-desc">免费上门</text>
-    </view>
-    <view class="entry-item" bindtap="makePhoneCall">
-      <view class="entry-icon phone-icon">
-        <text class="icon">📞</text>
-      </view>
-      <text class="entry-text">电话咨询</text>
-      <text class="entry-desc">立即拨打</text>
-    </view>
-  </view>
 
-  <!-- 核心留资钩子 - 免费设计 -->
-  <view class="lead-hook card" bindtap="goToLead" data-source="首页钩子">
-    <view class="hook-content">
-      <view class="hook-left">
-        <text class="hook-title">🎁 免费获取设计方案</text>
-        <text class="hook-desc">填写需求，3分钟内获取专属设计</text>
-        <view class="hook-tags">
-          <text class="tag tag-gold">免费</text>
-          <text class="tag tag-primary">专业设计师</text>
-          <text class="tag tag-primary">3分钟响应</text>
-        </view>
-      </view>
-      <view class="hook-btn">
-        <text>立即领取</text>
-        <text class="arrow">→</text>
+  <!-- Hero 浮层内容 -->
+  <view class="hero-overlay">
+    <view class="hero-badges">
+      <view class="hero-badge" wx:for="{{heroBadges}}" wx:key="*this">
+        <view class="badge-dot"></view>
+        <text>{{item}}</text>
       </view>
     </view>
-  </view>
-
-  <!-- 服务优势 - 建立信任 -->
-  <view class="section">
-    <view class="section-header">
-      <text class="section-title">为什么选择梵木里</text>
+    <!-- 杂志封面标题 -->
+    <view class="hero-mag-title">
+      <text class="mag-title-main">DESIGNARY</text>
+      <text class="mag-title-sub">D&B 帝标·设记家</text>
     </view>
-    <view class="advantage-grid">
-      <view class="advantage-item">
-        <text class="advantage-num">58</text>
-        <text class="advantage-label">节点服务</text>
-        <text class="advantage-desc">全程透明可控</text>
+    <view class="hero-typography">
+      <text class="typo-cn">让  家</text>
+      <text class="typo-cn highlight">成 为</text>
+      <text class="typo-cn highlight">艺 术 品</text>
+    </view>
+    <text class="hero-desc">从空间规划到软装搭配，D&B 帝标 · 设记家为您提供一站式家居全案落地服务</text>
+    <view class="hero-stats">
+      <view class="hero-stat">
+        <text class="hs-num">23</text>
+        <text class="hs-unit">年</text>
+        <text class="hs-label">深耕</text>
       </view>
-      <view class="advantage-item">
-        <text class="advantage-num">0</text>
-        <text class="advantage-label">增项承诺</text>
-        <text class="advantage-desc">合同价即结算价</text>
+      <view class="hs-sep"></view>
+      <view class="hero-stat">
+        <text class="hs-num">8000</text>
+        <text class="hs-unit">+</text>
+        <text class="hs-label">案例</text>
       </view>
-      <view class="advantage-item">
-        <text class="advantage-num">10</text>
-        <text class="advantage-label">年质保</text>
-        <text class="advantage-desc">售后无忧保障</text>
+      <view class="hs-sep"></view>
+      <view class="hero-stat">
+        <text class="hs-num">98</text>
+        <text class="hs-unit">%</text>
+        <text class="hs-label">满意</text>
       </view>
-      <view class="advantage-item">
-        <text class="advantage-num">100%</text>
-        <text class="advantage-label">环保材料</text>
-        <text class="advantage-desc">国标E0级标准</text>
+    </view>
+    <view class="hero-cta">
+      <view class="cta-btn primary" bindtap="goToCases">
+        <text>浏览案例</text>
+        <text class="cta-arrow">→</text>
+      </view>
+      <view class="cta-btn ghost" bindtap="scrollToContact">
+        <text>预约量房</text>
       </view>
     </view>
   </view>
 
-  <!-- 精选案例 - 激发欲望 -->
-  <view class="section">
-    <view class="section-header">
-      <text class="section-title">精选案例</text>
-      <text class="section-more" bindtap="goToCases">查看更多 →</text>
-    </view>
-    <scroll-view scroll-x class="case-scroll">
-      <view class="case-list">
-        <view class="case-item" wx:for="{{featuredCases}}" wx:key="id" bindtap="goToCaseDetail" data-id="{{item.id}}">
-          <image src="{{item.cover}}" mode="aspectFill" class="case-img"/>
-          <view class="case-info">
-            <text class="case-title">{{item.title}}</text>
-            <view class="case-tags">
-              <text class="tag tag-primary">{{item.style}}</text>
-              <text class="tag tag-gold">{{item.area}}㎡</text>
-            </view>
-            <text class="case-price">{{item.budget}}</text>
-          </view>
-          <!-- 案例上的留资按钮 -->
-          <view class="case-lead-btn" catchtap="onCaseLeadTap" data-case="{{item}}">
-            <text>获取同款</text>
-          </view>
+  <!-- ========== 锚点导航（仅首页） ========== -->
+  <view class="anchor-nav {{anchorNavFixed ? 'fixed' : ''}}">
+    <scroll-view scroll-x class="anchor-scroll" enhanced show-scrollbar="{{false}}">
+      <view class="anchor-track">
+        <view
+          class="anchor-item {{activeAnchor === item.id ? 'active' : ''}}"
+          wx:for="{{anchorList}}"
+          wx:key="id"
+          bindtap="scrollToAnchor"
+          data-id="{{item.id}}"
+        >
+          <text>{{item.label}}</text>
+          <view class="anchor-dot" wx:if="{{activeAnchor === item.id}}"></view>
         </view>
       </view>
     </scroll-view>
   </view>
 
-  <!-- 客户评价 - 社交证明 -->
-  <view class="section">
-    <view class="section-header">
-      <text class="section-title">客户口碑</text>
+  <!-- ========== 全案服务 ========== -->
+  <view class="section" id="services">
+    <view class="sec-header">
+      <text class="sec-tag">Our Services</text>
+      <text class="sec-title">全案服务</text>
+      <text class="sec-sub">从设计到交付，每一个环节都为您精心把控</text>
     </view>
-    <view class="review-list">
-      <view class="review-item card" wx:for="{{reviews}}" wx:key="id">
-        <view class="review-header">
-          <image src="{{item.avatar}}" class="review-avatar"/>
-          <view class="review-user">
-            <text class="review-name">{{item.name}}</text>
-            <text class="review-date">{{item.date}}</text>
-          </view>
-          <view class="review-rating">
-            <text wx:for="{{5}}" wx:key="*this" class="star">⭐</text>
-          </view>
+    <view class="service-list">
+      <view class="service-card" wx:for="{{services}}" wx:key="title">
+        <text class="svc-icon">{{item.icon}}</text>
+        <view class="svc-body">
+          <text class="svc-title">{{item.title}}</text>
+          <text class="svc-desc">{{item.desc}}</text>
         </view>
-        <text class="review-content">{{item.content}}</text>
-        <image wx:if="{{item.image}}" src="{{item.image}}" mode="aspectFill" class="review-img"/>
+        <view class="svc-features">
+          <text class="feat" wx:for="{{item.features}}" wx:key="*this" wx:for-item="f">{{f}}</text>
+        </view>
       </view>
     </view>
   </view>
 
-  <!-- 底部CTA - 强力留资 -->
-  <view class="bottom-cta card">
-    <text class="cta-title">准备开始装修了吗？</text>
-    <text class="cta-desc">立即预约，免费量尺 + 设计方案</text>
-    <view class="cta-buttons">
-      <button class="btn btn-primary" bindtap="goToAppointment">预约量尺</button>
-      <button class="btn btn-outline" bindtap="goToLead">免费咨询</button>
+  <!-- ========== 服务流程（互动版） ========== -->
+  <view class="section section-dark" id="process">
+    <view class="sec-header">
+      <text class="sec-tag">Our Process</text>
+      <text class="sec-title">服务流程</text>
+      <text class="sec-sub">{{workflowPhases.length}} 大阶段 · {{totalNodeCount}} 个节点 · 全程可追溯</text>
+    </view>
+
+    <!-- 总体进度条 -->
+    <view class="progress-bar-wrap" wx:if="{{workflowPhases.length > 0}}">
+      <view class="progress-track">
+        <view class="progress-fill" style="width:{{(expandedPhaseIndex + 1) / workflowPhases.length * 100}}%"></view>
+      </view>
+      <text class="progress-text">当前：{{expandedPhaseName || '点击阶段查看详情'}}</text>
+    </view>
+
+    <!-- 加载中 -->
+    <view class="process-loading" wx:if="{{workflowLoading}}">
+      <view class="process-spinner"></view>
+      <text>加载服务流程...</text>
+    </view>
+
+    <!-- 阶段列表 -->
+    <view class="timeline" wx:elif="{{workflowPhases.length > 0}}">
+      <view class="phase-block" wx:for="{{workflowPhases}}" wx:key="code">
+
+        <!-- 阶段头 -->
+        <view class="phase-head {{expandedPhase === item.code ? 'active' : ''}}" bindtap="togglePhase" data-code="{{item.code}}" data-index="{{index}}">
+          <view class="phase-num-wrap {{expandedPhase === item.code ? 'active' : ''}}">
+            <text class="phase-num">{{index + 1}}</text>
+          </view>
+          <view class="phase-info">
+            <text class="phase-name">{{item.name}}</text>
+            <text class="phase-meta">{{item.nodes ? item.nodes.length : 0}} 个节点</text>
+          </view>
+          <view class="phase-arrow {{expandedPhase === item.code ? 'open' : ''}}">
+            <text class="arr-icon">▾</text>
+          </view>
+        </view>
+
+        <!-- 节点列表（展开时动态加载） -->
+        <view class="nodes-wrap {{expandedPhase === item.code ? 'show' : ''}}">
+          <!-- 节点列表（数据已随阶段一次性加载） -->
+          <block wx:if="{{item.nodes && item.nodes.length > 0}}">
+            <view class="node-item"
+              wx:for="{{item.nodes}}"
+              wx:key="code"
+              wx:for-item="node"
+              bindtap="showNodeDetail"
+              data-phase-code="{{item.code}}"
+              data-phase-name="{{item.name}}"
+              data-node-code="{{node.code}}"
+              data-node-name="{{node.name}}"
+              data-node-desc="{{node.description || ''}}">
+              <view class="node-dot"></view>
+              <text class="node-code">{{node.code}}</text>
+              <text class="node-name">{{node.name}}</text>
+              <text class="node-arrow">›</text>
+            </view>
+          </block>
+
+          <!-- 空状态 -->
+          <view class="nodes-empty" wx:elif="{{item.nodes.length === 0}}">
+            <text>暂无节点数据</text>
+          </view>
+        </view>
+
+        <!-- 阶段间连线 -->
+        <view class="phase-line" wx:if="{{index < workflowPhases.length - 1}}"></view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-hint" wx:elif="{{!workflowLoading}}">
+      <text>暂无流程数据</text>
     </view>
   </view>
 
-  <!-- 底部留白（避开tabBar） -->
-  <view style="height: 40rpx;"></view>
-</view>
-
-<!-- 全局浮动留资按钮 -->
-<view class="float-btn" bindtap="goToLead" data-source="浮动按钮">
-  <text class="float-icon">💬</text>
-  <text class="float-text">咨询</text>
-</view>
-
-<!-- 首页弹窗留资（30秒后自动弹出） -->
-<view class="popup-mask" wx:if="{{showPopup}}" bindtap="closePopup">
-  <view class="popup-content" catchtap="preventBubble">
-    <view class="popup-close" bindtap="closePopup">×</view>
-    <image src="/images/gift.png" class="popup-icon"/>
-    <text class="popup-title">🎁 专属福利</text>
-    <text class="popup-desc">填写手机号，立即获取：</text>
-    <view class="popup-benefits">
-      <text class="benefit-item">✓ 免费设计方案</text>
-      <text class="benefit-item">✓ 精准报价清单</text>
-      <text class="benefit-item">✓ 案例同款参考</text>
+  <!-- ========== 关于 ========== -->
+  <view class="section" id="about">
+    <view class="sec-header">
+      <text class="sec-tag">About Us</text>
+      <text class="sec-title">关于我们</text>
     </view>
-    <input type="number" placeholder="请输入手机号" class="popup-input" bindinput="onPhoneInput" maxlength="11"/>
-    <button class="btn btn-primary popup-btn" bindtap="submitLead">立即领取</button>
-    <text class="popup-tip">已有 {{leadCount}}+ 位业主领取</text>
+    <view class="about-body">
+      <view class="about-img-wrap">
+        <image wx:if="{{aboutSection.image}}" src="{{aboutSection.image}}" mode="aspectFill" class="about-img"/>
+        <view wx:else class="about-img-placeholder">
+          <text class="placeholder-icon">🏠</text>
+          <text class="placeholder-text">品牌展示</text>
+        </view>
+      </view>
+      <view class="about-text-block">
+        <text class="about-lead">{{aboutSection.title || 'D&B 帝标 · 设记家'}}</text>
+        <text class="about-p">{{aboutSection.description || 'D&B 帝标 · 设记家成立于2003年，专注于高端全屋定制与全案设计服务。我们相信，每一个家都应该是一件艺术品，承载着居住者的生活理想与审美追求。从空间规划、硬装设计到软装搭配，我们的专业团队为您提供一站式解决方案。'}}</text>
+      </view>
+      <view class="about-data">
+        <view class="ad-item" wx:for="{{aboutStats}}" wx:key="label">
+          <text class="ad-val">{{item.value}}</text>
+          <text class="ad-label">{{item.label}}</text>
+        </view>
+      </view>
+    </view>
   </view>
+
+  <!-- ========== 品牌背书 ========== -->
+  <view class="section section-dark" id="brands" wx:if="{{brandLogos.length > 0}}">
+    <view class="sec-header">
+      <text class="sec-tag">Partners</text>
+      <text class="sec-title">品牌背书</text>
+      <text class="sec-sub">携手知名品牌，为您提供品质保障</text>
+    </view>
+    <view class="brands-grid">
+      <view class="brand-cell" wx:for="{{brandLogos}}" wx:key="name">
+        <image src="{{item.url}}" mode="aspectFit" class="brand-logo"/>
+      </view>
+    </view>
+  </view>
+
+  <!-- ========== 联系我们 + 预约量房 ========== -->
+  <view class="section" id="contact">
+    <view class="sec-header">
+      <text class="sec-tag">Contact</text>
+      <text class="sec-title">联系我们</text>
+      <text class="sec-sub">期待与您的每一次交流</text>
+    </view>
+
+    <view class="contact-cards">
+      <view class="cc-item" bindtap="openMap">
+        <text class="cc-icon">📍</text>
+        <view class="cc-body">
+          <text class="cc-label">展厅地址</text>
+          <text class="cc-value">{{contactInfo.address}}</text>
+        </view>
+      </view>
+      <view class="cc-item" bindtap="callPhone">
+        <text class="cc-icon">📞</text>
+        <view class="cc-body">
+          <text class="cc-label">服务热线</text>
+          <text class="cc-value">{{contactInfo.phone}}</text>
+        </view>
+      </view>
+      <view class="cc-item">
+        <text class="cc-icon">🕐</text>
+        <view class="cc-body">
+          <text class="cc-label">营业时间</text>
+          <text class="cc-value">{{contactInfo.hours}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="booking-card">
+      <text class="bk-title">预约免费量房</text>
+      <text class="bk-sub">留下您的信息，设计师将在24小时内与您联系</text>
+      <view class="bk-form">
+        <input class="bk-input" placeholder="您的称呼" bindinput="onLeadInput" data-field="name" value="{{quickLead.name}}"/>
+        <input class="bk-input" type="number" placeholder="手机号码" bindinput="onLeadInput" data-field="phone" value="{{quickLead.phone}}" maxlength="11"/>
+        <picker bindchange="onBudgetPick" value="{{budgetIndex}}" range="{{budgetOptions}}">
+          <view class="bk-picker">
+            <text class="{{quickLead.budget ? 'bk-picker-val' : 'bk-picker-ph'}}">{{quickLead.budget || '装修预算（选填）'}}</text>
+            <text class="bk-picker-arr">▾</text>
+          </view>
+        </picker>
+        <view class="bk-submit {{leadSubmitting ? 'disabled' : ''}}" bindtap="submitQuickLead">
+          <text>{{leadSubmitting ? '提交中...' : '立即预约'}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 节点详情弹窗 -->
+  <view class="popup-mask {{showNodeDetail ? 'show' : ''}}" bindtap="closeNodeDetail">
+    <view class="popup-box" catchtap="preventBubble">
+      <view class="popup-phase-badge">{{nodeDetail.phaseName}}</view>
+      <text class="popup-node-code">{{nodeDetail.code}}</text>
+      <text class="popup-node-name">{{nodeDetail.name}}</text>
+      <text class="popup-node-desc">{{nodeDetail.description || '暂无详细描述'}}</text>
+      <view class="popup-btn" bindtap="closeNodeDetail"><text>知道了</text></view>
+    </view>
+  </view>
+
+  <!-- 预约成功弹窗 -->
+  <view class="popup-mask {{showLeadSuccess ? 'show' : ''}}" bindtap="closeLeadSuccess">
+    <view class="popup-box" catchtap="preventBubble">
+      <text class="popup-check">✓</text>
+      <text class="popup-title">提交成功！</text>
+      <text class="popup-desc">我们的家居规划师将在24小时内与您联系</text>
+      <view class="popup-btn" bindtap="closeLeadSuccess"><text>知道了</text></view>
+    </view>
+  </view>
+
 </view>
