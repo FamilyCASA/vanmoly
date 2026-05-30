@@ -62,3 +62,10 @@ cases image/
 
 backend/static/uploads/
 frontend/dist/
+
+pptout/
+/docs/
+backend/static/upload/
+backend/static/uploads/
+upload/
+uploads/
