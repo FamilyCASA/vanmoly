@@ -52,6 +52,7 @@ class CaseStudy(db.Model):
     # 客户信息
     customer_name = db.Column(db.String(100), comment='客户称呼(脱敏)')
     customer_id = db.Column(db.Integer, db.ForeignKey('customer.id'), comment='关联客户ID')
+    is_virtual_customer = db.Column(db.Boolean, default=False, comment='是否虚拟客户')
     
     # 视觉素材
     cover_image = db.Column(db.String(500), comment='封面图URL')

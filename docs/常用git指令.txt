@@ -1,6 +1,6 @@
 # 添加文件到暂存区（如果添加全部文件可以使用 git add.）
 git add xxx.txt 
-# 提交暂存区到本地仓库
+# 提交暂存区到本地仓库 
 git commit -m "提交说明"
 # 推送本地仓库到远程仓库
 git push 
@@ -12,3 +12,33 @@ git log
 git pull 
 
 如果推送失败，可以先在终端中粘贴终端代理命令（clash for windows里面复制，一般选择powershell）
+
+# 1. 完成工作后，先提交
+git add .
+git commit -m "你的修改说明"
+
+# 2. 推送到本地备份（秒级完成）
+git push local master
+
+# 3. 网络好时，推送到 GitHub
+git push origin master
+
+# 推送到本地（秒级完成，无网络问题）
+git push local master
+
+# 推送到 GitHub（网络好时再推）
+git push origin master
+
+# 两个都推
+git push local master; git push origin master
+
+# 从本地恢复
+git clone file:///D:/vanmoly-local.git
+# 从远程恢复
+git clone https://github.com/vanmoly/vanmoly.git
+# 从远程恢复并拉取最新代码
+git clone --depth=1 https://github.com/vanmoly/vanmoly.git
+git pull origin master
+# 从远程恢复并拉取最新代码
+git clone --depth=1 https://github.com/vanmoly/vanmoly.git
+git pull origin master

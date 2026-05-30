@@ -494,6 +494,70 @@ def update_hero_slides(current_user):
     })
 
 
+@frontend_config_bp.route('/brand-logo', methods=['GET'])
+def get_brand_logo():
+    """获取首页大Logo（DESIGNARY）"""
+    component = ComponentConfig.query.filter_by(
+        component_key='home_brand_logo',
+        is_enabled=True
+    ).first()
+    
+    if not component:
+        return jsonify({
+            'code': 200,
+            'data': {'url': '', 'enabled': True},
+            'message': 'success'
+        })
+    
+    config = component.default_config or {}
+    return jsonify({
+        'code': 200,
+        'data': {
+            'url': config.get('url', ''),
+            'enabled': config.get('enabled', True)
+        },
+        'message': 'success'
+    })
+
+
+@frontend_config_bp.route('/brand-logo', methods=['PUT'])
+@jwt_required_v2
+def update_brand_logo(current_user):
+    """更新首页大Logo（DESIGNARY）"""
+    data = request.get_json()
+    url = data.get('url', '')
+    enabled = data.get('enabled', True)
+    
+    component = ComponentConfig.query.filter_by(
+        component_key='home_brand_logo'
+    ).first()
+    
+    if not component:
+        component = ComponentConfig(
+            component_key='home_brand_logo',
+            component_name='首页大Logo',
+            component_type='image',
+            config_schema={
+                'url': {'type': 'string', 'label': 'Logo图片URL'},
+                'enabled': {'type': 'boolean', 'label': '是否显示'}
+            },
+            default_config={'url': url, 'enabled': enabled},
+            category='hero',
+            is_enabled=True
+        )
+        db.session.add(component)
+    else:
+        component.default_config = {'url': url, 'enabled': enabled}
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'data': {'url': url, 'enabled': enabled},
+        'message': '大Logo更新成功'
+    })
+
+
 @frontend_config_bp.route('/resources', methods=['GET'])
 def get_resources():
     """获取资源列表"""

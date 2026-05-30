@@ -35,7 +35,8 @@
 
 
 
-          <div class="hero-image" :style="{ backgroundImage: `url(${currentHeroImage})` }"></div>
+          <div class="hero-image hero-image-a" :class="{ 'hero-image-active': activeLayer === 'a' }" :style="{ backgroundImage: `url(${heroImageA})` }"></div>
+          <div class="hero-image hero-image-b" :class="{ 'hero-image-active': activeLayer === 'b' }" :style="{ backgroundImage: `url(${heroImageB})` }"></div>
 
 
 
@@ -154,6 +155,16 @@
         </div>
 
 
+
+        <div class="hero-brand-card">
+
+
+
+          <img src="/images/designary-logo.png" class="hero-brand-logo" alt="DESIGNARY" />
+
+
+
+        </div>
 
         <h1 class="hero-title">
 
@@ -1701,40 +1712,45 @@ const heroSlides = ref([])
 
 const currentHeroIndex = ref(0)
 
-const currentHeroImage = computed(() => {
+const activeLayer = ref('a')
+const heroImageA = ref('')
+const heroImageB = ref('')
 
-  if (heroSlides.value.length === 0) return ''
-
-  return resolveImgUrl(heroSlides.value[currentHeroIndex.value]?.url || '')
-
-})
+const showHeroImage = (index) => {
+  const url = heroSlides.value.length > 0 ? resolveImgUrl(heroSlides.value[index]?.url || '') : ''
+  if (activeLayer.value === 'a') {
+    heroImageB.value = url
+    activeLayer.value = 'b'
+  } else {
+    heroImageA.value = url
+    activeLayer.value = 'a'
+  }
+  currentHeroIndex.value = index
+}
 
 
 
 let heroInterval = null
 
 const startHeroSlider = () => {
-
+  console.log('[HeroSlider] start called, slides:', heroSlides.value)
   if (heroSlides.value.length <= 1) return
-
+  // 显示第一张图
+  heroImageA.value = resolveImgUrl(heroSlides.value[0]?.url || '')
+  activeLayer.value = 'a'
+  currentHeroIndex.value = 0
   heroInterval = setInterval(() => {
-
-    currentHeroIndex.value = (currentHeroIndex.value + 1) % heroSlides.value.length
-
+    const nextIndex = (currentHeroIndex.value + 1) % heroSlides.value.length
+    showHeroImage(nextIndex)
   }, 5000)
-
 }
 
 
 
 const setHeroImage = (index) => {
-
-  currentHeroIndex.value = index
-
+  showHeroImage(index)
   clearInterval(heroInterval)
-
   startHeroSlider()
-
 }
 
 
@@ -1744,10 +1760,10 @@ const loadHeroSlides = async () => {
   try {
 
     const res = await request.get('/frontend/hero-slides')
-
-    if (res && Array.isArray(res) && res.length > 0) {
-
-      heroSlides.value = res
+    console.log('[Hero] raw response:', res)
+    const slides = Array.isArray(res) ? res : (res?.data && Array.isArray(res.data) ? res.data : null)
+    if (slides && slides.length > 0) {
+      heroSlides.value = slides
 
     } else {
 
@@ -2125,9 +2141,15 @@ const resolveImgUrl = (url) => {
 
   if (url.startsWith('http')) return url
 
-  // 去掉 /api/v3 前缀（如果有的话），用 Vite 代理路径
+  // 相对路径：统一通过 /api/v3 代理到后端静态文件
+  if (url.startsWith('/')) {
+    // 已经是 /api/v3 开头的不重复加
+    if (url.startsWith('/api/v3')) return url
+    return '/api/v3' + url
+  }
 
-  return url.replace(/^\/api\/v3/, '/api/v3')
+  // 其他情况原样返回
+  return url
 
 }
 
@@ -2181,13 +2203,14 @@ const submitQuickLead = async () => {
 
 
 
-onMounted(() => {
+onMounted(async () => {
 
   window.addEventListener('scroll', handleScroll)
 
   // 加载所有后台配置数据
 
-  loadHeroSlides()
+  await loadHeroSlides()
+  startHeroSlider()
 
   loadServices()
 
@@ -2202,8 +2225,6 @@ onMounted(() => {
   loadCtaSection()
 
   loadContactSection()
-
-  startHeroSlider()
 
 })
 
@@ -3334,29 +3355,20 @@ onUnmounted(() => {
 
 
 .hero-image {
-
-
-
   position: absolute;
-
-
-
   inset: 0;
-
-
-
   background-size: cover;
-
-
-
   background-position: center;
-
-
-
-  transition: opacity 1s ease;
-
-
-
+  background-repeat: no-repeat;
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+  opacity: 0;
+  transition: opacity 1.5s ease;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.hero-image-active {
+  opacity: 1;
 }
 
 
@@ -3385,15 +3397,15 @@ onUnmounted(() => {
 
 
 
-    rgba(44, 36, 32, 0.85) 0%,
+    rgba(44, 36, 32, 0.5) 0%,
 
 
 
-    rgba(44, 36, 32, 0.6) 50%,
+    rgba(44, 36, 32, 0.3) 50%,
 
 
 
-    rgba(44, 36, 32, 0.4) 100%
+    rgba(44, 36, 32, 0.1) 100%
 
 
 
@@ -3525,7 +3537,7 @@ onUnmounted(() => {
 
 
 
-  padding: 0 40px;
+  padding: 180px 40px 0;
 
 
 
@@ -3641,14 +3653,34 @@ onUnmounted(() => {
 
 
 
+.hero-brand-card {
+  position: absolute;
+  left: 40px;
+  top: 80px;
+  z-index: 2;
+  background: transparent;
+  backdrop-filter: none;
+  padding: 12px 20px;
+}
+
+
+
+.hero-brand-logo {
+  width: 420px;
+  height: auto;
+  display: block;
+}
+
+
+
+.hero-brand-logo {
+  width: 480px;
+  height: auto;
+  display: block;
+}
+
 .hero-title {
-
-
-
   margin-bottom: 24px;
-
-
-
 }
 
 
@@ -5025,7 +5057,7 @@ onUnmounted(() => {
 
 
 
-  background: rgba(44, 36, 32, 0.6);
+  background: rgba(44, 36, 32, 0.3);
 
 
 

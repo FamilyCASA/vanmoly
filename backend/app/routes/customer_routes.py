@@ -285,3 +285,28 @@ def get_options(current_user):
             'follow_types': FOLLOW_TYPES
         }
     })
+@customer_bp.route('/search', methods=['GET'])
+def search_customers():
+    """搜索客户（支持名称关键词，返回id/name/phone）"""
+    keyword = request.args.get('keyword', '').strip()
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    
+    query = Customer.query.filter_by(is_deleted=False)
+    if keyword:
+        query = query.filter(Customer.name.ilike(f'%{keyword}%'))
+    
+    pagination = query.order_by(Customer.created_at.desc()).paginate(
+        page=page, per_page=page_size, error_out=False
+    )
+    
+    return jsonify({
+        'code': 200,
+        'data': {
+            'items': [{'id': c.id, 'name': c.name, 'phone': c.phone} for c in pagination.items],
+            'total': pagination.total,
+            'page': pagination.page,
+            'pages': pagination.pages
+        }
+    })
+

@@ -4,14 +4,11 @@
       <div class="nav-brand" @click="goHome">
         <div class="logo-mark">
           <span class="logo-icon">
-            <svg viewBox="0 0 40 40" fill="none">
-              <rect x="4" y="12" width="14" height="20" rx="2" fill="currentColor" opacity="0.9"/>
-              <rect x="22" y="8" width="14" height="24" rx="2" fill="currentColor" opacity="0.6"/>
-            </svg>
+            <img src="/images/logo.png" alt="帝标" style="height: 36px; width: auto; object-fit: contain;" />
           </span>
           <div class="logo-text">
-            <span class="brand-name">D&B 帝标|设记家</span>
-            <span class="brand-tag">DESIGNARY</span>
+            <span class="brand-divider">|</span>
+            <span class="brand-name">设记家</span>
           </div>
         </div>
       </div>
@@ -122,7 +119,7 @@ onUnmounted(() => {
 }
 
 .navbar.scrolled {
-  background: var(--bg-elevated, #16213e);
+  background: var(--bg-elevated, #111111);
   box-shadow: var(--shadow, 0 2px 20px rgba(0,0,0,0.8));
 }
 
@@ -151,25 +148,53 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
+
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+  padding: 4px 14px 4px 8px;}
+
+/* white/scrolled background */
+.navbar.scrolled .logo-mark,
+.navbar:not(.transparent) .logo-mark {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
 
 .logo-icon {
-  width: 40px;
-  height: 40px;
-  color: var(--text-title, #FFFFFF);
+  display: flex;
+  align-items: center;
 }
 
 .logo-text {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.12);
+  padding: 4px 12px 4px 8px;
+  border-radius: 4px;
+  gap: 8px;
 }
 
+
+
+.brand-divider {
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 18px;
+  font-weight: 300;
+}
 .brand-name {
   font-size: 20px;
   font-weight: 600;
   color: var(--text-title, #FFFFFF);
   letter-spacing: 2px;
+  line-height: 36px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
 }
+
+/* brand text stays white in all states */
 
 .brand-tag {
   font-size: 10px;
@@ -222,7 +247,7 @@ onUnmounted(() => {
   display: inline-flex;
   align-items: center;
   padding: 8px 16px;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(30, 28, 26, 0.08);
   color: var(--text-primary, #E8E8E8);
   border-radius: 6px;
   font-size: 13px;
