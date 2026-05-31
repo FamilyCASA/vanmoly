@@ -63,46 +63,8 @@ cases image/
 backend/static/uploads/
 frontend/dist/
 
-# 孤儿调试脚本（防止意外提交）
-*_tmp.py
-*_debug.py
-*_fix.py
-_check*.py
-check_*.py
-debug_*.py
-fix_*.py
-find_*.py
-grep_*.py
-test_*.py
-test*.py
-e2e_*.py
-update_*.py
-verify_*.py
-safe_*.py
-simple_*.py
-precise_*.py
-dump_*.py
-show_*.py
-search*.py
-import_*.py
-organize_*.py
-move_*.py
-migrate_*.py
-add_*.py
-reduce_*.py
-rewrite_*.py
-run_*.py
-delete_*.py
-remove_*.py
-replace_*.py
-extract_*.py
-start_*.bat
-start_*.ps1
-fix-*.bat
-revert-*.bat
-update_*.ps1
-update_*.bat
-!start*.sh
+# 调试脚本统一存放目录
+/temp/
 
 # 大文件/临时目录
 pptout/
@@ -121,12 +83,4 @@ backend/static/uploads/
 upload/
 uploads/
 
-# 孤儿数据文件
-TEST_LEADS_README.md
-cleanup_*.py
-direct_*.py
-list_tables.py
-scan_*.py
-backend/static/uploads/
-upload/
-uploads/
+
