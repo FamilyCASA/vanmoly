@@ -326,17 +326,17 @@
           <el-row :gutter="16">
             <el-col :span="8">
               <el-form-item label="小计">
-                <el-input-number v-model="form.subtotal" :min="0" :precision="2" disabled style="width: 100%" />
+                <el-input-number v-model="form.subtotal" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="管理费率 %">
-                <el-input-number v-model="form.management_fee_rate" :min="0" :max="100" :precision="2" @change="calculateTotal" />
+                <el-input-number v-model="form.management_fee_rate" :min="0" :max="100" :precision="2" :controls="false" style="width:100px" @change="calculateTotal" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="管理费">
-                <el-input-number v-model="form.management_fee" :min="0" :precision="2" disabled style="width: 100%" />
+                <el-input-number v-model="form.management_fee" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
               </el-form-item>
             </el-col>
           </el-row>
@@ -344,12 +344,12 @@
           <el-row :gutter="16">
             <el-col :span="8">
               <el-form-item label="税率 %">
-                <el-input-number v-model="form.tax_rate" :min="0" :max="100" :precision="2" @change="calculateTotal" />
+                <el-input-number v-model="form.tax_rate" :min="0" :max="100" :precision="2" :controls="false" style="width:100px" @change="calculateTotal" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
               <el-form-item label="税费">
-                <el-input-number v-model="form.tax" :min="0" :precision="2" disabled style="width: 100%" />
+                <el-input-number v-model="form.tax" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
               </el-form-item>
             </el-col>
             <el-col :span="8">
@@ -410,23 +410,23 @@
               </el-table-column>
 
 
-              <el-table-column label="长(mm)" width="80">
-                <template #default="{ row }"><el-input-number v-model="row.width" :min="0" size="small" style="width:70px" controls-position="right" @change="autoCalculateMeasurement(row)" /></template>
+              <el-table-column label="长(mm)" width="100">
+                <template #default="{ row }"><el-input-number v-model="row.width" :min="0" size="small" :controls="false" style="width:100px" @change="autoCalculateMeasurement(row)" /></template>
               </el-table-column>
-              <el-table-column label="深(mm)" width="80">
-                <template #default="{ row }"><el-input-number v-model="row.depth" :min="0" size="small" style="width:70px" controls-position="right" @change="autoCalculateMeasurement(row)" /></template>
+              <el-table-column label="深(mm)" width="100">
+                <template #default="{ row }"><el-input-number v-model="row.depth" :min="0" size="small" :controls="false" style="width:100px" @change="autoCalculateMeasurement(row)" /></template>
               </el-table-column>
-              <el-table-column label="高(mm)" width="80">
-                <template #default="{ row }"><el-input-number v-model="row.height" :min="0" size="small" style="width:70px" controls-position="right" @change="autoCalculateMeasurement(row)" /></template>
+              <el-table-column label="高(mm)" width="100">
+                <template #default="{ row }"><el-input-number v-model="row.height" :min="0" size="small" :controls="false" style="width:100px" @change="autoCalculateMeasurement(row)" /></template>
               </el-table-column>
               <el-table-column label="计量值" width="70" align="right">
                 <template #default="{ row }"><span style="font-size:13px;">{{ row.measurement_value != null ? row.measurement_value.toFixed(2) : '-' }}</span></template>
               </el-table-column>
 
               <!-- 核心列（始终显示） -->
-              <el-table-column label="数量" width="60" align="center">
+              <el-table-column label="数量" width="100" align="center">
                 <template #default="{ row }">
-                  <el-input-number v-model="row.quantity" :min="0" :precision="2" size="small" style="width:50px" controls-position="right" @change="calculateTotal" />
+                  <el-input-number v-model="row.quantity" :min="0" :precision="2" size="small" :controls="false" style="width:100px" @change="calculateTotal" />
                 </template>
               </el-table-column>
               <el-table-column label="单价" width="80" align="right">
@@ -439,8 +439,8 @@
                 <template #default="{ row }"><el-select v-model="row.craft_type" style="background-color: #faf3e0; border-radius: 2px;" size="small" placeholder="工艺" clearable filterable @visible-change="(v) => v && loadCraftOptions(row.category_level1)" @change="(val) => { if(val) { const opt = craftOptions.find(c => c.label === val); row.craft_unit = opt ? opt.unit : '项'; row.craft_coefficient = opt ? opt.coefficient : 1; row.craft_price = opt ? opt.unit_price : 0; } else { row.craft_unit = ''; row.craft_coefficient = 1; row.craft_price = 0; } calculateTotal() }"><el-option v-for="c in craftOptions" :key="c.label" :label="c.label" :value="c.label" /></el-select></template>
               </el-table-column>
 
-              <el-table-column label="工艺数量" width="80" align="center">
-                <template #default="{ row }"><el-input-number v-model="row.craft_quantity" :min="0" :precision="2" size="small" style="width:70px" controls-position="right" @change="calculateTotal" /></template>
+              <el-table-column label="工艺数量" width="100" align="center">
+                <template #default="{ row }"><el-input-number v-model="row.craft_quantity" :min="0" :precision="2" size="small" :controls="false" style="width:100px" @change="calculateTotal" /></template>
               </el-table-column>
               <el-table-column label="工艺系数" width="70" align="center">
                 <template #default="{ row }"><span style="font-size:13px; background-color: #faf3e0; border-radius: 2px; padding: 2px 4px;">{{ row.craft_coefficient ?? 1 }}</span></template>
@@ -462,9 +462,12 @@
               <el-table-column label="备注" min-width="80">
                 <template #default="{ row }"><span style="font-size:13px;">{{ row.remark || '-' }}</span></template>
               </el-table-column>
-              <el-table-column label="操作" width="50" align="center">
+              <el-table-column label="操作" width="100" align="center">
                 <template #default="{ $index }">
-                  <el-button type="danger" link size="small" @click="space.children.splice($index, 1); calculateTotal()">
+                  <el-button type="primary" link size="small" @click="cloneRow(spaceIdx, $index)" title="克隆">
+                    <el-icon><DocumentCopy /></el-icon>
+                  </el-button>
+                  <el-button type="danger" link size="small" @click="space.children.splice($index, 1); calculateTotal()" title="删除">
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </template>
@@ -1219,6 +1222,20 @@ const addItem = () => {
     craft_unit: '项',
     craft_coefficient: 1,
   })
+}
+
+// 克隆行：复制当前行数据，product_name 加“(副本)”后缀
+const cloneRow = (spaceIdx, rowIdx) => {
+  const space = form.spaces[spaceIdx]
+  if (!space || !space.children[rowIdx]) return
+  const original = space.children[rowIdx]
+  const cloned = { ...original, id: genId() }
+  if (cloned.product_name) {
+    cloned.product_name = cloned.product_name + '(副本)'
+  }
+  space.children.splice(rowIdx + 1, 0, cloned)
+  calculateTotal()
+  ElMessage.success('已克隆行')
 }
 
 // 根据单位自动计算计量值（长/深/高 单位：mm）
