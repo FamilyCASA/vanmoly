@@ -67,34 +67,76 @@
         </div>
       </template>
 
-      <!-- 新格式：空间实例 -->
-      <el-tabs v-if="!useLegacyView" v-model="activeSpace" type="card">
-        <el-tab-pane
-          v-for="space in spaces"
-          :key="space.id"
-          :label="space.space_name"
-          :name="String(space.id)"
-        >
+      <!-- 新格式：空间实例 - 自定义水平Tab布局 -->
+      <div v-if="!useLegacyView" class="spaces-container">
+        <!-- 空间Tab栏 - 水平排列，自动换行 -->
+        <div class="space-tabs">
+          <div
+            v-for="space in spaces"
+            :key="space.id"
+            class="space-tab"
+            :class="{ active: activeSpaceId === space.id }"
+            @click="switchSpace(space.id)"
+          >
+            <span class="tab-name">{{ space.space_name }}</span>
+            <el-tag
+              class="tab-count"
+              :type="activeSpaceId === space.id ? 'primary' : 'info'"
+              size="small"
+              effect="plain"
+            >
+              {{ space.items?.length || 0 }}
+            </el-tag>
+            <el-dropdown
+              v-if="quote.status === 'draft'"
+              @command="(cmd) => handleSpaceCommand(cmd, space)"
+              trigger="click"
+              @click.stop
+            >
+              <el-icon class="tab-more"><MoreFilled /></el-icon>
+              <template #dropdown>
+                <el-dropdown-menu>
+                  <el-dropdown-item command="edit">重命名</el-dropdown-item>
+                  <el-dropdown-item command="copy">复制空间</el-dropdown-item>
+                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
+                </el-dropdown-menu>
+              </template>
+            </el-dropdown>
+          </div>
+          
+          <!-- 添加空间按钮 -->
+          <div
+            class="space-tab add-space-tab"
+            @click="addSpace"
+            v-if="quote.status === 'draft'"
+          >
+            <el-icon><Plus /></el-icon>
+            <span>添加空间</span>
+          </div>
+        </div>
+
+        <!-- 当前激活空间的内容 -->
+        <div v-if="activeSpace" class="space-content">
           <!-- 空间概览 -->
           <div class="space-overview">
             <el-row :gutter="16">
               <el-col :span="6">
-                <el-statistic title="物料数量" :value="space.material_count || 0" />
+                <el-statistic title="物料数量" :value="activeSpace.material_count || activeSpace.items?.length || 0" />
               </el-col>
               <el-col :span="6">
-                <el-statistic title="物料成本" :value="space.material_cost || 0" :precision="2" prefix="¥" />
+                <el-statistic title="物料成本" :value="activeSpace.material_cost || 0" :precision="2" prefix="¥" />
               </el-col>
               <el-col :span="6">
-                <el-statistic title="工艺费用" :value="space.labor_cost || 0" :precision="2" prefix="¥" />
+                <el-statistic title="工艺费用" :value="activeSpace.labor_cost || 0" :precision="2" prefix="¥" />
               </el-col>
               <el-col :span="6">
-                <el-statistic title="小计" :value="space.total_price || 0" :precision="2" prefix="¥" />
+                <el-statistic title="小计" :value="activeSpace.total_price || 0" :precision="2" prefix="¥" />
               </el-col>
             </el-row>
           </div>
 
           <!-- 物料明细 -->
-          <el-table :data="space.items" stripe style="margin-top: 16px">
+          <el-table :data="activeSpace.items" stripe style="margin-top: 16px">
             <el-table-column type="index" width="50" />
             <el-table-column prop="sku_code" label="物料编码" width="140" />
             <el-table-column prop="sku_name" label="物料名称" min-width="200" />
@@ -115,13 +157,28 @@
             </el-table-column>
             <el-table-column label="操作" width="100" v-if="quote.status === 'draft'">
               <template #default="{ row }">
-                <el-button link type="primary" @click="editItem(space, row)">编辑</el-button>
-                <el-button link type="danger" @click="deleteItem(space, row)">删除</el-button>
+                <el-button link type="primary" @click="editItem(activeSpace, row)">编辑</el-button>
+                <el-button link type="danger" @click="deleteItem(activeSpace, row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
-        </el-tab-pane>
-      </el-tabs>
+
+          <!-- 添加物料按钮 -->
+          <div class="add-item-area" v-if="quote.status === 'draft'">
+            <el-button
+              type="primary"
+              @click="addItemToActiveSpace"
+              class="add-item-btn"
+            >
+              <el-icon><Plus /></el-icon>
+              添加物料到「{{ activeSpace.space_name }}」
+            </el-button>
+          </div>
+        </div>
+
+        <!-- 无激活空间 -->
+        <el-empty v-if="!activeSpace" description="请选择一个空间" />
+      </div>
 
       <!-- 旧格式：扁平物料按房间分组 -->
       <el-tabs v-else v-model="activeLegacyRoom" type="card">
@@ -298,7 +355,7 @@ import { ref, reactive, onMounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Edit, Printer, ArrowDown, Plus, DocumentCopy
+  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -312,7 +369,13 @@ const quoteId = computed(() => route.params.id)
 const loading = ref(false)
 const quote = ref({})
 const spaces = ref([])
-const activeSpace = ref('')
+const activeSpaceId = ref('') // 当前激活的空间ID
+
+// 当前激活的空间对象
+const activeSpace = computed(() => {
+  if (!activeSpaceId.value || !spaces.value.length) return null
+  return spaces.value.find(s => String(s.id) === String(activeSpaceId.value))
+})
 
 // 状态映射
 const statusMap = {
@@ -407,7 +470,13 @@ const loadQuote = async () => {
     }
     
     if (spaces.value.length > 0) {
-      activeSpace.value = String(spaces.value[0].id)
+      // 优先恢复上次激活的空间
+      const savedSpaceId = localStorage.getItem('activeSpaceId')
+      if (savedSpaceId && spaces.value.find(s => String(s.id) === String(savedSpaceId))) {
+        activeSpaceId.value = String(savedSpaceId)
+      } else {
+        activeSpaceId.value = String(spaces.value[0].id)
+      }
     } else {
       // 降级：使用报价自带的扁平items按room_name分组
       const flatItems = quote.value.items || []
@@ -513,6 +582,137 @@ const copyQuote = () => {
   router.push({ path: '/admin/quotes/from-case', query: { from: quoteId.value } })
 }
 
+// ========== 新增：空间管理方法 ==========
+
+// 切换空间
+const switchSpace = (spaceId) => {
+  activeSpaceId.value = String(spaceId)
+  localStorage.setItem('activeSpaceId', String(spaceId))
+}
+
+// 处理空间下拉菜单命令
+const handleSpaceCommand = (command, space) => {
+  switch (command) {
+    case 'edit':
+      editSpace(space)
+      break
+    case 'copy':
+      copySpace(space)
+      break
+    case 'delete':
+      deleteSpace(space)
+      break
+  }
+}
+
+// 编辑空间名称
+const editSpace = async (space) => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入新的空间名称', '编辑空间', {
+      inputValue: space.space_name,
+      inputPlaceholder: '请输入空间名称'
+    })
+    if (!value || !value.trim()) {
+      ElMessage.warning('空间名称不能为空')
+      return
+    }
+    await request.put(`/api/v3/quotes/${quoteId.value}/space-instances/${space.id}`, {
+      space_name: value.trim()
+    })
+    ElMessage.success('空间名称已更新')
+    loadQuote()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 复制空间（包括物料）
+const copySpace = async (space) => {
+  try {
+    await ElMessageBox.confirm('确定要复制该空间及其所有物料吗？', '提示', { type: 'warning' })
+    ElMessage.info('复制空间功能开发中')
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('操作失败')
+    }
+  }
+}
+
+// 删除空间
+const deleteSpace = async (space) => {
+  try {
+    await ElMessageBox.confirm(`确定要删除空间「${space.space_name}」吗？`, '提示', { type: 'warning' })
+    await request.delete(`/api/v3/quotes/${quoteId.value}/space-instances/${space.id}`)
+    ElMessage.success('空间已删除')
+    
+    // 如果删除的是当前激活的空间，切换到下一个
+    if (String(space.id) === activeSpaceId.value) {
+      const idx = spaces.value.findIndex(s => String(s.id) === String(space.id))
+      const next = spaces.value[idx + 1] || spaces.value[idx - 1]
+      if (next) {
+        switchSpace(next.id)
+      } else {
+        activeSpaceId.value = ''
+        localStorage.removeItem('activeSpaceId')
+      }
+    }
+    
+    loadQuote()
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('删除失败')
+    }
+  }
+}
+
+// 添加物料到当前激活的空间
+const addItemToActiveSpace = () => {
+  if (!activeSpace.value) {
+    ElMessage.warning('请先选择一个空间')
+    return
+  }
+  
+  // 打开物料选择对话框
+  itemForm.id = null
+  itemForm.space_id = activeSpace.value.id
+  itemForm.quantity = 1
+  itemForm.unit_price = 0
+  itemForm.remark = ''
+  itemDialogVisible.value = true
+}
+
+// 添加空间
+const addSpace = async () => {
+  try {
+    const { value } = await ElMessageBox.prompt('请输入空间名称', '添加空间', {
+      inputPlaceholder: '例如：客厅、卧室、厨房等'
+    })
+    if (!value || !value.trim()) {
+      ElMessage.warning('空间名称不能为空')
+      return
+    }
+    await request.post(`/api/v3/quotes/${quoteId.value}/space-instances`, {
+      space_name: value.trim()
+    })
+    ElMessage.success('空间添加成功')
+    await loadQuote()
+    
+    // 自动激活新创建的空间
+    const newSpace = spaces.value[spaces.value.length - 1]
+    if (newSpace) {
+      switchSpace(newSpace.id)
+    }
+  } catch (error) {
+    if (error !== 'cancel') {
+      ElMessage.error('添加失败')
+    }
+  }
+}
+
+// ========== 结束新增方法 ==========
+
 // 编辑物料
 const itemDialogVisible = ref(false)
 const itemForm = reactive({
@@ -532,17 +732,28 @@ const editItem = (space, item) => {
   itemDialogVisible.value = true
 }
 
+// 保存物料（支持新增和编辑）
 const saveItem = async () => {
   try {
-    await request.put(
-      `/api/v3/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`,
-      itemForm
-    )
-    ElMessage.success('保存成功')
+    if (itemForm.id) {
+      // 编辑模式：PUT
+      await request.put(
+        `/api/v3/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`,
+        itemForm
+      )
+      ElMessage.success('保存成功')
+    } else {
+      // 新增模式：POST
+      await request.post(
+        `/api/v3/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`,
+        itemForm
+      )
+      ElMessage.success('添加成功')
+    }
     itemDialogVisible.value = false
     loadQuote()
   } catch (error) {
-    ElMessage.error('保存失败')
+    ElMessage.error(itemForm.id ? '保存失败' : '添加失败')
   }
 }
 
@@ -663,11 +874,109 @@ onMounted(() => {
   margin-top: 8px;
 }
 
+/* ========== 新增：自定义空间Tab样式 ========== */
+.spaces-container {
+  background: #fff;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.space-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  background: #fafafa;
+  border-bottom: 1px solid #e4e7ed;
+  align-items: center;
+}
+
+.space-tab {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 1px solid #dcdfe6;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s;
+  background: #fff;
+  font-size: 14px;
+  color: #606266;
+  user-select: none;
+}
+
+.space-tab:hover {
+  background: #ecf5ff;
+  border-color: #409eff;
+  color: #409eff;
+}
+
+.space-tab.active {
+  background: #409eff;
+  border-color: #409eff;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+}
+
+.space-tab .tab-name {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.space-tab .tab-count {
+  margin-left: 4px;
+}
+
+.space-tab .tab-more {
+  margin-left: 4px;
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.3s;
+}
+
+.space-tab:hover .tab-more {
+  opacity: 1;
+}
+
+.space-tab.add-space-tab {
+  border-style: dashed;
+  color: #909399;
+  background: transparent;
+}
+
+.space-tab.add-space-tab:hover {
+  color: #409eff;
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+
+.space-content {
+  padding: 20px;
+  min-height: 200px;
+}
+
+.add-item-area {
+  margin-top: 20px;
+  padding: 16px;
+  background: #fafafa;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.add-item-btn {
+  width: 100%;
+  max-width: 500px;
+  height: 48px;
+  font-size: 15px;
+}
+
 :deep(.el-descriptions__label) {
   width: 100px;
 }
+```
 
-:deep(.el-tabs__item) {
-  font-weight: 500;
-}
 </style>
