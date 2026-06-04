@@ -1,0 +1,26 @@
+✅ 稳定版本 - 系统可正常运行
+
+## 修复内容
+- 修复启动脚本路径错误（start-system.sh, stop-system.sh）
+- 后端服务正常运行（端口 8080）
+- 前端服务正常运行（端口 5173）
+- 浏览器可正常访问系统首页
+
+## 功能状态
+- ✅ 后端 API: http://localhost:8080
+- ✅ 前端界面: http://localhost:5173
+- ✅ 数据库正常
+- ✅ 文件上传正常
+
+## 技术栈
+- 后端: Flask + Waitress + Python 3.11
+- 前端: Vite + Vue 3 + Node.js 22
+- 数据库: SQLite
+
+## 回滚说明
+如果系统崩溃，可以回滚到这个版本：
+```bash
+git reset --hard HEAD
+```
+
+提交时间: 2026-06-04 19:50

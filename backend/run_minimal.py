@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 最小化启动脚本
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 最小化启动脚本
 减少内存占用，避免SIGKILL
 """
 import os
@@ -45,7 +45,7 @@ def list_categories():
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 最小化模式")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 最小化模式")
     print("=" * 50)
     print("服务地址: http://0.0.0.0:8080")
     print("API前缀: /api/v3/")

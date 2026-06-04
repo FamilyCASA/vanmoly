@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 稳定版API服务器
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 稳定版API服务器
 使用socketserver.ThreadingTCPServer避免SIGKILL
 """
 import os
@@ -288,7 +288,7 @@ class APIHandler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 稳定版API服务器")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 稳定版API服务器")
     print("=" * 50)
     print(f"数据库: {DB_PATH}")
     print(f"数据库存在: {os.path.exists(DB_PATH)}")

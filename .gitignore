@@ -1,86 +1,113 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.log
-*.swp
-*.bak
-*.tmp
+# VANMOLY SYS V3.0 - Git Ignore 配置
 
-# Database
-*.db-journal
-*.db-shm
-*.db-wal
-*.db
-instance/
-!instance/.gitkeep
-
-# Node / Frontend
-node_modules/
-.vite/
-dist/
-
-# IDE
-.vscode/
-.idea/
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
-
-# OS
-Thumbs.db
-Desktop.ini
+# ===== 系统文件 =====
 .DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
 
-# Lock / Runtime
-*.pid
-*.sock
-*.lock
+# ===== Python =====
+# 字节码
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
 
-# Uploads (local only, regenerate)
-backend/upload/
+# 虚拟环境
+venv/
+ENV/
+env/
+.venv
 
-# Project temp
-tmp/
-backups/
-cases image/
+# 依赖
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+bin/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+*.egg
 
-# Misc dumps & archives
-*.index
-*.data
-*.dump
-*.dump.gz
-*.dump.bz2
-*.dump.xz
-*.dump.7z
-*.dump.zip
-*.dump.tar
-*.dump.tar.gz
-*.dump.tar.bz2
+# PyCharm
+.idea/
 
-backend/static/uploads/
-frontend/dist/
+# ===== Node.js =====
+# 依赖
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
 
-# 调试脚本统一存放目录
-/temp/
+# 构建输出
+dist/
+.vite/
 
-# 大文件/临时目录
-pptout/
-docs/
-scripts/
-backups/
-cases image/
-memory/
-miniapp/
-miniapp-native/
-xiying_images/
-database/
+# ===== 日志文件 =====
+*.log
+logs/
+*.log.*
 
-backend/static/upload/
-backend/static/uploads/
+# ===== 上传文件 =====
 upload/
-uploads/
+static/uploads/
+/media/
+/public/uploads/
 
+# ===== 数据库 =====
+*.db
+*.sqlite
+*.sqlite3
+*.sql
 
+# ===== 环境变量 =====
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+
+# ===== 编辑器 =====
+.vscode/
+.editorconfig
+*.swp
+*.swo
+*~
+.project
+.settings/
+*.sublime-*
+
+# ===== 临时文件 =====
+*.tmp
+*.temp
+*.bak
+*.backup
+temp/
+tmp/
+
+# ===== 进程文件 =====
+.backend.pid
+.frontend.pid
+.pid
+
+# ===== 图片缓存（大文件）=====
+xiying_images/
+cases\ image/
+cases\ image/
+
+# ===== 小程序编译文件 =====
+miniapp/unpackage/
+miniapp-native/miniprogram_npm/
+
+# ===== 其他 =====
+.macOS/
+.gitignore.bak
+*.md.bak

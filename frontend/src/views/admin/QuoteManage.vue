@@ -191,7 +191,7 @@
                 </el-form-item>
 
                 <el-form-item label="门店名称">
-                  <el-input v-model="form.cover_config.store_name" placeholder="D&B 帝标|设记家·全安落地服务中心" />
+                  <el-input v-model="form.cover_config.store_name" placeholder="D&B 帝标|设记家·全案落地服务中心" />
                 </el-form-item>
 
                 <el-form-item label="显示设置">
@@ -876,7 +876,7 @@ const form = reactive({
     background_image: '',
     logo: '',
     watermark: 'D&B 帝标|设记家全案服务',
-    store_name: 'D&B 帝标|设记家·全安落地服务中心',
+    store_name: 'D&B 帝标|设记家·全案落地服务中心',
     show_customer_info: true,
     show_store_name: true
   },
@@ -1010,7 +1010,7 @@ const openCreateDialog = () => {
       background_image: '',
       logo: '',
       watermark: 'D&B 帝标|设记家全案服务',
-      store_name: 'D&B 帝标|设记家·全安落地服务中心',
+      store_name: 'D&B 帝标|设记家·全案落地服务中心',
       show_customer_info: true,
       show_store_name: true
     },

@@ -1,5 +1,5 @@
 /**
- * D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - Node.js API服务器
+ * D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - Node.js API服务器
  * 轻量级，避免Python SIGKILL问题
  */
 const http = require('http');
@@ -301,7 +301,7 @@ initMockData();
 // 启动服务器
 server.listen(PORT, '0.0.0.0', () => {
   console.log('='.repeat(50));
-  console.log('D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - Node.js API服务器');
+  console.log('D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - Node.js API服务器');
   console.log('='.repeat(50));
   console.log(`数据库路径: ${DB_PATH}`);
   console.log(`数据库存在: ${fs.existsSync(DB_PATH)}`);

@@ -40,7 +40,7 @@ class Quote(db.Model):
     #   watermark: 'D&B 帝标|设记家全案服务',         // 水印文字
     #   show_customer_info: true,            // 显示客户信息
     #   show_store_name: true,               // 显示门店名称
-    #   store_name: 'D&B 帝标|设记家·全安落地服务中心',   // 门店名称
+    #   store_name: 'D&B 帝标|设记家·全案落地服务中心',   // 门店名称
     # }
 
     # 服务团队

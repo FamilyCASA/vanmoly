@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - Waitress生产服务器
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - Waitress生产服务器
 更稳定，避免SIGKILL
 """
 import os
@@ -15,7 +15,7 @@ app = create_app(config['production'])
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1")
     print("Waitress 生产服务器")
     print("=" * 50)
     print("服务地址: http://0.0.0.0:8080")

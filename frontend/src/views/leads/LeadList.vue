@@ -21,7 +21,7 @@
 
     <footer class="footer">
       <div class="container">
-        <p>&copy; 2026 D&B 帝标|设记家全安落地服务系统 DEMO V.0.1</p>
+        <p>&copy; 2026 D&B 帝标|设记家全案落地服务系统 DEMO V.0.1</p>
       </div>
     </footer>
   </div>

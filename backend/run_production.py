@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 生产环境启动脚本
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 生产环境启动脚本
 使用waitress减少资源占用
 """
 import os
@@ -19,7 +19,7 @@ app = create_app(config['production'])
 if __name__ == '__main__':
     from waitress import serve
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 生产模式")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 生产模式")
     print("=" * 50)
     print("服务地址: http://0.0.0.0:8080")
     print("API前缀: /api/v3/")

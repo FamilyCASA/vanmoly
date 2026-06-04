@@ -1593,7 +1593,7 @@
 
 
 
-          <p>&copy; 2026 D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 · 蜀ICP备XXXXXXXX号</p>
+          <p>&copy; 2026 D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 · 蜀ICP备XXXXXXXX号</p>
 
 
 

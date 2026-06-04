@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - API服务器
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - API服务器
 使用轻量级方式避免SIGKILL
 """
 import os
@@ -159,7 +159,7 @@ class APIHandler(BaseHTTPRequestHandler):
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - API服务器")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - API服务器")
     print("=" * 50)
     print("服务地址: http://0.0.0.0:8080")
     print("API前缀: /api/v3/")

@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V3.0.1 配置文件
+D&B 帝标|设记家全案落地服务系统 DEMO V3.0.1 配置文件
 """
 import os
 from datetime import timedelta

@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 启动入口
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 启动入口
 """
 import os
 import sys

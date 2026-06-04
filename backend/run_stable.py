@@ -1,5 +1,5 @@
 """
-D&B 帝标|设记家全安落地服务系统 DEMO V.0.1 - 稳定启动脚本
+D&B 帝标|设记家全案落地服务系统 DEMO V.0.1 - 稳定启动脚本
 使用waitress生产服务器
 """
 import os
@@ -17,7 +17,7 @@ app = create_app(config['development'])
 
 if __name__ == '__main__':
     print("=" * 50)
-    print("D&B 帝标|设记家全安落地服务系统 DEMO V.0.1")
+    print("D&B 帝标|设记家全案落地服务系统 DEMO V.0.1")
     print("=" * 50)
     
     try:

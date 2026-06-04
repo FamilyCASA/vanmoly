@@ -222,8 +222,28 @@ def get_about_section():
         is_enabled=True
     ).first()
     if not component:
+
         return jsonify({'code': 200, 'data': None, 'message': 'success'})
-    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+    default_config = component.default_config
+
+    if isinstance(default_config, str):
+
+        import json
+
+        try:
+
+            default_config = json.loads(default_config)
+
+        except Exception:
+
+            default_config = {}
+
+    if not isinstance(default_config, dict):
+
+        default_config = {}
+
+    return jsonify({'code': 200, 'data': default_config, 'message': 'success'})
 
 
 @frontend_config_bp.route('/about-section', methods=['PUT'])
@@ -258,7 +278,16 @@ def get_brand_logos():
     ).first()
     if not component:
         return jsonify({'code': 200, 'data': [], 'message': 'success'})
-    return jsonify({'code': 200, 'data': component.default_config.get('logos', []), 'message': 'success'})
+    default_config = component.default_config
+    if isinstance(default_config, str):
+        import json
+        try:
+            default_config = json.loads(default_config)
+        except Exception:
+            default_config = {}
+    if not isinstance(default_config, dict):
+        default_config = {}
+    return jsonify({'code': 200, 'data': default_config.get('logos', []), 'message': 'success'})
 
 
 @frontend_config_bp.route('/brand-logos', methods=['PUT'])
@@ -293,8 +322,28 @@ def get_services_section():
         is_enabled=True
     ).first()
     if not component:
+
         return jsonify({'code': 200, 'data': None, 'message': 'success'})
-    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+    default_config = component.default_config
+
+    if isinstance(default_config, str):
+
+        import json
+
+        try:
+
+            default_config = json.loads(default_config)
+
+        except Exception:
+
+            default_config = {}
+
+    if not isinstance(default_config, dict):
+
+        default_config = {}
+
+    return jsonify({'code': 200, 'data': default_config, 'message': 'success'})
 
 
 @frontend_config_bp.route('/services-section', methods=['PUT'])
@@ -328,8 +377,28 @@ def get_cases_section():
         is_enabled=True
     ).first()
     if not component:
+
         return jsonify({'code': 200, 'data': None, 'message': 'success'})
-    return jsonify({'code': 200, 'data': component.default_config, 'message': 'success'})
+
+    default_config = component.default_config
+
+    if isinstance(default_config, str):
+
+        import json
+
+        try:
+
+            default_config = json.loads(default_config)
+
+        except Exception:
+
+            default_config = {}
+
+    if not isinstance(default_config, dict):
+
+        default_config = {}
+
+    return jsonify({'code': 200, 'data': default_config, 'message': 'success'})
 
 
 @frontend_config_bp.route('/cases-section', methods=['PUT'])
@@ -450,7 +519,17 @@ def get_hero_slides():
             'message': 'success'
         })
     
-    slides = component.default_config.get('slides', [])
+    # 安全获取 slides
+    default_config = component.default_config
+    if isinstance(default_config, str):
+        import json
+        try:
+            default_config = json.loads(default_config)
+        except Exception:
+            default_config = {}
+    if not isinstance(default_config, dict):
+        default_config = {}
+    slides = default_config.get('slides', [])
     return jsonify({
         'code': 200,
         'data': slides,
