@@ -332,6 +332,9 @@
     <!-- 编辑物料对话框 -->
     <el-dialog v-model="itemDialogVisible" title="编辑物料" width="600px">
       <el-form :model="itemForm" label-width="80px">
+        <el-form-item v-if="itemForm.name" label="物料名称">
+          <el-input :model-value="itemForm.name" readonly />
+        </el-form-item>
         <el-form-item label="数量">
           <el-input-number v-model="itemForm.quantity" :min="0.1" :precision="2" />
         </el-form-item>
@@ -616,7 +619,7 @@ const editSpace = async (space) => {
       ElMessage.warning('空间名称不能为空')
       return
     }
-    await request.put(`/api/v3/quotes/${quoteId.value}/space-instances/${space.id}`, {
+    await request.put(`/quotes/${quoteId.value}/space-instances/${space.id}`, {
       space_name: value.trim()
     })
     ElMessage.success('空间名称已更新')
@@ -644,7 +647,7 @@ const copySpace = async (space) => {
 const deleteSpace = async (space) => {
   try {
     await ElMessageBox.confirm(`确定要删除空间「${space.space_name}」吗？`, '提示', { type: 'warning' })
-    await request.delete(`/api/v3/quotes/${quoteId.value}/space-instances/${space.id}`)
+    await request.delete(`/quotes/${quoteId.value}/space-instances/${space.id}`)
     ElMessage.success('空间已删除')
     
     // 如果删除的是当前激活的空间，切换到下一个
@@ -693,7 +696,7 @@ const addSpace = async () => {
       ElMessage.warning('空间名称不能为空')
       return
     }
-    await request.post(`/api/v3/quotes/${quoteId.value}/space-instances`, {
+    await request.post(`/quotes/${quoteId.value}/space-instances`, {
       space_name: value.trim()
     })
     ElMessage.success('空间添加成功')
@@ -725,10 +728,19 @@ const itemForm = reactive({
 
 const editItem = (space, item) => {
   itemForm.id = item.id
-  itemForm.space_id = space.id
+  // 旧格式没有 space 实例，只有 room 分组（无 .id），通过 useLegacyView 判断
+  itemForm.space_id = space.id || null
   itemForm.quantity = item.quantity
   itemForm.unit_price = item.unit_price
   itemForm.remark = item.remark || ''
+  // 旧格式物料字段名：name/spec，而非 sku_name/specification
+  if (useLegacyView.value) {
+    itemForm.name = item.name
+    itemForm.spec = item.spec
+    itemForm.brand = item.brand
+    itemForm.unit = item.unit
+    itemForm.category_level1 = item.category_level1
+  }
   itemDialogVisible.value = true
 }
 
@@ -736,16 +748,16 @@ const editItem = (space, item) => {
 const saveItem = async () => {
   try {
     if (itemForm.id) {
-      // 编辑模式：PUT
-      await request.put(
-        `/api/v3/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`,
-        itemForm
-      )
+      // 编辑模式：旧格式（space_id=null）走直连路径，新格式走 space-instances 路径
+      const path = itemForm.space_id == null
+        ? `/quotes/${quoteId.value}/items/${itemForm.id}`
+        : `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`
+      await request.put(path, itemForm)
       ElMessage.success('保存成功')
     } else {
-      // 新增模式：POST
+      // 新增模式：POST（必须先有 space_id，新建 item 需要空间上下文）
       await request.post(
-        `/api/v3/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`,
+        `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`,
         itemForm
       )
       ElMessage.success('添加成功')
@@ -760,9 +772,11 @@ const saveItem = async () => {
 const deleteItem = async (space, item) => {
   try {
     await ElMessageBox.confirm('确定要删除该物料吗？', '提示', { type: 'warning' })
-    await request.delete(
-      `/api/v3/quotes/${quoteId.value}/space-instances/${space.id}/items/${item.id}`
-    )
+    // 旧格式（space 无 .id）走直连路径
+    const path = space.id == null
+      ? `/quotes/${quoteId.value}/items/${item.id}`
+      : `/quotes/${quoteId.value}/space-instances/${space.id}/items/${item.id}`
+    await request.delete(path)
     ElMessage.success('删除成功')
     loadQuote()
   } catch (error) {
@@ -977,6 +991,5 @@ onMounted(() => {
 :deep(.el-descriptions__label) {
   width: 100px;
 }
-```
 
 </style>

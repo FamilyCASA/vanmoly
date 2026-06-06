@@ -1193,6 +1193,54 @@ def get_space_instances(current_user, id):
     })
 
 
+@quote_bp.route('/<int:id>/space-instances', methods=['POST'])
+@jwt_required_v2
+def create_space_instance(current_user, id):
+    """创建空间配置实例"""
+    from app.models.space_config import QuoteSpaceInstance
+
+    quote = Quote.query.get_or_404(id)
+    data = request.get_json()
+    space_name = data.get('space_name', '').strip()
+    if not space_name:
+        return jsonify({'code': 400, 'message': '空间名称不能为空'}), 400
+
+    tenant_id = current_user.get('tenant_id', '0')
+    instance = QuoteSpaceInstance(
+        quote_id=id,
+        tenant_id=tenant_id,
+        space_type='custom',
+        space_name=space_name,
+        space_area=0,
+        version_level='standard',
+        original_price=0,
+        adjusted_price=0,
+        is_selected=True
+    )
+    db.session.add(instance)
+    db.session.commit()
+    db.session.refresh(instance)
+    return jsonify({
+        'code': 200,
+        'message': '空间创建成功',
+        'data': instance.to_dict()
+    })
+
+
+@quote_bp.route('/<int:id>/space-instances/<int:instance_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_space_instance(current_user, id, instance_id):
+    """删除空间配置实例"""
+    from app.models.space_config import QuoteSpaceInstance
+
+    instance = QuoteSpaceInstance.query.filter_by(
+        id=instance_id, quote_id=id
+    ).first_or_404()
+    db.session.delete(instance)
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '空间删除成功'})
+
+
 @quote_bp.route('/<int:id>/space-instances/<int:instance_id>', methods=['PUT'])
 @jwt_required_v2
 def update_space_instance(current_user, id, instance_id):

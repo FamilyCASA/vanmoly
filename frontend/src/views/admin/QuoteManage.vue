@@ -601,6 +601,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, FullScreen, Download, Delete, Edit, Stamp, DocumentCopy, Search } from '@element-plus/icons-vue'
 import request from '@/utils/request'
@@ -1524,6 +1525,8 @@ const saveQuote = async () => {
 }
 
 // 其他操作
+const router = useRouter()
+
 const viewDetail = (row) => {
   router.push(`/admin/quotes/${row.id}`)
 }
