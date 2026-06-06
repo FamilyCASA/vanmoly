@@ -4,8 +4,8 @@
     <div class="page-header">
       <h2>报价管理</h2>
       <div>
-        <el-button type="primary" @click="openCreateDialog">
-          <el-icon><Plus /></el-icon> 手动新建
+        <el-button type="primary" @click="handleCreate">
+          <el-icon><Plus /></el-icon> 新建报价
         </el-button>
       </div>
     </div>
@@ -1594,6 +1594,15 @@ const statusLabel = (status) => {
     expired: '已过期'
   }
   return labels[status] || status
+}
+
+const handleCreate = async () => {
+  try {
+    const res = await request.post('/quotes', { status: 'draft' })
+    router.push(`/admin/quotes/${res.data.id}`)
+  } catch (error) {
+    ElMessage.error(error.response?.data?.message || '创建报价失败')
+  }
 }
 
 const formatMoney = (amount) => {

@@ -192,14 +192,14 @@ def create_quote(current_user):
     expire_date = date.today() + timedelta(days=valid_days)
 
     # 获取客户信息并冗余存储（独立数据库不支持外键引用主库）
-    customer = Customer.query.get(data['customer_id'])
+    customer = Customer.query.get(data['customer_id']) if data.get('customer_id') else None
 
     quote = Quote(
         tenant_id=current_user.get('tenant_id', '0'),
         quote_no=quote_no,
-        customer_id=data['customer_id'],
-        customer_name=customer.name if customer else None,
-        customer_phone=customer.phone if customer else None,
+        customer_id=data.get('customer_id'),
+        customer_name=customer.name if customer else '',
+        customer_phone=customer.phone if customer else '',
         cover_config=data.get('cover_config', {}),
         project_name=data.get('project_name'),
         project_address=data.get('project_address'),
@@ -625,6 +625,10 @@ def add_item(current_user, quote_id):
         depth=d,
         height=h,
         measurement_value=m_val,
+        custom_width=data.get('custom_width'),
+        custom_depth=data.get('custom_depth'),
+        custom_height=data.get('custom_height'),
+        custom_result=data.get('custom_result'),
         craft_type=data.get('craft_type'),
         craft_price=data.get('craft_price', 0),
         craft_quantity=data.get('craft_quantity', 1),
@@ -656,7 +660,8 @@ def update_item(current_user, quote_id, item_id):
     fields = ['room_name', 'category_level1', 'category_level2', 'category_level3',
               'name', 'spec', 'brand', 'unit', 'quantity', 'unit_price',
               'craft_type', 'craft_price', 'image', 'remark',
-              'width', 'depth', 'height']
+              'width', 'depth', 'height',
+              'custom_width', 'custom_depth', 'custom_height', 'custom_result']
 
     for field in fields:
         if field in data:

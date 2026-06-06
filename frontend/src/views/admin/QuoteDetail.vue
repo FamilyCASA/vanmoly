@@ -42,11 +42,18 @@
       <template #header>
         <div class="card-header">
           <span>基本信息</span>
+          <div v-if="quote.status === 'draft'">
+            <el-button v-if="!isEditingBasic" size="small" @click="startEditBasic">编辑</el-button>
+            <template v-else>
+              <el-button size="small" @click="cancelEditBasic">取消</el-button>
+              <el-button type="primary" size="small" @click="saveBasicInfo" :loading="basicSaving">保存</el-button>
+            </template>
+          </div>
         </div>
       </template>
-      <el-descriptions :column="4" border>
-        <el-descriptions-item label="客户姓名">{{ quote.customer_name }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ quote.customer_phone }}</el-descriptions-item>
+      <el-descriptions v-if="!isEditingBasic" :column="4" border>
+        <el-descriptions-item label="客户姓名">{{ quote.customer_name || '未设置' }}</el-descriptions-item>
+        <el-descriptions-item label="联系电话">{{ quote.customer_phone || '-' }}</el-descriptions-item>
         <el-descriptions-item label="客户地址">{{ quote.customer_address || '-' }}</el-descriptions-item>
         <el-descriptions-item label="报价日期">{{ formatDate(quote.created_at) }}</el-descriptions-item>
         <el-descriptions-item label="项目地址">{{ quote.project_address || '-' }}</el-descriptions-item>
@@ -54,6 +61,32 @@
         <el-descriptions-item label="设计师">{{ quote.designer_name || '-' }}</el-descriptions-item>
         <el-descriptions-item label="销售顾问">{{ quote.sales_name || '-' }}</el-descriptions-item>
       </el-descriptions>
+      <el-form v-else :model="basicForm" label-width="100px" style="max-width:900px">
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="客户">
+              <el-select v-model="basicForm.customer_id" filterable remote :remote-method="searchCustomers" placeholder="搜索客户姓名/电话" style="width:100%">
+                <el-option v-for="c in customerOptions" :key="c.id" :label="c.name + ' ' + (c.phone||'')" :value="c.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="报价单号">
+              <el-input v-model="basicForm.quote_no" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="项目地址">
+              <el-input v-model="basicForm.project_address" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="有效期至">
+              <el-date-picker v-model="basicForm.valid_until" type="date" style="width:100%" />
+            </el-form-item>
+          </el-col>
+        </el-row>
+      </el-form>
     </el-card>
 
     <!-- 报价空间 -->
@@ -374,6 +407,17 @@ const quote = ref({})
 const spaces = ref([])
 const activeSpaceId = ref('') // 当前激活的空间ID
 
+// 基本信息编辑
+const isEditingBasic = ref(false)
+const basicSaving = ref(false)
+const basicForm = reactive({
+  customer_id: null,
+  quote_no: '',
+  project_address: '',
+  valid_until: ''
+})
+const customerOptions = ref([])
+
 // 当前激活的空间对象
 const activeSpace = computed(() => {
   if (!activeSpaceId.value || !spaces.value.length) return null
@@ -495,6 +539,41 @@ const loadQuote = async () => {
   } finally {
     loading.value = false
   }
+}
+
+// 基本信息编辑
+const startEditBasic = () => {
+  basicForm.customer_id = quote.value.customer_id || null
+  basicForm.quote_no = quote.value.quote_no || ''
+  basicForm.project_address = quote.value.project_address || ''
+  basicForm.valid_until = quote.value.valid_until || ''
+  isEditingBasic.value = true
+}
+
+const cancelEditBasic = () => {
+  isEditingBasic.value = false
+}
+
+const saveBasicInfo = async () => {
+  basicSaving.value = true
+  try {
+    await request.put(`/quotes/${quoteId.value}`, { ...basicForm })
+    ElMessage.success('保存成功')
+    isEditingBasic.value = false
+    loadQuote()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败')
+  } finally {
+    basicSaving.value = false
+  }
+}
+
+const searchCustomers = async (query) => {
+  if (!query) { customerOptions.value = []; return }
+  try {
+    const res = await request.get('/customers', { params: { keyword: query, page_size: 20 } })
+    customerOptions.value = res.data || res || []
+  } catch (e) { /* ignore */ }
 }
 
 // 返回
