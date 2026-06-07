@@ -879,9 +879,12 @@ def update_item(current_user, quote_id, item_id):
         if field in data:
             setattr(item, field, data[field])
 
-    # 重新计算计量值
+    # 重新计算计量值（使用 custom 优先逻辑）
     item.measurement_value = calc_measurement_value(
-        item.unit, width=item.width, depth=item.depth, height=item.height,
+        item.unit,
+        width=item.custom_width or item.width,
+        depth=item.custom_depth or item.depth,
+        height=item.custom_height or item.height,
         manual_value=data.get('measurement_value'),
         category_level2=item.category_level2,
         custom_name=item.custom_name,
@@ -1572,9 +1575,9 @@ def update_space_item(current_user, quote_id, instance_id, item_id):
     # 自动计算计量值（基于输入参数，默认为0）
     item.measurement_value = calc_measurement_value(
         item.unit,
-        width=item.width or item.custom_width,
-        depth=item.depth or item.custom_depth,
-        height=item.height or item.custom_height,
+        width=item.custom_width or item.width,
+        depth=item.custom_depth or item.depth,
+        height=item.custom_height or item.height,
         manual_value=data.get('measurement_value'),
         category_level2=item.category_level2,
         custom_name=item.custom_name,
@@ -2099,7 +2102,7 @@ def manual_recalculate(current_user, id):
     items = QuoteItem.query.filter_by(quote_id=id).all()
     for item in items:
         item.measurement_value = calc_measurement_value(
-            item.unit, width=item.width, depth=item.depth, height=item.height,
+            item.unit, width=item.custom_width or item.width, depth=item.custom_depth or item.depth, height=item.custom_height or item.height,
             manual_value=item.measurement_value if float(item.measurement_value or 0) != 1 else None,
             category_level2=item.category_level2,
             custom_name=item.custom_name,
