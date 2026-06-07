@@ -1448,6 +1448,25 @@ def create_space_instance(current_user, id):
     })
 
 
+@quote_bp.route('/<int:quote_id>/space-instances/<int:instance_id>/items', methods=['GET'])
+@jwt_required_v2
+def get_space_items(current_user, quote_id, instance_id):
+    """获取空间实例的物料列表"""
+    from app.models.space_config import QuoteSpaceInstance
+    from app.models.quote import QuoteItem
+    
+    # 验证空间实例存在且属于该报价
+    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first_or_404()
+    
+    items = QuoteItem.query.filter_by(quote_id=quote_id, space_name=instance.space_name).all()
+    
+    return jsonify({
+        'code': 200,
+        'message': '查询成功',
+        'data': [item.to_dict() for item in items]
+    })
+
+
 @quote_bp.route('/<int:quote_id>/space-instances/<int:instance_id>/items', methods=['POST'])
 @jwt_required_v2
 def add_item_to_space_instance(current_user, quote_id, instance_id):

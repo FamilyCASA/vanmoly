@@ -996,6 +996,17 @@ const loadQuote = async () => {
       const spacesRes = await request.get(`/quotes/${quoteId.value}/space-instances`)
       // 拦截器已解包，spacesRes 可能是 {instances:[...]} 或直接是数组
       spaces.value = Array.isArray(spacesRes) ? spacesRes : (spacesRes?.instances || spacesRes?.items || [])
+      
+      // 加载每个空间的物料列表
+      for (const space of spaces.value) {
+        try {
+          const itemsRes = await request.get(`/quotes/${quoteId.value}/space-instances/${space.id}/items`)
+          space.items = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || itemsRes?.data || [])
+        } catch (e) {
+          console.warn(`加载空间 ${space.id} 物料失败:`, e)
+          space.items = []
+        }
+      }
     } catch (e) {
       spaces.value = []
     }
