@@ -1448,6 +1448,81 @@ def create_space_instance(current_user, id):
     })
 
 
+@quote_bp.route('/<int:quote_id>/space-instances/<int:instance_id>/items', methods=['POST'])
+@jwt_required_v2
+def add_item_to_space_instance(current_user, quote_id, instance_id):
+    """向空间实例添加物料项"""
+    from app.models.space_config import QuoteSpaceInstance
+    
+    # 验证空间实例存在且属于该报价
+    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first_or_404()
+    
+    data = request.get_json()
+    
+    w = data.get('width')
+    d = data.get('depth')
+    h = data.get('height')
+    unit = data.get('unit', '项')
+    m_val = calc_measurement_value(
+        unit, width=w, depth=d, height=h,
+        manual_value=data.get('measurement_value'),
+        category_level2=data.get('category_level2'),
+        custom_name=data.get('custom_name'),
+        material_name=data.get('name'),
+        process_name=data.get('process_name')
+    )
+    
+    item = QuoteItem(
+        quote_id=quote_id,
+        room_name=instance.space_name or instance.space_type,
+        category_level1=data.get('category_level1'),
+        category_level2=data.get('category_level2'),
+        category_level3=data.get('category_level3'),
+        item_type=data.get('item_type', 'product'),
+        sku_id=data.get('sku_id'),
+        name=data.get('name'),
+        spec=data.get('spec'),
+        brand=data.get('brand'),
+        material=data.get('material'),
+        unit=unit,
+        calc_type=data.get('calc_type'),
+        quantity=data.get('quantity', 1),
+        unit_price=data.get('unit_price', 0),
+        width=w,
+        depth=d,
+        height=h,
+        measurement_value=m_val,
+        custom_width=data.get('custom_width'),
+        custom_depth=data.get('custom_depth'),
+        custom_height=data.get('custom_height'),
+        custom_result=data.get('custom_result'),
+        process_name=data.get('process_name'),
+        process_coefficient=data.get('process_coefficient', 1),
+        process_quantity=data.get('process_quantity', 0),
+        process_unit=data.get('process_unit'),
+        process_unit_price=data.get('process_unit_price', 0),
+        process_amount=data.get('process_amount', 0),
+        craft_type=data.get('craft_type'),
+        craft_price=data.get('craft_price', 0),
+        craft_quantity=data.get('craft_quantity', 1),
+        craft_coefficient=data.get('craft_coefficient', 1),
+        image=data.get('image'),
+        remark=data.get('remark')
+    )
+    item.total_price = calc_item_total_price(item)
+    
+    db.session.add(item)
+    db.session.commit()
+    _recalculate_quote_total(quote_id)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'message': '添加成功',
+        'data': item.to_dict()
+    })
+
+
 @quote_bp.route('/<int:id>/space-instances/<int:instance_id>', methods=['DELETE'])
 @jwt_required_v2
 def delete_space_instance(current_user, id, instance_id):

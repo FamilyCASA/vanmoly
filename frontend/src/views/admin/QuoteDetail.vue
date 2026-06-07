@@ -1502,7 +1502,7 @@ const searchSku = async (page = 1) => {
   try {
     skuLoading.value = true
     skuPage.value = page
-    const res = await request.get('/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
+    const res = await request.get('/api/v3/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
     // 拦截器已解包 res.data，res 直接是 {items, total, page, page_size}
     skuList.value = res.items || []
     skuTotal.value = res.total || 0

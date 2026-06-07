@@ -220,30 +220,42 @@ def get_recent_activities():
         # 最近客户
         recent_customers = Customer.query.order_by(Customer.created_at.desc()).limit(5).all()
         for c in recent_customers:
+            # 安全处理 created_at（可能是字符串或 datetime）
+            created_at_str = c.created_at
+            if hasattr(c.created_at, 'strftime'):
+                created_at_str = c.created_at.strftime('%Y-%m-%d %H:%M')
             activities.append({
                 'type': 'primary',
                 'content': f'新客户 {c.name} 录入系统',
-                'time': c.created_at.strftime('%Y-%m-%d %H:%M'),
+                'time': created_at_str,
                 'timestamp': c.created_at
             })
         
         # 最近合同
         recent_contracts = Contract.query.order_by(Contract.created_at.desc()).limit(5).all()
         for ct in recent_contracts:
+            # 安全处理 created_at
+            created_at_str = ct.created_at
+            if hasattr(ct.created_at, 'strftime'):
+                created_at_str = ct.created_at.strftime('%Y-%m-%d %H:%M')
             activities.append({
                 'type': 'success',
                 'content': f'合同 {ct.contract_no} 已签约，金额 ¥{float(ct.total_amount):,.0f}',
-                'time': ct.created_at.strftime('%Y-%m-%d %H:%M'),
+                'time': created_at_str,
                 'timestamp': ct.created_at
             })
         
         # 最近报价
         recent_quotes = Quote.query.order_by(Quote.created_at.desc()).limit(5).all()
         for q in recent_quotes:
+            # 安全处理 created_at
+            created_at_str = q.created_at
+            if hasattr(q.created_at, 'strftime'):
+                created_at_str = q.created_at.strftime('%Y-%m-%d %H:%M')
             activities.append({
                 'type': 'info',
                 'content': f'报价单 {q.quote_no} 已创建',
-                'time': q.created_at.strftime('%Y-%m-%d %H:%M'),
+                'time': created_at_str,
                 'timestamp': q.created_at
             })
         
