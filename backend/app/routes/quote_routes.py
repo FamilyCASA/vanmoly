@@ -1542,6 +1542,86 @@ def add_item_to_space_instance(current_user, quote_id, instance_id):
     })
 
 
+@quote_bp.route('/<int:quote_id>/space-instances/<int:instance_id>/items/<int:item_id>', methods=['PUT'])
+@jwt_required_v2
+def update_space_item(current_user, quote_id, instance_id, item_id):
+    """更新空间实例中的物料项"""
+    from app.models.space_config import QuoteSpaceInstance
+    
+    # 验证空间实例存在且属于该报价
+    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first_or_404()
+    item = QuoteItem.query.get_or_404(item_id)
+    
+    if item.quote_id != quote_id:
+        return jsonify({'code': 404, 'message': '物料不属于该报价'}), 404
+    
+    data = request.get_json()
+    
+    fields = ['custom_name', 'room_name', 'category_level1', 'category_level2', 'category_level3',
+              'name', 'spec', 'brand', 'material', 'unit', 'calc_type', 'quantity', 'unit_price',
+              'process_name', 'process_coefficient', 'process_quantity',
+              'process_unit', 'process_unit_price', 'process_amount',
+              'craft_type', 'craft_price', 'image', 'remark',
+              'width', 'depth', 'height',
+              'custom_width', 'custom_depth', 'custom_height', 'custom_result']
+    
+    for field in fields:
+        if field in data:
+            setattr(item, field, data[field])
+    
+    # 自动计算计量值（基于输入参数，默认为0）
+    item.measurement_value = calc_measurement_value(
+        item.unit,
+        width=item.width or item.custom_width,
+        depth=item.depth or item.custom_depth,
+        height=item.height or item.custom_height,
+        manual_value=data.get('measurement_value'),
+        category_level2=item.category_level2,
+        custom_name=item.custom_name,
+        material_name=item.name,
+        process_name=item.process_name
+    )
+    
+    # 更新工艺字段
+    if 'craft_quantity' in data:
+        item.craft_quantity = data['craft_quantity']
+    if 'craft_coefficient' in data:
+        item.craft_coefficient = data['craft_coefficient']
+    
+    # 重新计算总价
+    item.total_price = calc_item_total_price(item)
+    
+    db.session.commit()
+    _recalculate_quote_total(quote_id)
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'message': '更新成功',
+        'data': item.to_dict()
+    })
+
+
+@quote_bp.route('/<int:quote_id>/space-instances/<int:instance_id>/items/<int:item_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_space_item(current_user, quote_id, instance_id, item_id):
+    """删除空间实例中的物料项"""
+    from app.models.space_config import QuoteSpaceInstance
+    
+    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first_or_404()
+    item = QuoteItem.query.get_or_404(item_id)
+    
+    if item.quote_id != quote_id:
+        return jsonify({'code': 404, 'message': '物料不属于该报价'}), 404
+    
+    db.session.delete(item)
+    db.session.commit()
+    _recalculate_quote_total(quote_id)
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': '删除成功'})
+
+
 @quote_bp.route('/<int:id>/space-instances/<int:instance_id>', methods=['DELETE'])
 @jwt_required_v2
 def delete_space_instance(current_user, id, instance_id):

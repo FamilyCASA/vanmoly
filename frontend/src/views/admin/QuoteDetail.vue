@@ -508,7 +508,8 @@
           <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
         </el-form-item>
         <el-form-item label="计量值">
-          <el-input-number v-model="itemForm.measurement_value" :min="0" :precision="4" placeholder="自动/手动" />
+          <el-input-number v-model="itemForm.measurement_value" :min="0" :precision="4" :controls="false" style="width: 140px" />
+          <span style="margin-left: 8px; color: #909399; font-size: 12px">{{ calcMeasurementPreview() }}</span>
         </el-form-item>
         <el-divider content-position="left">工艺信息</el-divider>
         <el-form-item label="工艺名称">
@@ -1441,6 +1442,48 @@ const editItem = (space, item) => {
   itemForm.craft_quantity = item.craft_quantity || null
   itemForm.craft_coefficient = item.craft_coefficient || null
   itemDialogVisible.value = true
+}
+
+// 计量值预览（基于输入参数自动计算，默认为0）
+const calcMeasurementPreview = () => {
+  const w = itemForm.custom_width || itemForm.width || 0
+  const d = itemForm.custom_depth || itemForm.depth || 0
+  const h = itemForm.custom_height || itemForm.height || 0
+  const unit = itemForm.unit || '项'
+  const l2 = itemForm.category_level2 || ''
+  
+  // 如果手动输入了计量值，显示"手动"
+  if (itemForm.measurement_value && itemForm.measurement_value > 0) {
+    return '(已手动设置)'
+  }
+  
+  let val = 0
+  if (!w && !d && !h) return '(默认0 — 请输入参数)'
+  
+  switch (unit) {
+    case '米':
+    case 'm':
+      val = w / 1000; break
+    case '平方米':
+    case 'm²':
+      val = (w / 1000) * (d / 1000); break
+    case '立方米':
+    case 'm³':
+      val = (w / 1000) * (d / 1000) * (h / 1000); break
+    case '项':
+      val = 1; break
+    default:
+      val = 1
+  }
+  
+  // 特殊规则提示（门套、投影等）
+  const specialKeywords = ['门套', '垭口套', '投影', '柜门', '赠送']
+  const isSpecial = specialKeywords.some(k => l2.includes(k))
+  
+  if (isSpecial) {
+    return `(自动: ${val.toFixed(4)} · 特殊规则适用)`
+  }
+  return `(自动: ${val.toFixed(4)})`
 }
 
 // 保存物料（支持新增和编辑）
