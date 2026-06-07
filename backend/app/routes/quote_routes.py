@@ -1257,10 +1257,10 @@ def create_space_instance(current_user, id):
     instance = QuoteSpaceInstance(
         quote_id=id,
         tenant_id=tenant_id,
-        space_type='custom',
+        space_type=data.get('space_type', 'custom'),
         space_name=space_name,
-        space_area=0,
-        version_level='standard',
+        space_area=data.get('space_area', 0),
+        version_level=data.get('version_level', 'standard'),
         original_price=0,
         adjusted_price=0,
         is_selected=True

@@ -16,8 +16,8 @@ class CaseSpaceConfig(db.Model):
     tenant_id = db.Column(db.String(32), default='0', index=True)
     
     # 关联
-    case_id = db.Column(db.Integer, db.ForeignKey('case_study.id'), nullable=False, comment='关联案例')
-    quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'), comment='关联报价单')
+    case_id = db.Column(db.Integer, nullable=False, comment='关联案例')
+    quote_id = db.Column(db.Integer, comment='关联报价单')
     
     # 空间信息
     space_type = db.Column(db.String(50), nullable=False, comment='空间类型：客厅/主卧/餐厅等')
@@ -60,7 +60,9 @@ class CaseSpaceConfig(db.Model):
     
     # 关联关系
     items = db.relationship('CaseSpaceConfigItem', backref='config', lazy='dynamic',
-                            cascade='all, delete-orphan')
+                            cascade='all, delete-orphan',
+                            primaryjoin='CaseSpaceConfig.id == CaseSpaceConfigItem.config_id',
+                            foreign_keys='CaseSpaceConfigItem.config_id')
     
     # 空间类型常量
     SPACE_TYPES = ['客厅', '主卧', '次卧', '餐厅', '厨房', '卫生间', '书房', '阳台', '玄关', '储物间']
@@ -126,10 +128,10 @@ class CaseSpaceConfigItem(db.Model):
     __tablename__ = 'case_space_config_item'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    config_id = db.Column(db.Integer, db.ForeignKey('case_space_config.id'), nullable=False)
+    config_id = db.Column(db.Integer, nullable=False)
     
     # 物料信息
-    sku_id = db.Column(db.Integer, db.ForeignKey('material_sku.id'), nullable=False)
+    sku_id = db.Column(db.Integer, nullable=False)
     sku_code = db.Column(db.String(50), comment='物料编码')
     sku_name = db.Column(db.String(200), comment='物料名称')
     brand = db.Column(db.String(100), comment='品牌')
@@ -182,8 +184,8 @@ class QuoteSpaceInstance(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     tenant_id = db.Column(db.String(32), default='0', index=True)
     
-    quote_id = db.Column(db.Integer, db.ForeignKey('quote.id'), nullable=False)
-    template_config_id = db.Column(db.Integer, db.ForeignKey('case_space_config.id'))
+    quote_id = db.Column(db.Integer, nullable=False)
+    template_config_id = db.Column(db.Integer)
     
     # 空间信息（复制自模板，可修改）
     space_type = db.Column(db.String(50))
@@ -236,7 +238,7 @@ class MaterialExclusiveRule(db.Model):
     rule_name = db.Column(db.String(100), comment='规则名称')
     rule_group = db.Column(db.String(50), comment='互斥组')
     
-    sku_id = db.Column(db.Integer, db.ForeignKey('material_sku.id'))
+    sku_id = db.Column(db.Integer)
     exclusive_sku_ids = db.Column(db.Text, comment='互斥物料ID列表JSON')
     
     description = db.Column(db.Text, comment='描述')
