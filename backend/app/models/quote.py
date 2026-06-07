@@ -403,3 +403,158 @@ QUOTE_STATUS = [
     ('signed', '已签署'),
     ('expired', '已过期'),
 ]
+
+
+class MeasurementRule(db.Model):
+    """计量规则 - 可动态配置的计量值计算规则"""
+    __bind_key__ = 'quote'
+    __tablename__ = 'measurement_rule'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), default='0', index=True)
+
+    # 规则名称
+    name = db.Column(db.String(100), nullable=False, comment='规则名称')
+    description = db.Column(db.String(500), comment='规则描述')
+
+    # 匹配条件
+    match_type = db.Column(db.String(30), nullable=False, comment='匹配类型: unit_category/keyword_category/custom_keyword/material_keyword/process_keyword')
+    match_value = db.Column(db.String(100), nullable=False, comment='匹配值')
+    match_field = db.Column(db.String(30), default='unit', comment='匹配字段(unit/category_level2/custom_name/name/process_name)')
+
+    # 规则类型
+    rule_type = db.Column(db.String(30), nullable=False, comment='规则类型: length/area/volume/fixed_override/adjust_height/adjust_min_area/door_frame/four_sided/process_free')
+
+    # 规则参数 (JSON)
+    rule_params = db.Column(db.JSON, default=dict, comment='规则参数')
+    # 示例:
+    # length: {}
+    # area: {}
+    # volume: {}
+    # adjust_height: {"thresholds": [{"min": 0, "adjust_to": 1000}, {"min": 500, "adjust_to": 500}]}
+    # adjust_min_area: {"min_value": 0.25}
+    # door_frame: {}
+    # four_sided: {}
+    # process_free: {}
+
+    # 优先级(越小越优先)
+    priority = db.Column(db.Integer, default=100)
+    is_enabled = db.Column(db.Boolean, default=True)
+    is_deleted = db.Column(db.Boolean, default=False)
+    sort_order = db.Column(db.Integer, default=0)
+
+    created_at = db.Column(db.String(30))
+    updated_at = db.Column(db.String(30))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'description': self.description,
+            'match_type': self.match_type,
+            'match_value': self.match_value,
+            'match_field': self.match_field,
+            'rule_type': self.rule_type,
+            'rule_params': self.rule_params or {},
+            'priority': self.priority,
+            'is_enabled': self.is_enabled,
+            'sort_order': self.sort_order,
+        }
+
+
+# 默认计量规则种子数据
+DEFAULT_MEASUREMENT_RULES = [
+    # === 基础计算规则 ===
+    {
+        'name': '长度计量',
+        'description': '单位为米/m/延米时，取宽深高最大值/1000',
+        'match_type': 'unit_category',
+        'match_value': 'length',
+        'match_field': 'unit',
+        'rule_type': 'length',
+        'rule_params': {},
+        'priority': 10,
+    },
+    {
+        'name': '面积计量',
+        'description': '单位为平方米/平米/㎡时，取宽深高较大两值相乘/1000000',
+        'match_type': 'unit_category',
+        'match_value': 'area',
+        'match_field': 'unit',
+        'rule_type': 'area',
+        'rule_params': {},
+        'priority': 10,
+    },
+    {
+        'name': '体积计量',
+        'description': '三个值相乘/1000000000',
+        'match_type': 'unit_category',
+        'match_value': 'volume',
+        'match_field': 'unit',
+        'rule_type': 'volume',
+        'rule_params': {},
+        'priority': 10,
+    },
+    {
+        'name': '按数量(固定1)',
+        'description': '件/个/套/组/项等，计量值固定为1',
+        'match_type': 'unit_category',
+        'match_value': 'quantity',
+        'match_field': 'unit',
+        'rule_type': 'fixed_override',
+        'rule_params': {'value': 1},
+        'priority': 90,
+    },
+    # === 特殊修正规则 ===
+    {
+        'name': '投影高度补足',
+        'description': '二级分类含"投影"关键词时，高度不足1000按1000计，不足500按500计',
+        'match_type': 'keyword_category',
+        'match_value': '投影',
+        'match_field': 'category_level2',
+        'rule_type': 'adjust_height',
+        'rule_params': {'thresholds': [{'min': 0, 'adjust_to': 1000}, {'min': 500, 'adjust_to': 500}]},
+        'priority': 20,
+    },
+    {
+        'name': '柜门面积保底',
+        'description': '分类含"柜门"关键词时，计量值不足0.25㎡按0.25㎡计',
+        'match_type': 'keyword_category',
+        'match_value': '柜门',
+        'match_field': 'category_level2',
+        'rule_type': 'adjust_min_area',
+        'rule_params': {'min_value': 0.25},
+        'priority': 30,
+    },
+    {
+        'name': '门套垭口套计量',
+        'description': '物料名称含"门套"或"垭口套"且单位为长度时，(高度×2+宽度)/1000',
+        'match_type': 'material_keyword',
+        'match_value': '门套,垭口套',
+        'match_field': 'name',
+        'rule_type': 'door_frame',
+        'rule_params': {},
+        'priority': 5,
+    },
+    {
+        'name': '四方轮廓计量',
+        'description': '自定义名称含"四方"且单位为长度时，(宽度+高度)×2/1000',
+        'match_type': 'custom_keyword',
+        'match_value': '四方',
+        'match_field': 'custom_name',
+        'rule_type': 'four_sided',
+        'rule_params': {},
+        'priority': 5,
+    },
+    {
+        'name': '赠送工艺金额归零',
+        'description': '工艺名称含"赠送"关键词时，工艺金额统计为0',
+        'match_type': 'process_keyword',
+        'match_value': '赠送',
+        'match_field': 'process_name',
+        'rule_type': 'process_free',
+        'rule_params': {},
+        'priority': 1,
+    },
+]
+

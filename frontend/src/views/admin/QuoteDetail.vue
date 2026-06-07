@@ -153,6 +153,32 @@
       </div>
     </el-card>
 
+    <!-- 计量规则 -->
+    <el-card shadow="never" class="rules-card">
+      <template #header>
+        <div class="card-header">
+          <span>计量规则 <el-tag size="small" type="info">{{ measurementRules.length }}条</el-tag></span>
+          <div>
+            <el-button size="small" @click="showRulesEditor = true" :disabled="quote.status !== 'draft'">
+              <el-icon><Setting /></el-icon> 管理规则
+            </el-button>
+            <el-button size="small" @click="recalculateAll" :disabled="quote.status !== 'draft'">
+              <el-icon><Refresh /></el-icon> 重算全部
+            </el-button>
+          </div>
+        </div>
+      </template>
+      <div class="rules-list">
+        <div v-for="rule in measurementRules" :key="rule.id" class="rule-item">
+          <el-tag :type="ruleTypeTag(rule.rule_type)" size="small" class="rule-tag">{{ ruleTypeName(rule.rule_type) }}</el-tag>
+          <span class="rule-name">{{ rule.name }}</span>
+          <span class="rule-desc">{{ rule.description }}</span>
+          <el-tag size="small" :type="rule.is_enabled ? 'success' : 'info'">{{ rule.is_enabled ? '启用' : '禁用' }}</el-tag>
+        </div>
+        <el-empty v-if="!measurementRules.length" description="暂无规则" :image-size="50" />
+      </div>
+    </el-card>
+
     <!-- 报价空间 -->
     <el-card shadow="never" class="spaces-card" v-loading="loading">
       <template #header>
@@ -584,6 +610,101 @@
         />
       </div>
     </el-dialog>
+
+    <!-- 计量规则管理对话框 -->
+    <el-dialog v-model="showRulesEditor" title="计量规则管理" width="900px" destroy-on-close>
+      <el-table :data="measurementRules" stripe border size="small" max-height="500">
+        <el-table-column type="index" width="40" label="#" />
+        <el-table-column prop="name" label="规则名称" width="120" />
+        <el-table-column prop="rule_type" label="规则类型" width="100">
+          <template #default="{ row }">{{ ruleTypeName(row.rule_type) }}</template>
+        </el-table-column>
+        <el-table-column label="匹配条件" width="180">
+          <template #default="{ row }">
+            <span>{{ matchFieldLabel(row.match_field) }}: {{ row.match_value }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="priority" label="优先级" width="70" align="center" />
+        <el-table-column label="状态" width="70" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.is_enabled" size="small" @change="toggleRule(row)" />
+          </template>
+        </el-table-column>
+        <el-table-column label="操作" width="140" fixed="right">
+          <template #default="{ row }">
+            <el-button link type="primary" size="small" @click="editRule(row)">编辑</el-button>
+            <el-button link type="warning" size="small" @click="moveRule(row, -1)">↑</el-button>
+            <el-button link type="danger" size="small" @click="deleteRule(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div style="margin-top: 12px; text-align: right;">
+        <el-button type="primary" @click="addNewRule">添加规则</el-button>
+      </div>
+    </el-dialog>
+
+    <!-- 规则编辑对话框 -->
+    <el-dialog v-model="showRuleForm" :title="editingRule.id ? '编辑规则' : '新建规则'" width="600px" append-to-body destroy-on-close>
+      <el-form :model="editingRule" label-width="100px" size="small">
+        <el-form-item label="规则名称" required>
+          <el-input v-model="editingRule.name" placeholder="例：门套计量" />
+        </el-form-item>
+        <el-form-item label="规则类型" required>
+          <el-select v-model="editingRule.rule_type" placeholder="选择规则类型">
+            <el-option label="长度计量" value="length" />
+            <el-option label="面积计量" value="area" />
+            <el-option label="体积计量" value="volume" />
+            <el-option label="固定值" value="fixed_override" />
+            <el-option label="高度补足" value="adjust_height" />
+            <el-option label="面积保底" value="adjust_min_area" />
+            <el-option label="门套/垭口套" value="door_frame" />
+            <el-option label="四方轮廓" value="four_sided" />
+            <el-option label="赠送归零" value="process_free" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="匹配字段">
+          <el-select v-model="editingRule.match_field">
+            <el-option label="单位(unit)" value="unit" />
+            <el-option label="二级分类(category_level2)" value="category_level2" />
+            <el-option label="自定义名称(custom_name)" value="custom_name" />
+            <el-option label="物料名称(name)" value="name" />
+            <el-option label="工艺名称(process_name)" value="process_name" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="匹配值" required>
+          <el-input v-model="editingRule.match_value" placeholder="关键词或匹配值，多个用逗号分隔" />
+        </el-form-item>
+        <el-form-item label="描述">
+          <el-input v-model="editingRule.description" type="textarea" :rows="2" />
+        </el-form-item>
+        <el-form-item label="优先级">
+          <el-input-number v-model="editingRule.priority" :min="1" :max="999" />
+          <span style="margin-left:8px;color:#999">数值越小越优先</span>
+        </el-form-item>
+        <el-form-item v-if="editingRule.rule_type === 'fixed_override'" label="固定值">
+          <el-input-number v-model="editingRule.rule_params.value" :min="0" :precision="4" />
+        </el-form-item>
+        <el-form-item v-if="editingRule.rule_type === 'adjust_height'" label="高度阈值">
+          <div v-for="(t, idx) in editingRule.rule_params.thresholds" :key="idx" style="display:flex;gap:8px;margin-bottom:6px;align-items:center">
+            <span>高度 &lt; </span>
+            <el-input-number v-model="t.min" :min="0" size="small" />
+            <span>→ 调为</span>
+            <el-input-number v-model="t.adjust_to" :min="0" size="small" />
+            <el-button link type="danger" size="small" @click="editingRule.rule_params.thresholds.splice(idx, 1)">删</el-button>
+          </div>
+          <el-button size="small" @click="(editingRule.rule_params.thresholds || (editingRule.rule_params.thresholds = [])).push({min:0, adjust_to:1000})">添加阈值</el-button>
+        </el-form-item>
+        <el-form-item v-if="editingRule.rule_type === 'adjust_min_area'" label="最小面积">
+          <el-input-number v-model="editingRule.rule_params.min_value" :min="0" :precision="4" />
+          <span style="margin-left:8px">㎡</span>
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="showRuleForm = false">取消</el-button>
+        <el-button type="primary" @click="saveRule">保存</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
@@ -665,6 +786,145 @@ const applyTemplate = async () => {
     quote.value.cover_template_id = selectedTemplateId.value
   } catch (e) {
     ElMessage.error('应用模板失败')
+  }
+}
+
+// ========== 计量规则 ==========
+const measurementRules = ref([])
+const showRulesEditor = ref(false)
+const showRuleForm = ref(false)
+const editingRule = reactive({
+  id: null, name: '', description: '', match_type: 'keyword_category',
+  match_value: '', match_field: 'unit', rule_type: 'length',
+  rule_params: {}, priority: 100, is_enabled: true, sort_order: 0
+})
+
+const ruleTypeName = (type) => {
+  const map = {
+    length: '长度', area: '面积', volume: '体积', fixed_override: '固定值',
+    adjust_height: '高度补足', adjust_min_area: '面积保底',
+    door_frame: '门套/垭口套', four_sided: '四方轮廓', process_free: '赠送归零'
+  }
+  return map[type] || type
+}
+
+const ruleTypeTag = (type) => {
+  const map = {
+    length: '', area: '', volume: '', fixed_override: 'info',
+    adjust_height: 'warning', adjust_min_area: 'warning',
+    door_frame: 'success', four_sided: 'success', process_free: 'danger'
+  }
+  return map[type] || 'info'
+}
+
+const matchFieldLabel = (field) => {
+  const map = {
+    unit: '单位', category_level2: '二级分类', custom_name: '自定义名称',
+    name: '物料名称', process_name: '工艺名称'
+  }
+  return map[field] || field
+}
+
+const loadMeasurementRules = async () => {
+  try {
+    const res = await request.get('/quotes/measurement-rules')
+    measurementRules.value = res.data?.data || res.data || []
+    if (!measurementRules.value.length) {
+      await request.post('/quotes/measurement-rules/init')
+      const res2 = await request.get('/quotes/measurement-rules')
+      measurementRules.value = res2.data?.data || res2.data || []
+    }
+  } catch (e) {
+    console.error('加载计量规则失败', e)
+  }
+}
+
+const toggleRule = async (rule) => {
+  try {
+    await request.put(`/quotes/measurement-rules/${rule.id}`, { is_enabled: rule.is_enabled })
+  } catch (e) {
+    rule.is_enabled = !rule.is_enabled
+    ElMessage.error('更新失败')
+  }
+}
+
+const editRule = (rule) => {
+  Object.assign(editingRule, {
+    id: rule.id, name: rule.name, description: rule.description,
+    match_type: rule.match_type, match_value: rule.match_value,
+    match_field: rule.match_field, rule_type: rule.rule_type,
+    rule_params: JSON.parse(JSON.stringify(rule.rule_params || {})),
+    priority: rule.priority, is_enabled: rule.is_enabled, sort_order: rule.sort_order
+  })
+  showRuleForm.value = true
+}
+
+const addNewRule = () => {
+  Object.assign(editingRule, {
+    id: null, name: '', description: '', match_type: 'keyword_category',
+    match_value: '', match_field: 'unit', rule_type: 'length',
+    rule_params: {}, priority: 100, is_enabled: true, sort_order: 0
+  })
+  showRuleForm.value = true
+}
+
+const saveRule = async () => {
+  if (!editingRule.name || !editingRule.match_value) {
+    ElMessage.warning('请填写规则名称和匹配值')
+    return
+  }
+  try {
+    const payload = {
+      name: editingRule.name, description: editingRule.description,
+      match_type: editingRule.match_type, match_value: editingRule.match_value,
+      match_field: editingRule.match_field, rule_type: editingRule.rule_type,
+      rule_params: editingRule.rule_params, priority: editingRule.priority,
+      sort_order: editingRule.sort_order, is_enabled: editingRule.is_enabled
+    }
+    if (editingRule.id) {
+      await request.put(`/quotes/measurement-rules/${editingRule.id}`, payload)
+    } else {
+      await request.post('/quotes/measurement-rules', payload)
+    }
+    ElMessage.success(editingRule.id ? '规则已更新' : '规则已创建')
+    showRuleForm.value = false
+    await loadMeasurementRules()
+  } catch (e) {
+    ElMessage.error('保存失败')
+  }
+}
+
+const deleteRule = async (rule) => {
+  try {
+    await ElMessageBox.confirm(`确定删除规则「${rule.name}」？`, '确认', { type: 'warning' })
+    await request.delete(`/quotes/measurement-rules/${rule.id}`)
+    ElMessage.success('已删除')
+    await loadMeasurementRules()
+  } catch (e) { /* canceled */ }
+}
+
+const moveRule = async (rule, direction) => {
+  const idx = measurementRules.value.findIndex(r => r.id === rule.id)
+  const swapIdx = idx + direction
+  if (swapIdx < 0 || swapIdx >= measurementRules.value.length) return
+  const other = measurementRules.value[swapIdx]
+  const tmpPri = rule.priority
+  try {
+    await request.put(`/quotes/measurement-rules/${rule.id}`, { priority: other.priority })
+    await request.put(`/quotes/measurement-rules/${other.id}`, { priority: tmpPri })
+    await loadMeasurementRules()
+  } catch (e) {
+    ElMessage.error('调整失败')
+  }
+}
+
+const recalculateAll = async () => {
+  try {
+    await request.post(`/quotes/${quoteId.value}/recalculate`)
+    ElMessage.success('重新计算完成')
+    await loadQuote()
+  } catch (e) {
+    ElMessage.error('重算失败')
   }
 }
 
@@ -1271,6 +1531,7 @@ onMounted(() => {
   loadQuote()
   loadAllEmployees()
   loadTemplates()
+  loadMeasurementRules()
 })
 </script>
 
@@ -1494,6 +1755,36 @@ onMounted(() => {
   justify-content: center;
 }
 
+
+.rules-card .rules-list {
+  max-height: 240px;
+  overflow-y: auto;
+}
+.rules-card .rule-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.rules-card .rule-item:last-child {
+  border-bottom: none;
+}
+.rules-card .rule-tag {
+  flex-shrink: 0;
+}
+.rules-card .rule-name {
+  font-weight: 500;
+  min-width: 80px;
+}
+.rules-card .rule-desc {
+  flex: 1;
+  color: #999;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .template-card .template-grid {
   display: flex;
   flex-wrap: wrap;

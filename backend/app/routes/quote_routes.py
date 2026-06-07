@@ -4,7 +4,7 @@ V3.0 全新设计
 """
 from flask import Blueprint, request, jsonify
 from app import db
-from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS
+from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS, MeasurementRule, DEFAULT_MEASUREMENT_RULES
 from app.models.customer import Customer
 from app.models import Employee  # 从 hr_v2 导入
 from app.routes.auth_routes_v2 import jwt_required_v2
@@ -13,46 +13,191 @@ from datetime import datetime, date, timedelta
 quote_bp = Blueprint('quote', __name__, url_prefix='/api/v3/quotes')
 
 
-# ========== 计量值计算 ==========
+# ========== 计量值计算（规则引擎）==========
 
-def calc_measurement_value(unit, width=None, depth=None, height=None, manual_value=None):
-    """根据单位自动计算计量值
+# 单位分类映射
+LENGTH_UNITS = ('米', 'm', '延米')
+AREA_UNITS = ('平方米', '㎡', 'm²', 'm2', '平米')
+VOLUME_UNITS = ('立方米', 'm³', 'm3')
+QUANTITY_UNITS = ('件', '个', '套', '组', '项', '张', '块', '条', '根', '把', '对', '只', '支', '片', '台', '扇')
 
-    - 米/延米: max(W,D,H) / 1000
-    - 平方米: 较大两尺寸乘积 / 1000000
-    - 项/套/个/件/组: 固定为1
-    - 手工覆盖优先
+
+def _classify_unit(unit):
+    """将单位归类为 length/area/volume/quantity"""
+    u = (unit or '').lower().strip()
+    if u in LENGTH_UNITS:
+        return 'length'
+    if u in AREA_UNITS:
+        return 'area'
+    if u in VOLUME_UNITS:
+        return 'volume'
+    return 'quantity'
+
+
+def _get_measurement_rules(tenant_id='0'):
+    """从数据库加载启用的计量规则，按优先级排序"""
+    try:
+        from app.models.quote import MeasurementRule
+        rules = MeasurementRule.query.filter_by(
+            tenant_id=tenant_id, is_enabled=True, is_deleted=False
+        ).order_by(MeasurementRule.priority.asc(), MeasurementRule.sort_order.asc()).all()
+        return [r for r in rules]
+    except Exception:
+        return []
+
+
+def _apply_height_adjustment(height, params):
+    """根据阈值调整高度值"""
+    thresholds = params.get('thresholds', [])
+    if not thresholds:
+        return height
+    # 阈值从小到大排序，找到第一个满足的
+    sorted_thresh = sorted(thresholds, key=lambda x: x.get('min', 0))
+    for t in sorted_thresh:
+        if height < t['min']:
+            height = t['adjust_to']
+            break
+    return height
+
+
+def calc_measurement_value(unit, width=None, depth=None, height=None, manual_value=None,
+                           category_level2=None, custom_name=None, material_name=None,
+                           process_name=None, rules=None):
+    """根据规则引擎计算计量值
+
+    规则优先级：
+    1. 手动值覆盖
+    2. 特殊修正规则（门套/四方/投影/柜门/赠送等）
+    3. 基础计算规则（长度/面积/体积/数量）
     """
-    if manual_value is not None and manual_value > 0:
-        return manual_value
+    # 1. 手动值优先
+    if manual_value is not None:
+        try:
+            if float(manual_value) > 0:
+                return float(manual_value)
+        except (ValueError, TypeError):
+            pass
 
-    dims = [d for d in [width, depth, height] if d and float(d) > 0]
+    # 解析尺寸（mm）
+    w = float(width) if width else 0
+    d = float(depth) if depth else 0
+    h = float(height) if height else 0
+    dims = [v for v in [w, d, h] if v > 0]
     if not dims:
         return 1
 
-    unit_lower = (unit or '').lower().strip()
+    # 辅助函数：检查关键词匹配
+    def _match_keywords(text, keywords_str):
+        if not text or not keywords_str:
+            return False
+        keywords = [k.strip() for k in keywords_str.split(',') if k.strip()]
+        text_lower = str(text).lower()
+        return any(kw.lower() in text_lower for kw in keywords)
 
-    if unit_lower in ('米', 'm', '延米'):
-        return max(float(d) for d in dims) / 1000.0
-    elif unit_lower in ('平方米', '㎡', 'm²', 'm2', '平米'):
-        if len(dims) >= 2:
-            sorted_dims = sorted([float(d) for d in dims], reverse=True)
-            return (sorted_dims[0] * sorted_dims[1]) / 1000000.0
+    # 加载规则（如果未传入）
+    if rules is None:
+        rules = _get_measurement_rules()
+
+    # 工艺赠送检测
+    process_free = False
+    for rule in rules:
+        if rule.rule_type == 'process_free':
+            if rule.match_field == 'process_name' and _match_keywords(process_name, rule.match_value):
+                process_free = True
+                break
+
+    # 高度调整（投影规则）
+    adjusted_h = h
+    for rule in rules:
+        if rule.rule_type == 'adjust_height':
+            field_val = ''
+            if rule.match_field == 'category_level2':
+                field_val = category_level2 or ''
+            elif rule.match_field == 'category_level1':
+                field_val = ''
+            if _match_keywords(field_val, rule.match_value):
+                adjusted_h = _apply_height_adjustment(h, rule.rule_params or {})
+                break
+
+    # 重新构建尺寸数组（使用调整后的高度）
+    adjusted_dims = [v for v in [w, d, adjusted_h] if v > 0]
+    if not adjusted_dims:
+        adjusted_dims = dims
+
+    # 2. 检查特殊规则
+    unit_cat = _classify_unit(unit)
+
+    # 门套/垭口套
+    for rule in rules:
+        if rule.rule_type == 'door_frame':
+            field_val = ''
+            if rule.match_field == 'name':
+                field_val = material_name or ''
+            if _match_keywords(field_val, rule.match_value) and unit_cat == 'length':
+                # (高度×2 + 宽度) / 1000
+                return round((adjusted_h * 2 + w) / 1000.0, 4)
+
+    # 四方轮廓
+    for rule in rules:
+        if rule.rule_type == 'four_sided':
+            field_val = ''
+            if rule.match_field == 'custom_name':
+                field_val = custom_name or ''
+            if _match_keywords(field_val, rule.match_value) and unit_cat == 'length':
+                # (宽度 + 高度) × 2 / 1000
+                return round((w + adjusted_h) * 2 / 1000.0, 4)
+
+    # 3. 基础计算
+    result = 1
+    if unit_cat == 'length':
+        result = max(adjusted_dims) / 1000.0
+    elif unit_cat == 'area':
+        if len(adjusted_dims) >= 2:
+            sorted_dims = sorted(adjusted_dims, reverse=True)
+            result = (sorted_dims[0] * sorted_dims[1]) / 1000000.0
         else:
-            return float(dims[0]) / 1000.0
+            result = max(adjusted_dims) / 1000.0
+    elif unit_cat == 'volume':
+        result = (w * d * adjusted_h) / 1000000000.0
     else:
-        return 1
+        result = 1
+
+    result = round(result, 4)
+
+    # 4. 柜门面积保底
+    for rule in rules:
+        if rule.rule_type == 'adjust_min_area':
+            field_val = ''
+            if rule.match_field == 'category_level2':
+                field_val = category_level2 or ''
+            if _match_keywords(field_val, rule.match_value) and result < rule.rule_params.get('min_value', 0):
+                result = rule.rule_params['min_value']
+            break
+
+    return result
 
 
-def calc_item_total_price(item):
-    """计算单项总价: qty * measurement_value * unit_price + craft_price * craft_quantity * craft_coefficient"""
+def calc_item_total_price(item, rules=None):
+    """计算单项总价: qty * measurement_value * unit_price + craft_amount(受赠送规则影响)"""
     qty = float(item.quantity or 1)
     m_val = float(item.measurement_value or 1)
     u_price = float(item.unit_price or 0)
-    c_price = float(item.craft_price or 0)
-    c_qty = float(item.craft_quantity or 1)
-    c_coef = float(item.craft_coefficient or 1)
-    return round(qty * m_val * u_price + c_price * c_qty * c_coef, 2)
+
+    # 工艺金额
+    process_amount = float(item.process_amount or 0)
+    if process_amount > 0:
+        # 检查赠送规则
+        if rules is None:
+            rules = _get_measurement_rules()
+        process_name = getattr(item, 'process_name', None) or ''
+        for rule in rules:
+            if rule.rule_type == 'process_free':
+                keywords = rule.match_value or ''
+                if keywords.strip().lower() in str(process_name).lower():
+                    process_amount = 0
+                    break
+
+    return round(qty * m_val * u_price + process_amount, 2)
 
 
 # ========== 报价模板 ==========
@@ -277,7 +422,11 @@ def create_quote(current_user):
         unit = item_data.get('unit', '项')
         m_val = calc_measurement_value(
             unit, width=w, depth=d, height=h,
-            manual_value=item_data.get('measurement_value')
+            manual_value=item_data.get('measurement_value'),
+            category_level2=item_data.get('category_level2'),
+            custom_name=item_data.get('custom_name'),
+            material_name=item_data.get('name'),
+            process_name=item_data.get('process_name')
         )
         item = QuoteItem(
             quote_id=quote.id,
@@ -360,7 +509,11 @@ def update_quote(current_user, id):
             unit = item_data.get('unit', '项')
             m_val = calc_measurement_value(
                 unit, width=w, depth=dp, height=h,
-                manual_value=item_data.get('measurement_value')
+                manual_value=item_data.get('measurement_value'),
+                category_level2=item_data.get('category_level2'),
+                custom_name=item_data.get('custom_name'),
+                material_name=item_data.get('name'),
+                process_name=item_data.get('process_name')
             )
             item = QuoteItem(
                 quote_id=id,
@@ -648,7 +801,11 @@ def add_item(current_user, quote_id):
     unit = data.get('unit', '项')
     m_val = calc_measurement_value(
         unit, width=w, depth=d, height=h,
-        manual_value=data.get('measurement_value')
+        manual_value=data.get('measurement_value'),
+        category_level2=data.get('category_level2'),
+        custom_name=data.get('custom_name'),
+        material_name=data.get('name'),
+        process_name=data.get('process_name')
     )
 
     item = QuoteItem(
@@ -723,7 +880,11 @@ def update_item(current_user, quote_id, item_id):
     # 重新计算计量值
     item.measurement_value = calc_measurement_value(
         item.unit, width=item.width, depth=item.depth, height=item.height,
-        manual_value=data.get('measurement_value')
+        manual_value=data.get('measurement_value'),
+        category_level2=item.category_level2,
+        custom_name=item.custom_name,
+        material_name=item.name,
+        process_name=item.process_name
     )
     # 更新 craft 字段
     if 'craft_quantity' in data:
@@ -1702,7 +1863,11 @@ def batch_add_items(current_user, quote_id):
         unit = item_data.get('unit', '项')
         m_val = calc_measurement_value(
             unit, width=w, depth=d, height=h,
-            manual_value=item_data.get('measurement_value')
+            manual_value=item_data.get('measurement_value'),
+            category_level2=item_data.get('category_level2'),
+            custom_name=item_data.get('custom_name'),
+            material_name=item_data.get('name'),
+            process_name=item_data.get('process_name')
         )
         item = QuoteItem(
             quote_id=quote_id,
@@ -1759,7 +1924,11 @@ def manual_recalculate(current_user, id):
     for item in items:
         item.measurement_value = calc_measurement_value(
             item.unit, width=item.width, depth=item.depth, height=item.height,
-            manual_value=item.measurement_value if float(item.measurement_value or 0) != 1 else None
+            manual_value=item.measurement_value if float(item.measurement_value or 0) != 1 else None,
+            category_level2=item.category_level2,
+            custom_name=item.custom_name,
+            material_name=item.name,
+            process_name=item.process_name
         )
         item.total_price = calc_item_total_price(item)
 
@@ -1979,3 +2148,94 @@ def import_quote(current_user):
         return jsonify({'code': 200, 'message': f'parsed {len(items)} items', 'data': {'items': items}})
     except Exception as e:
         return jsonify({'code': 500, 'message': str(e)}), 500
+
+
+# ========== 计量规则管理 ==========
+
+@quote_bp.route('/measurement-rules', methods=['GET'])
+@jwt_required_v2
+def get_measurement_rules(current_user):
+    """获取计量规则列表"""
+    rules = MeasurementRule.query.filter_by(
+        tenant_id=current_user.get('tenant_id', '0'),
+        is_deleted=False
+    ).order_by(MeasurementRule.priority.asc(), MeasurementRule.sort_order.asc()).all()
+    return jsonify({'code': 200, 'data': [r.to_dict() for r in rules]})
+
+
+@quote_bp.route('/measurement-rules/init', methods=['POST'])
+@jwt_required_v2
+def init_measurement_rules(current_user):
+    """初始化默认计量规则（仅在无规则时创建）"""
+    tenant_id = current_user.get('tenant_id', '0')
+    existing = MeasurementRule.query.filter_by(tenant_id=tenant_id).first()
+    if existing:
+        return jsonify({'code': 200, 'message': '规则已存在', 'data': {'count': MeasurementRule.query.filter_by(tenant_id=tenant_id).count()}})
+    for r in DEFAULT_MEASUREMENT_RULES:
+        rule = MeasurementRule(
+            tenant_id=tenant_id,
+            name=r['name'],
+            description=r['description'],
+            match_type=r['match_type'],
+            match_value=r['match_value'],
+            match_field=r['match_field'],
+            rule_type=r['rule_type'],
+            rule_params=r['rule_params'],
+            priority=r['priority'],
+            is_enabled=True,
+            created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+            updated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        )
+        db.session.add(rule)
+    db.session.commit()
+    return jsonify({'code': 200, 'message': f'已初始化{len(DEFAULT_MEASUREMENT_RULES)}条规则'})
+
+
+@quote_bp.route('/measurement-rules', methods=['POST'])
+@jwt_required_v2
+def create_measurement_rule(current_user):
+    """创建计量规则"""
+    data = request.get_json()
+    rule = MeasurementRule(
+        tenant_id=current_user.get('tenant_id', '0'),
+        name=data.get('name', ''),
+        description=data.get('description', ''),
+        match_type=data.get('match_type', 'keyword_category'),
+        match_value=data.get('match_value', ''),
+        match_field=data.get('match_field', 'unit'),
+        rule_type=data.get('rule_type', 'length'),
+        rule_params=data.get('rule_params', {}),
+        priority=data.get('priority', 100),
+        sort_order=data.get('sort_order', 0),
+        is_enabled=data.get('is_enabled', True),
+        created_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+        updated_at=datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
+    )
+    db.session.add(rule)
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '创建成功', 'data': rule.to_dict()})
+
+
+@quote_bp.route('/measurement-rules/<int:rule_id>', methods=['PUT'])
+@jwt_required_v2
+def update_measurement_rule(current_user, rule_id):
+    """更新计量规则"""
+    rule = MeasurementRule.query.get_or_404(rule_id)
+    data = request.get_json()
+    for field in ['name', 'description', 'match_type', 'match_value', 'match_field',
+                  'rule_type', 'rule_params', 'priority', 'sort_order', 'is_enabled']:
+        if field in data:
+            setattr(rule, field, data[field])
+    rule.updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '更新成功', 'data': rule.to_dict()})
+
+
+@quote_bp.route('/measurement-rules/<int:rule_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_measurement_rule(current_user, rule_id):
+    """删除计量规则"""
+    rule = MeasurementRule.query.get_or_404(rule_id)
+    rule.is_deleted = True
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '已删除'})
