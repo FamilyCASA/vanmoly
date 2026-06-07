@@ -177,7 +177,9 @@ class QuoteItem(db.Model):
     name = db.Column(db.String(200), nullable=False, comment='名称')
     spec = db.Column(db.String(200), comment='规格')
     brand = db.Column(db.String(100), comment='品牌')
+    material = db.Column(db.String(100), comment='材质')
     unit = db.Column(db.String(20), comment='单位')
+    calc_type = db.Column(db.String(30), comment='计量类型(length/area/volume/quantity)')
 
     # 价格
     quantity = db.Column(db.Float, default=1, comment='数量')
@@ -250,7 +252,9 @@ class QuoteItem(db.Model):
             'name': self.name,
             'spec': self.spec,
             'brand': self.brand,
+            'material': self.material,
             'unit': self.unit,
+            'calc_type': self.calc_type,
             'quantity': float(self.quantity) if self.quantity else 0,
             'unit_price': float(self.unit_price) if self.unit_price else 0,
             'total_price': float(self.total_price) if self.total_price else 0,

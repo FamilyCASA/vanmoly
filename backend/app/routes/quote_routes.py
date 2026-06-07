@@ -820,7 +820,9 @@ def add_item(current_user, quote_id):
         name=data.get('name'),
         spec=data.get('spec'),
         brand=data.get('brand'),
+        material=data.get('material'),
         unit=unit,
+        calc_type=data.get('calc_type'),
         quantity=data.get('quantity', 1),
         unit_price=data.get('unit_price', 0),
         width=w,
@@ -866,7 +868,7 @@ def update_item(current_user, quote_id, item_id):
     data = request.get_json()
 
     fields = ['custom_name', 'room_name', 'category_level1', 'category_level2', 'category_level3',
-              'name', 'spec', 'brand', 'unit', 'quantity', 'unit_price',
+              'name', 'spec', 'brand', 'material', 'unit', 'calc_type', 'quantity', 'unit_price',
               'process_name', 'process_coefficient', 'process_quantity',
               'process_unit', 'process_unit_price', 'process_amount',
               'craft_type', 'craft_price', 'image', 'remark',

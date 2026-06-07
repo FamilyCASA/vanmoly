@@ -511,6 +511,11 @@
     <!-- 编辑物料对话框 -->
     <el-dialog v-model="itemDialogVisible" :title="itemForm.id ? '编辑物料' : '新建物料'" width="680px">
       <el-form :model="itemForm" label-width="90px">
+        <!-- SKU来源标识 -->
+        <el-form-item v-if="itemForm.sku_id" label="物料库">
+          <el-tag type="success" size="small">已关联 SKU #{{ itemForm.sku_id }}</el-tag>
+          <span v-if="itemForm.calc_type" style="margin-left:8px;color:#909399;font-size:12px">计量类型: {{ itemForm.calc_type }}</span>
+        </el-form-item>
         <el-form-item label="自定义名称">
           <el-input v-model="itemForm.custom_name" placeholder="自定义显示名称（可选）" />
         </el-form-item>
@@ -518,6 +523,18 @@
           <div style="display:flex;gap:8px;width:100%">
             <el-input v-model="itemForm.name" placeholder="输入物料名称" />
             <el-button @click="openMaterialPicker" type="info" plain>从库选择</el-button>
+          </div>
+        </el-form-item>
+        <el-form-item label="分类">
+          <div style="display:flex;gap:8px">
+            <el-input v-model="itemForm.category_level1" placeholder="一级分类" style="width:140px" />
+            <el-input v-model="itemForm.category_level2" placeholder="二级分类" style="width:140px" />
+          </div>
+        </el-form-item>
+        <el-form-item label="品牌/材质">
+          <div style="display:flex;gap:8px">
+            <el-input v-model="itemForm.brand" placeholder="品牌" style="width:140px" />
+            <el-input v-model="itemForm.material" placeholder="材质" style="width:140px" />
           </div>
         </el-form-item>
         <el-form-item label="数量">
@@ -530,13 +547,13 @@
           <el-input-number v-model="itemForm.unit_price" :min="0" :precision="2" />
         </el-form-item>
         <el-divider content-position="left">定制参数</el-divider>
-        <el-form-item label="宽(cm)">
+        <el-form-item label="宽(mm)">
           <el-input-number v-model="itemForm.custom_width" :min="0" :precision="0" placeholder="定制宽度" />
         </el-form-item>
-        <el-form-item label="深(cm)">
+        <el-form-item label="深(mm)">
           <el-input-number v-model="itemForm.custom_depth" :min="0" :precision="0" placeholder="定制深度" />
         </el-form-item>
-        <el-form-item label="高(cm)">
+        <el-form-item label="高(mm)">
           <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
         </el-form-item>
         <el-form-item label="计量值">
@@ -587,12 +604,15 @@
       </div>
       <el-table :data="skuList" v-loading="skuLoading" max-height="400" highlight-current-row @row-click="selectSku">
         <el-table-column prop="sku_code" label="编码" width="100" />
-        <el-table-column prop="name" label="名称" min-width="150" />
-        <el-table-column prop="brand" label="品牌" width="100" />
-        <el-table-column prop="specification" label="规格" width="120" />
+        <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip />
+        <el-table-column prop="category_name" label="分类" width="100" show-overflow-tooltip />
+        <el-table-column prop="material" label="材质" width="80" show-overflow-tooltip />
         <el-table-column prop="unit" label="单位" width="60" />
+        <el-table-column prop="calc_type" label="计量" width="70">
+          <template #default="{ row }">{{ row.calc_type || '-' }}</template>
+        </el-table-column>
         <el-table-column prop="sale_price" label="售价" width="80" align="right">
-          <template #default="{ row }">{{ row.sale_price?.toFixed(2) || '-' }}</template>
+          <template #default="{ row }">¥{{ row.sale_price?.toFixed(2) || '-' }}</template>
         </el-table-column>
         <el-table-column label="操作" width="80" align="center">
           <template #default="{ row }">
@@ -1328,6 +1348,13 @@ const addItemToActiveSpace = () => {
   itemForm.quantity = 1
   itemForm.unit_price = 0
   itemForm.unit = ''
+  itemForm.brand = ''
+  itemForm.spec = ''
+  itemForm.material = ''
+  itemForm.image = ''
+  itemForm.category_level1 = ''
+  itemForm.category_level2 = ''
+  itemForm.calc_type = ''
   itemForm.measurement_value = null
   itemForm.remark = ''
   itemForm.custom_width = null
@@ -1343,6 +1370,8 @@ const addItemToActiveSpace = () => {
   itemForm.craft_price = 0
   itemForm.craft_quantity = null
   itemForm.craft_coefficient = null
+  itemForm.craft_parts = []
+  itemForm.customization_rules = []
   itemDialogVisible.value = true
 }
 
@@ -1387,6 +1416,13 @@ const itemForm = reactive({
   quantity: 1,
   unit_price: 0,
   unit: '',
+  brand: '',
+  spec: '',
+  material: '',
+  image: '',
+  category_level1: '',
+  category_level2: '',
+  calc_type: '',
   measurement_value: null,
   remark: '',
   custom_width: null,
@@ -1401,7 +1437,9 @@ const itemForm = reactive({
   craft_type: '',
   craft_price: 0,
   craft_quantity: null,
-  craft_coefficient: null
+  craft_coefficient: null,
+  craft_parts: [],
+  customization_rules: []
 })
 
 const editItem = (space, item) => {
@@ -1413,6 +1451,13 @@ const editItem = (space, item) => {
   itemForm.quantity = item.quantity
   itemForm.unit_price = item.unit_price
   itemForm.unit = item.unit || ''
+  itemForm.brand = item.brand || ''
+  itemForm.spec = item.spec || ''
+  itemForm.material = item.material || ''
+  itemForm.image = item.image || ''
+  itemForm.category_level1 = item.category_level1 || ''
+  itemForm.category_level2 = item.category_level2 || ''
+  itemForm.calc_type = item.calc_type || ''
   itemForm.measurement_value = item.measurement_value || null
   itemForm.remark = item.remark || ''
   itemForm.custom_width = item.custom_width || null
@@ -1519,12 +1564,48 @@ const openMaterialPicker = () => {
 }
 
 const selectSku = (sku) => {
+  // 从物料库动态加载所有字段，不硬编码
   itemForm.sku_id = sku.id
   itemForm.name = sku.name
   itemForm.unit_price = sku.sale_price || 0
-  if (sku.specification) itemForm.remark = sku.specification + (itemForm.remark ? '\n' + itemForm.remark : '')
+  itemForm.unit = sku.unit || ''
+  itemForm.brand = sku.brand || ''
+  itemForm.spec = sku.specification || sku.spec || ''
+  itemForm.material = sku.material || ''
+  itemForm.image = sku.main_image || (sku.images && sku.images[0]) || ''
+
+  // 分类：category_name 是一级分类，需要从物料库分类体系获取二级分类
+  if (sku.category_name) {
+    itemForm.category_level1 = sku.category_name
+  }
+  // 二级分类：从 name 中解析（如「澜缇集-P6防潮板-柜体-北筑」→ 一级=固装家具, 二级=衣柜柜体）
+  // SKU 本身只存 category_name（一级），二级需用户手动或从命名规则推断
+
+  // 计量类型：从 SKU 的 calc_type 决定计量规则
+  itemForm.calc_type = sku.calc_type || ''
+
+  // 工艺系数：SKU 默认工艺系数
+  if (sku.craft_coefficient != null && itemForm.process_coefficient == null) {
+    itemForm.process_coefficient = sku.craft_coefficient
+  }
+
+  // 工艺部件：如果 SKU 有工艺部件数据
+  if (sku.craft_parts && sku.craft_parts.length > 0) {
+    itemForm.craft_parts = sku.craft_parts
+  }
+
+  // 定制规则：SKU 预定义的定制参数规则
+  if (sku.customization_rules && sku.customization_rules.length > 0) {
+    itemForm.customization_rules = sku.customization_rules
+  }
+
+  // 备注拼接规格
+  if (sku.specification) {
+    itemForm.remark = sku.specification + (itemForm.remark ? '\n' + itemForm.remark : '')
+  }
+
   skuPickerVisible.value = false
-  ElMessage.success(`已选择: ${sku.name}`)
+  ElMessage.success(`已选择: ${sku.name}（¥${sku.sale_price}/${sku.unit}）`)
 }
 
 onMounted(() => {
