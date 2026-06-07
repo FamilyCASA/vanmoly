@@ -1498,9 +1498,9 @@ const searchSku = async (page = 1) => {
     skuLoading.value = true
     skuPage.value = page
     const res = await request.get('/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
-    const data = res.data?.data || res.data
-    skuList.value = data.items || data || []
-    skuTotal.value = data.total || 0
+    // 拦截器已解包 res.data，res 直接是 {items, total, page, page_size}
+    skuList.value = res.items || []
+    skuTotal.value = res.total || 0
   } catch (e) {
     console.error('搜索物料失败', e)
   } finally {
