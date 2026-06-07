@@ -204,6 +204,13 @@ class QuoteSpaceInstance(db.Model):
     # 状态
     is_selected = db.Column(db.Boolean, default=True, comment='是否选中')
     
+    # 汇总（动态计算）
+    material_cost = db.Column(db.Numeric(12, 2), default=0, comment='物料成本')
+    labor_cost = db.Column(db.Numeric(12, 2), default=0, comment='人工成本')
+    design_cost = db.Column(db.Numeric(12, 2), default=0, comment='设计成本')
+    manage_cost = db.Column(db.Numeric(12, 2), default=0, comment='管理成本')
+    total_price = db.Column(db.Numeric(12, 2), default=0, comment='空间总价')
+    
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
@@ -223,6 +230,11 @@ class QuoteSpaceInstance(db.Model):
             'adjustment_reason': self.adjustment_reason,
             'adjustments': json.loads(self.adjustments) if self.adjustments else {},
             'is_selected': self.is_selected,
+            'material_cost': float(self.material_cost) if self.material_cost else 0,
+            'labor_cost': float(self.labor_cost) if self.labor_cost else 0,
+            'design_cost': float(self.design_cost) if self.design_cost else 0,
+            'manage_cost': float(self.manage_cost) if self.manage_cost else 0,
+            'total_price': float(self.total_price) if self.total_price else 0,
             'created_at': self.created_at.isoformat() if self.created_at else None,
             'updated_at': self.updated_at.isoformat() if self.updated_at else None,
         }

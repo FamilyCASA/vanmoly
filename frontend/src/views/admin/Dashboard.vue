@@ -6,6 +6,27 @@
       <span class="subtitle">实时数据监控与业务分析</span>
     </div>
 
+    <!-- 快捷入口 -->
+    <el-row :gutter="16" class="quick-entry-row">
+      <el-col :span="24">
+        <el-card shadow="never">
+          <template #header>
+            <div class="card-header">
+              <span>快捷入口</span>
+            </div>
+          </template>
+          <div class="quick-links">
+            <div v-for="(link, index) in quickLinks" :key="index" class="quick-link" @click="$router.push(link.path)">
+              <div class="quick-icon" :style="{ background: link.bgColor }">
+                <el-icon><component :is="link.icon" /></el-icon>
+              </div>
+              <div class="quick-name">{{ link.name }}</div>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
+
     <!-- 核心指标卡片 -->
     <el-row :gutter="16" class="stats-row">
       <el-col :span="4">
@@ -107,7 +128,7 @@
 
     <!-- 待办事项和快捷入口 -->
     <el-row :gutter="16" class="bottom-row">
-      <el-col :span="12">
+      <el-col :span="24">
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
@@ -129,23 +150,6 @@
                   去处理
                 </el-button>
               </div>
-            </div>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="never">
-          <template #header>
-            <div class="card-header">
-              <span>快捷入口</span>
-            </div>
-          </template>
-          <div class="quick-links">
-            <div v-for="(link, index) in quickLinks" :key="index" class="quick-link" @click="$router.push(link.path)">
-              <div class="quick-icon" :style="{ background: link.bgColor }">
-                <el-icon><component :is="link.icon" /></el-icon>
-              </div>
-              <div class="quick-name">{{ link.name }}</div>
             </div>
           </div>
         </el-card>

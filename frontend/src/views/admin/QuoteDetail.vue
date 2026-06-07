@@ -508,8 +508,8 @@
           <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
         </el-form-item>
         <el-form-item label="计量值">
-          <el-input-number v-model="itemForm.measurement_value" :min="0" :precision="4" :controls="false" style="width: 140px" />
-          <span style="margin-left: 8px; color: #909399; font-size: 12px">{{ calcMeasurementPreview() }}</span>
+          <span style="font-size:16px;font-weight:600;color:#303133">{{ measurementCache }}</span>
+          <span style="margin-left: 8px; color: #909399; font-size: 12px">{{ itemForm.unit || '' }}</span>
         </el-form-item>
         <el-divider content-position="left">工艺信息</el-divider>
         <el-form-item label="工艺名称">
@@ -1340,7 +1340,7 @@ const addItemToActiveSpace = () => {
   itemForm.category_level1 = ''
   itemForm.category_level2 = ''
   itemForm.calc_type = ''
-  itemForm.measurement_value = null
+  itemForm.measurement_value = 1
   itemForm.remark = ''
   itemForm.custom_width = null
   itemForm.custom_depth = null
@@ -1408,7 +1408,7 @@ const itemForm = reactive({
   category_level1: '',
   category_level2: '',
   calc_type: '',
-  measurement_value: null,
+  measurement_value: 1,
   remark: '',
   custom_width: null,
   custom_depth: null,
@@ -1443,7 +1443,7 @@ const editItem = (space, item) => {
   itemForm.category_level1 = item.category_level1 || ''
   itemForm.category_level2 = item.category_level2 || ''
   itemForm.calc_type = item.calc_type || ''
-  itemForm.measurement_value = item.measurement_value || null
+  itemForm.measurement_value = item.measurement_value || 1
   itemForm.remark = item.remark || ''
   itemForm.custom_width = item.custom_width || null
   itemForm.custom_depth = item.custom_depth || null
@@ -1459,61 +1459,61 @@ const editItem = (space, item) => {
   itemForm.craft_quantity = item.craft_quantity || null
   itemForm.craft_coefficient = item.craft_coefficient || null
   itemDialogVisible.value = true
+  // 打开弹窗后立即计算计量值（有定制参数时显示真实值）
+  setTimeout(() => calcMeasurementValue(), 100)
 }
 
-// 计量值自动计算（基于 calc_type + 尺寸参数）
-const calcMeasurementValue = () => {
+// 计量值：调用后端规则引擎实时计算
+const measurementCache = ref(1)
+let calcDebounce = null
+
+const calcMeasurementValue = async () => {
   const w = Number(itemForm.custom_width || itemForm.width || 0)
   const d = Number(itemForm.custom_depth || itemForm.depth || 0)
   const h = Number(itemForm.custom_height || itemForm.height || 0)
-  const calcType = itemForm.calc_type || itemForm.unit || 'quantity'
   
-  // 无尺寸时返回默认值
-  if (!w && !d && !h) return null
+  // 无尺寸参数时返回默认1
+  if (!w && !d && !h) { measurementCache.value = 1; return 1 }
   
-  let val = 0
-  switch (calcType) {
-    case 'length':
-      val = Math.max(w, d, h) / 1000  // 取最大边转为米
-      break
-    case 'area':
-      // 取三个面中最大的面积：max(宽×深, 深×高, 宽×高) / 1000000 → ㎡
-      const areas = [w * d, d * h, w * h].filter(v => v > 0)
-      val = areas.length > 0 ? Math.max(...areas) / 1000000 : 0
-      break
-    case 'volume':
-      val = (w * d * h) / 1000000000  // mm³ → m³
-      break
-    case 'quantity':
-    default:
-      val = 1
-      break
-  }
-  
-  return Math.round(val * 10000) / 10000  // 保留4位小数
-}
-
-// 计量值预览文本
-const calcMeasurementPreview = () => {
-  if (itemForm.measurement_value != null && itemForm.measurement_value > 0) {
-    return '(已手动设置)'
-  }
-  const autoVal = calcMeasurementValue()
-  if (autoVal == null) return '(默认0 — 请输入尺寸参数)'
-  return `(自动: ${autoVal.toFixed(4)})`
-}
-
-// ========== watch: 定制参数变化时自动计算计量值 ==========
-watch(
-  () => [itemForm.custom_width, itemForm.custom_depth, itemForm.custom_height, itemForm.calc_type, itemForm.unit],
-  () => {
-    // 仅在用户未手动输入计量值时自动填充
-    if (itemForm.measurement_value == null || itemForm.measurement_value === 0) {
-      const autoVal = calcMeasurementValue()
-      if (autoVal != null) {
-        itemForm.measurement_value = autoVal
-      }
+  try {
+    const res = await request.post('/quotes/measurement-calc', {
+      unit: itemForm.unit || '',
+      width: itemForm.custom_width || itemForm.width || null,
+      depth: itemForm.custom_depth || itemForm.depth || null,
+      height: itemForm.custom_height || itemForm.height || null,
+      category_level2: itemForm.category_level2 || '',
+      material_name: itemForm.name || '',
+      process_name: itemForm.process_name || ''
+    })
+    const val = res?.data?.data?.measurement_value ?? res?.data?.measurement_value ?? 1
+    measurementCache.value = val
+    return val
+  } catch (e) {
+    console.warn('计量计算API调用失败，使用本地降级', e)
+    // 降级：本地简单计算
+    const unit = (itemForm.unit || '').toLowerCase()
+    let val = 1
+    if (['㎡','m²'].some(u => unit.includes(u))) {
+      const dims = [w,d,h].filter(v=>v>0).sort((a,b)=>b-a)
+      val = dims.length >= 2 ? (dims[0]*dims[1])/1000000 : (dims[0]||0)/1000
+    } else if (['m³'].some(u => unit.includes(u))) {
+      val = (w*d*h)/1000000000
+    } else {
+      val = Math.max(w,d,h)/1000 || 1
     }
+    measurementCache.value = Math.round(val*10000)/10000
+    return measurementCache.value
+  }
+}
+
+// ========== watch: 定制参数变化时自动同步计量值（防抖）==========
+watch(
+  () => [itemForm.custom_width, itemForm.custom_depth, itemForm.custom_height, itemForm.unit, itemForm.name, itemForm.process_name, itemForm.category_level2],
+  () => {
+    if (calcDebounce) clearTimeout(calcDebounce)
+    calcDebounce = setTimeout(() => {
+      calcMeasurementValue()
+    }, 200)
   },
   { deep: true }
 )
@@ -1533,6 +1533,8 @@ watch(
 // 保存物料（支持新增和编辑）
 const saveItem = async () => {
   try {
+    // 同步计量值到表单
+    itemForm.measurement_value = measurementCache.value
     if (itemForm.id) {
       // 编辑模式：旧格式（space_id=null）走直连路径，新格式走 space-instances 路径
       const path = itemForm.space_id == null
@@ -1614,9 +1616,9 @@ const loadCraftOptions = async () => {
 }
 
 // 选择工艺时自动填充系数、单价等
-const onCraftSelected = (craftId) => {
-  if (!craftId) return
-  const craft = craftOptions.value.find(c => c.id === craftId)
+const onCraftSelected = (craftName) => {
+  if (!craftName) return
+  const craft = craftOptions.value.find(c => c.name === craftName)
   if (!craft) return
   itemForm.process_coefficient = craft.coefficient || 1
   itemForm.process_unit_price = craft.unit_price || 0

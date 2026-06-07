@@ -3,6 +3,7 @@
 V3.0 全新设计
 """
 from flask import Blueprint, request, jsonify
+import os
 from app import db
 from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS, MeasurementRule, DEFAULT_MEASUREMENT_RULES
 from app.models.customer import Customer
@@ -1481,6 +1482,11 @@ def add_item_to_space_instance(current_user, quote_id, instance_id):
     
     data = request.get_json()
     
+    # 数值型字段：空字符串 → None
+    for f in ['calc_type', 'custom_result', 'craft_type']:
+        if f in data and data[f] == '':
+            data[f] = None
+    
     w = data.get('width')
     d = data.get('depth')
     h = data.get('height')
@@ -1559,6 +1565,12 @@ def update_space_item(current_user, quote_id, instance_id, item_id):
         return jsonify({'code': 404, 'message': '物料不属于该报价'}), 404
     
     data = request.get_json()
+    
+    # 数值型字段：空字符串 → None（避免 REAL 列存空字符串报错）
+    numeric_fields = ['calc_type', 'custom_result', 'craft_type']
+    for field in numeric_fields:
+        if field in data and data[field] == '':
+            data[field] = None
     
     fields = ['custom_name', 'room_name', 'category_level1', 'category_level2', 'category_level3',
               'name', 'spec', 'brand', 'material', 'unit', 'calc_type', 'quantity', 'unit_price',
@@ -1843,7 +1855,9 @@ def _build_category_summary(quote_id):
 
 
 def _recalculate_quote_total(quote_id):
-    """重新计算报价总价 — 自动汇总subtotal/category_summary/total_amount"""
+    """重新计算报价总价 — 自动汇总subtotal/category_summary/total_amount + 空间实例material_cost/total_price"""
+    from app.models.space_config import QuoteSpaceInstance
+    
     quote = Quote.query.get(quote_id)
     if not quote:
         return
@@ -1853,10 +1867,37 @@ def _recalculate_quote_total(quote_id):
         db.func.sum(QuoteItem.total_price)
     ).filter_by(quote_id=quote_id).scalar() or 0
 
-    # 2. 构建分类汇总
+    # 2. 更新每个空间实例的 material_cost / total_price（通过 space_name 关联 quote_item）
+    # 注意：QuoteSpaceInstance 在主库，QuoteItem 在 quotes.db，需用原生 SQL
+    import sqlite3 as sqlite3_mod
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    quote_db_path = os.path.join(BASE_DIR, 'instance', 'quotes.db')
+    instances = QuoteSpaceInstance.query.filter_by(quote_id=quote_id).all()
+    for inst in instances:
+        try:
+            conn = sqlite3_mod.connect(quote_db_path)
+            conn.row_factory = sqlite3_mod.Row
+            row = conn.execute(
+                'SELECT COALESCE(SUM(total_price),0) FROM quote_item WHERE quote_id=? AND space_name=?',
+                (quote_id, inst.space_name or '')
+            ).fetchone()
+            inst_total = float(row[0]) if row and row[0] else 0
+            conn.close()
+        except Exception as e:
+            print(f'[recalc] SQL error for space {inst.id} ({inst.space_name}): {e}')
+            import traceback; traceback.print_exc()
+            inst_total = 0
+        try:
+            inst.material_cost = inst_total
+            inst.total_price = inst_total + float(inst.labor_cost or 0) + float(inst.design_cost or 0) + float(inst.manage_cost or 0)
+        except Exception as e:
+            print(f'[recalc] Assign error for space {inst.id}: {e}')
+            import traceback; traceback.print_exc()
+    
+    # 3. 构建分类汇总
     category_summary = _build_category_summary(quote_id)
 
-    # 3. 更新报价
+    # 4. 更新报价
     quote.subtotal = items_total
     quote.category_summary = category_summary
     # total_amount = subtotal + management_fee + tax
@@ -2330,6 +2371,34 @@ def import_quote(current_user):
 
 
 # ========== 计量规则管理 ==========
+
+@quote_bp.route('/measurement-calc', methods=['POST'])
+@jwt_required_v2
+def calc_measurement_api(current_user):
+    """实时计量值计算 API（前端定制参数变化时调用）"""
+    data = request.get_json() or {}
+    unit = data.get('unit', '')
+    width = data.get('width')        # custom_width
+    depth = data.get('depth')        # custom_depth
+    height = data.get('height')      # custom_height
+    category_level2 = data.get('category_level2', '')
+    custom_name = data.get('custom_name', '')
+    material_name = data.get('material_name', '')
+    process_name = data.get('process_name', '')
+    
+    rules = _get_measurement_rules(current_user.get('tenant_id', '0'))
+    value = calc_measurement_value(
+        unit=unit, width=width, depth=depth, height=height,
+        manual_value=None,
+        category_level2=category_level2,
+        custom_name=custom_name,
+        material_name=material_name,
+        process_name=process_name,
+        rules=rules
+    )
+    return jsonify({'code': 200, 'data': {'measurement_value': value}})
+
+
 
 @quote_bp.route('/measurement-rules', methods=['GET'])
 @jwt_required_v2

@@ -18,7 +18,7 @@
         </el-form-item>
         <el-form-item label="分类">
           <el-select v-model="filterForm.category" placeholder="全部分类" clearable>
-            <el-option label="全屋定制工艺" value="custom" />
+            <el-option label="全屋定制" value="全屋定制" />
             <el-option label="硬装施工工艺" value="construction" />
           </el-select>
         </el-form-item>
@@ -49,8 +49,8 @@
         <el-table-column prop="name" label="工艺名称" min-width="200" />
         <el-table-column label="分类" width="130" align="center">
           <template #default="{ row }">
-            <el-tag :type="row.category === 'custom' ? 'warning' : 'success'" size="small">
-              {{ row.category === 'custom' ? '全屋定制' : '硬装施工' }}
+            <el-tag type="success" size="small">
+              {{ row.category }}
             </el-tag>
           </template>
         </el-table-column>
@@ -94,7 +94,7 @@
     </el-card>
 
     <!-- 创建/编辑对话框 -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑工艺' : '新建工艺'" width="720px" destroy-on-close>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑工艺' : '新建工艺'" width="920px" destroy-on-close>
       <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
         <el-row :gutter="20">
           <el-col :span="12">
@@ -110,25 +110,25 @@
         </el-row>
 
         <el-row :gutter="20">
-          <el-col :span="12">
+          <el-col :span="8">
             <el-form-item label="工艺分类" prop="category">
               <el-select v-model="form.category" placeholder="选择分类" style="width:100%">
-                <el-option label="全屋定制工艺" value="custom" />
+                <el-option label="全屋定制" value="全屋定制" />
                 <el-option label="硬装施工工艺" value="construction" />
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :span="4">
+          <el-col :span="6">
             <el-form-item label="工艺系数" prop="coefficient">
               <el-input-number v-model="form.coefficient" :min="0.001" :max="999" :precision="3" :step="0.1" style="width:100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="5">
+          <el-col :span="6">
             <el-form-item label="工艺单价" prop="unit_price">
               <el-input-number v-model="form.unit_price" :min="0" :precision="2" :step="10" style="width:100%" />
             </el-form-item>
           </el-col>
-          <el-col :span="3">
+          <el-col :span="4">
             <el-form-item label="单位">
               <el-input v-model="form.unit" placeholder="项" />
             </el-form-item>
