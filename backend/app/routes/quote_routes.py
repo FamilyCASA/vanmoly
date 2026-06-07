@@ -235,7 +235,7 @@ def create_quote(current_user):
     expire_date = date.today() + timedelta(days=valid_days)
 
     # 获取客户信息并冗余存储（独立数据库不支持外键引用主库）
-    customer = Customer.query.get(data['customer_id']) if data.get('customer_id') else None
+    customer = Customer.query.get(data.get('customer_id')) if data.get('customer_id') else None
 
     quote = Quote(
         tenant_id=current_user.get('tenant_id', '0'),

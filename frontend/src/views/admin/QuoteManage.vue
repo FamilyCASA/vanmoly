@@ -1599,7 +1599,7 @@ const statusLabel = (status) => {
 const handleCreate = async () => {
   try {
     const res = await request.post('/quotes', { status: 'draft' })
-    router.push(`/admin/quotes/${res.data.id}`)
+    router.push(`/admin/quotes/${res.id}`)
   } catch (error) {
     ElMessage.error(error.response?.data?.message || '创建报价失败')
   }
