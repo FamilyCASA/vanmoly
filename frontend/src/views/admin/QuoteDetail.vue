@@ -737,7 +737,8 @@ const loadTemplates = async () => {
   try {
     loadingTemplates.value = true
     const res = await request.get('/quotes/templates')
-    templates.value = res.data?.data || res.data || []
+    // 拦截器已解包，res 直接是数组或 {items:[...]}
+    templates.value = Array.isArray(res) ? res : (res?.items || [])
     // 当前报价已选模板
     if (quote.value?.cover_template_id) {
       selectedTemplateId.value = quote.value.cover_template_id
@@ -799,11 +800,12 @@ const matchFieldLabel = (field) => {
 const loadMeasurementRules = async () => {
   try {
     const res = await request.get('/quotes/measurement-rules')
-    measurementRules.value = res.data?.data || res.data || []
+    // 拦截器已解包
+    measurementRules.value = Array.isArray(res) ? res : (res?.items || [])
     if (!measurementRules.value.length) {
       await request.post('/quotes/measurement-rules/init')
       const res2 = await request.get('/quotes/measurement-rules')
-      measurementRules.value = res2.data?.data || res2.data || []
+      measurementRules.value = Array.isArray(res2) ? res2 : (res2?.items || [])
     }
   } catch (e) {
     console.error('加载计量规则失败', e)
@@ -992,7 +994,8 @@ const loadQuote = async () => {
     // 加载空间实例
     try {
       const spacesRes = await request.get(`/quotes/${quoteId.value}/space-instances`)
-      spaces.value = Array.isArray(spacesRes) ? spacesRes : []
+      // 拦截器已解包，spacesRes 可能是 {instances:[...]} 或直接是数组
+      spaces.value = Array.isArray(spacesRes) ? spacesRes : (spacesRes?.instances || spacesRes?.items || [])
     } catch (e) {
       spaces.value = []
     }
@@ -1054,7 +1057,8 @@ const searchCustomers = async (query) => {
   if (!query) { customerOptions.value = []; return }
   try {
     const res = await request.get('/customers', { params: { keyword: query, page_size: 20 } })
-    customerOptions.value = res.data || res || []
+    // 拦截器已解包
+    customerOptions.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
   } catch (e) { /* ignore */ }
 }
 
@@ -1062,7 +1066,8 @@ const searchCustomers = async (query) => {
 const loadAllEmployees = async () => {
   try {
     const res = await request.get('/quotes/options')
-    allEmployees.value = res.data?.employees || []
+    // 拦截器已解包
+    allEmployees.value = res?.employees || res?.data?.employees || []
   } catch (e) { /* ignore */ }
 }
 
