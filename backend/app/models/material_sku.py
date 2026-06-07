@@ -144,13 +144,39 @@ class MaterialSKU(db.Model):
     variants = db.relationship('MaterialVariant', backref='sku', lazy='dynamic', cascade='all, delete-orphan')
 
     def to_dict(self, include_variants=False):
+        # 分类路径解析
+        _l1_name = None
+        _l2_name = None
+        _cat_name = None
+        _cat_icon = None
+        if self.category_id:
+            try:
+                cat = MaterialCategory.query.get(self.category_id)
+                if cat:
+                    _cat_name = cat.name
+                    if cat.level == 2:
+                        _l2_name = cat.name
+                        if cat.parent_id:
+                            parent = MaterialCategory.query.get(cat.parent_id)
+                            if parent:
+                                _l1_name = parent.name
+                    else:  # level == 1 or other
+                        _l1_name = cat.name
+                    if cat.icon:
+                        _cat_icon = 'data:image/svg+xml;base64,' + base64.b64encode(cat.icon.encode('utf-8')).decode('ascii')
+            except Exception:
+                pass
+
         data = {
             'id': self.id,
             'sku_code': self.sku_code,
             'name': self.name,
             'category_id': self.category_id,
-            'category_name': self.category.name if self.category else None,
-            'category_icon': ('data:image/svg+xml;base64,' + base64.b64encode(self.category.icon.encode('utf-8')).decode('ascii')) if self.category and self.category.icon else None,
+            'category_level1': _l1_name,
+            'category_level2': _l2_name,
+            'category_name': _cat_name,
+            'category_icon': _cat_icon,
+
             'brand': self.brand,
             'model': self.model,
             'specification': self.specification,

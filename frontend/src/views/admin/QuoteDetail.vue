@@ -513,7 +513,24 @@
         </el-form-item>
         <el-divider content-position="left">工艺信息</el-divider>
         <el-form-item label="工艺名称">
-          <el-input v-model="itemForm.process_name" placeholder="例如：烤漆、覆膜" />
+          <el-select
+            v-model="itemForm.process_name"
+            filterable
+            placeholder="选择或搜索工艺（如：烤漆、覆膜）"
+            style="width: 100%"
+            :loading="craftLoading"
+            @change="onCraftSelected"
+          >
+            <el-option
+              v-for="c in craftOptions"
+              :key="c.id"
+              :label="c.name + (c.category ? ' [' + c.category + ']' : '')"
+              :value="c.name"
+            >
+              <span>{{ c.name }}</span>
+              <span style="color:#999;font-size:12px;float:right">{{ c.category || '' }} · 系数{{ c.coefficient }}</span>
+            </el-option>
+          </el-select>
         </el-form-item>
         <el-form-item label="工艺系数">
           <el-input-number v-model="itemForm.process_coefficient" :min="0" :precision="3" placeholder="默认1" />
@@ -539,7 +556,7 @@
     </el-dialog>
 
     <!-- 物料选择器 -->
-    <el-dialog v-model="skuPickerVisible" title="从物料库选择" width="700px" append-to-body>
+    <el-dialog v-model="skuPickerVisible" title="从物料库选择" width="1100px" append-to-body>
       <div style="margin-bottom:12px">
         <el-input
           v-model="skuKeyword"
@@ -681,7 +698,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
@@ -1444,47 +1461,73 @@ const editItem = (space, item) => {
   itemDialogVisible.value = true
 }
 
-// 计量值预览（基于输入参数自动计算，默认为0）
-const calcMeasurementPreview = () => {
-  const w = itemForm.custom_width || itemForm.width || 0
-  const d = itemForm.custom_depth || itemForm.depth || 0
-  const h = itemForm.custom_height || itemForm.height || 0
-  const unit = itemForm.unit || '项'
-  const l2 = itemForm.category_level2 || ''
+// 计量值自动计算（基于 calc_type + 尺寸参数）
+const calcMeasurementValue = () => {
+  const w = Number(itemForm.custom_width || itemForm.width || 0)
+  const d = Number(itemForm.custom_depth || itemForm.depth || 0)
+  const h = Number(itemForm.custom_height || itemForm.height || 0)
+  const calcType = itemForm.calc_type || itemForm.unit || 'quantity'
   
-  // 如果手动输入了计量值，显示"手动"
-  if (itemForm.measurement_value && itemForm.measurement_value > 0) {
-    return '(已手动设置)'
-  }
+  // 无尺寸时返回默认值
+  if (!w && !d && !h) return null
   
   let val = 0
-  if (!w && !d && !h) return '(默认0 — 请输入参数)'
-  
-  switch (unit) {
-    case '米':
-    case 'm':
-      val = w / 1000; break
-    case '平方米':
-    case 'm²':
-      val = (w / 1000) * (d / 1000); break
-    case '立方米':
-    case 'm³':
-      val = (w / 1000) * (d / 1000) * (h / 1000); break
-    case '项':
-      val = 1; break
+  switch (calcType) {
+    case 'length':
+      val = (w || d || h) / 1000  // 取最大边转为米
+      break
+    case 'area':
+      val = (w * h) / 1000000   // 宽×高 → 平方米（mm²→m²）
+      if (!val && w && d) val = (w * d) / 1000000
+      break
+    case 'volume':
+      val = (w * d * h) / 1000000000  // mm³ → m³
+      break
+    case 'quantity':
     default:
       val = 1
+      break
   }
   
-  // 特殊规则提示（门套、投影等）
-  const specialKeywords = ['门套', '垭口套', '投影', '柜门', '赠送']
-  const isSpecial = specialKeywords.some(k => l2.includes(k))
-  
-  if (isSpecial) {
-    return `(自动: ${val.toFixed(4)} · 特殊规则适用)`
-  }
-  return `(自动: ${val.toFixed(4)})`
+  return Math.round(val * 10000) / 10000  // 保留4位小数
 }
+
+// 计量值预览文本
+const calcMeasurementPreview = () => {
+  if (itemForm.measurement_value != null && itemForm.measurement_value > 0) {
+    return '(已手动设置)'
+  }
+  const autoVal = calcMeasurementValue()
+  if (autoVal == null) return '(默认0 — 请输入尺寸参数)'
+  return `(自动: ${autoVal.toFixed(4)})`
+}
+
+// ========== watch: 定制参数变化时自动计算计量值 ==========
+watch(
+  () => [itemForm.custom_width, itemForm.custom_depth, itemForm.custom_height, itemForm.calc_type, itemForm.unit],
+  () => {
+    // 仅在用户未手动输入计量值时自动填充
+    if (itemForm.measurement_value == null || itemForm.measurement_value === 0) {
+      const autoVal = calcMeasurementValue()
+      if (autoVal != null) {
+        itemForm.measurement_value = autoVal
+      }
+    }
+  },
+  { deep: true }
+)
+
+// ========== watch: 工艺金额自动计算 ==========
+watch(
+  () => [itemForm.process_coefficient, itemForm.process_unit_price, itemForm.process_quantity],
+  () => {
+    const coef = Number(itemForm.process_coefficient || 0)
+    const price = Number(itemForm.process_unit_price || 0)
+    const qty = Number(itemForm.process_quantity || 1)
+    itemForm.process_amount = Math.round(coef * price * qty * 100) / 100
+  },
+  { deep: true }
+)
 
 // 保存物料（支持新增和编辑）
 const saveItem = async () => {
@@ -1552,11 +1595,39 @@ const skuLoading = ref(false)
 const skuPage = ref(1)
 const skuTotal = ref(0)
 
+// ========== 工艺选择器数据 ==========
+const craftOptions = ref([])  // 工艺下拉选项 {id, name, category, coefficient, unit_price, unit}
+const craftLoading = ref(false)
+
+// 加载工艺列表（用于工艺名称下拉选择）
+const loadCraftOptions = async () => {
+  try {
+    craftLoading.value = true
+    const res = await request.get('/crafts/all')
+    craftOptions.value = Array.isArray(res) ? res : (res?.data || [])
+  } catch (e) {
+    console.error('加载工艺失败', e)
+  } finally {
+    craftLoading.value = false
+  }
+}
+
+// 选择工艺时自动填充系数、单价等
+const onCraftSelected = (craftId) => {
+  if (!craftId) return
+  const craft = craftOptions.value.find(c => c.id === craftId)
+  if (!craft) return
+  itemForm.process_coefficient = craft.coefficient || 1
+  itemForm.process_unit_price = craft.unit_price || 0
+  itemForm.process_name = craft.name
+  // 工艺金额 = 系数 × 单价 × 数量（watch 中自动计算）
+}
+
 const searchSku = async (page = 1) => {
   try {
     skuLoading.value = true
     skuPage.value = page
-    const res = await request.get('/api/v3/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
+    const res = await request.get('/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
     // 拦截器已解包 res.data，res 直接是 {items, total, page, page_size}
     skuList.value = res.items || []
     skuTotal.value = res.total || 0
@@ -1584,12 +1655,15 @@ const selectSku = (sku) => {
   itemForm.material = sku.material || ''
   itemForm.image = sku.main_image || (sku.images && sku.images[0]) || ''
 
-  // 分类：category_name 是一级分类，需要从物料库分类体系获取二级分类
-  if (sku.category_name) {
+  // 分类路径（后端已返回 L1/L2）
+  if (sku.category_level1) {
+    itemForm.category_level1 = sku.category_level1
+  }
+  if (sku.category_level2) {
+    itemForm.category_level2 = sku.category_level2
+  } else if (sku.category_name) {
     itemForm.category_level1 = sku.category_name
   }
-  // 二级分类：从 name 中解析（如「澜缇集-P6防潮板-柜体-北筑」→ 一级=固装家具, 二级=衣柜柜体）
-  // SKU 本身只存 category_name（一级），二级需用户手动或从命名规则推断
 
   // 计量类型：从 SKU 的 calc_type 决定计量规则
   itemForm.calc_type = sku.calc_type || ''
@@ -1623,6 +1697,7 @@ onMounted(() => {
   loadAllEmployees()
   loadTemplates()
   loadMeasurementRules()
+  loadCraftOptions()  // 加载工艺选项
 })
 </script>
 
