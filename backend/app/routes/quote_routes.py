@@ -653,6 +653,7 @@ def add_item(current_user, quote_id):
 
     item = QuoteItem(
         quote_id=quote_id,
+        custom_name=data.get('custom_name'),
         room_name=data.get('room_name'),
         category_level1=data.get('category_level1'),
         category_level2=data.get('category_level2'),
@@ -673,6 +674,12 @@ def add_item(current_user, quote_id):
         custom_depth=data.get('custom_depth'),
         custom_height=data.get('custom_height'),
         custom_result=data.get('custom_result'),
+        process_name=data.get('process_name'),
+        process_coefficient=data.get('process_coefficient', 1),
+        process_quantity=data.get('process_quantity', 0),
+        process_unit=data.get('process_unit'),
+        process_unit_price=data.get('process_unit_price', 0),
+        process_amount=data.get('process_amount', 0),
         craft_type=data.get('craft_type'),
         craft_price=data.get('craft_price', 0),
         craft_quantity=data.get('craft_quantity', 1),
@@ -701,8 +708,10 @@ def update_item(current_user, quote_id, item_id):
     item = QuoteItem.query.get_or_404(item_id)
     data = request.get_json()
 
-    fields = ['room_name', 'category_level1', 'category_level2', 'category_level3',
+    fields = ['custom_name', 'room_name', 'category_level1', 'category_level2', 'category_level3',
               'name', 'spec', 'brand', 'unit', 'quantity', 'unit_price',
+              'process_name', 'process_coefficient', 'process_quantity',
+              'process_unit', 'process_unit_price', 'process_amount',
               'craft_type', 'craft_price', 'image', 'remark',
               'width', 'depth', 'height',
               'custom_width', 'custom_depth', 'custom_height', 'custom_result']

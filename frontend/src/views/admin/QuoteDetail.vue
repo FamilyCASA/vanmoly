@@ -233,30 +233,59 @@
           </div>
 
           <!-- 物料明细 -->
-          <el-table :data="activeSpace.items" stripe style="margin-top: 16px">
-            <el-table-column type="index" width="50" />
-            <el-table-column prop="sku_code" label="物料编码" width="140" />
-            <el-table-column prop="sku_name" label="物料名称" min-width="200" />
-            <el-table-column prop="brand" label="品牌" width="100" />
-            <el-table-column prop="specification" label="规格" width="120" />
-            <el-table-column prop="category" label="分类" width="80" />
-            <el-table-column prop="quantity" label="数量" width="80" align="right" />
-            <el-table-column prop="unit" label="单位" width="60" align="center" />
-            <el-table-column label="单价" width="100" align="right">
+          <el-table :data="activeSpace.items" stripe style="margin-top: 16px" border size="small">
+            <el-table-column type="index" width="45" label="#" />
+            <el-table-column prop="custom_name" label="自定义名称" min-width="120">
+              <template #default="{ row }">{{ row.custom_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="category_level1" label="第一类别" width="90">
+              <template #default="{ row }">{{ row.category_level1 || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="category_level2" label="第二类别" width="90">
+              <template #default="{ row }">{{ row.category_level2 || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="material_name" label="物料名称" min-width="120">
+              <template #default="{ row }">{{ row.material_name || row.sku_name || row.name || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="定制数据" width="140" align="center">
               <template #default="{ row }">
-                ¥{{ row.unit_price }}
+                <span v-if="row.custom_width || row.custom_depth || row.custom_height">
+                  {{ row.custom_width || '-' }}×{{ row.custom_depth || '-' }}×{{ row.custom_height || '-' }}
+                </span>
+                <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="金额" width="120" align="right">
-              <template #default="{ row }">
-                <span class="amount">¥{{ row.total_price }}</span>
-              </template>
+            <el-table-column prop="measurement_value" label="计量值" width="70" align="right">
+              <template #default="{ row }">{{ row.measurement_value || '-' }}</template>
             </el-table-column>
-            <el-table-column label="操作" width="180" v-if="quote.status === 'draft'">
+            <el-table-column prop="unit" label="单位" width="55" align="center" />
+            <el-table-column prop="quantity" label="数量" width="65" align="right" />
+            <el-table-column label="单价" width="80" align="right">
+              <template #default="{ row }">¥{{ row.unit_price }}</template>
+            </el-table-column>
+            <el-table-column prop="process_name" label="工艺名称" width="100">
+              <template #default="{ row }">{{ row.process_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="process_coefficient" label="工艺系数" width="75" align="right">
+              <template #default="{ row }">{{ row.process_coefficient != null && row.process_coefficient !== 1 ? row.process_coefficient : '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="process_quantity" label="工艺数量" width="75" align="right">
+              <template #default="{ row }">{{ row.process_quantity || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="工艺金额" width="80" align="right">
+              <template #default="{ row }">{{ row.process_amount ? '¥' + row.process_amount : '-' }}</template>
+            </el-table-column>
+            <el-table-column label="金额" width="100" align="right">
+              <template #default="{ row }"><span class="amount">¥{{ row.total_price || row.row_total }}</span></template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" width="100">
+              <template #default="{ row }">{{ row.remark || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="操作" width="140" fixed="right" v-if="quote.status === 'draft'">
               <template #default="{ row }">
-                <el-button link type="primary" @click="editItem(activeSpace, row)">编辑</el-button>
-                <el-button link type="success" @click="cloneItem(activeSpace, row)">克隆</el-button>
-                <el-button link type="danger" @click="deleteItem(activeSpace, row)">删除</el-button>
+                <el-button link type="primary" size="small" @click="editItem(activeSpace, row)">编辑</el-button>
+                <el-button link type="success" size="small" @click="cloneItem(activeSpace, row)">克隆</el-button>
+                <el-button link type="danger" size="small" @click="deleteItem(activeSpace, row)">删除</el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -300,27 +329,53 @@
             </el-row>
           </div>
 
-          <el-table :data="group.items" stripe style="margin-top: 16px">
-            <el-table-column type="index" width="50" />
-            <el-table-column prop="name" label="物料名称" min-width="200" />
-            <el-table-column prop="category_level1" label="分类" width="100">
+          <el-table :data="group.items" stripe style="margin-top: 16px" border size="small">
+            <el-table-column type="index" width="45" label="#" />
+            <el-table-column prop="custom_name" label="自定义名称" min-width="120">
+              <template #default="{ row }">{{ row.custom_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="category_level1" label="第一类别" width="90">
+              <template #default="{ row }">{{ row.category_level1 || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="category_level2" label="第二类别" width="90">
+              <template #default="{ row }">{{ row.category_level2 || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="material_name" label="物料名称" min-width="120">
+              <template #default="{ row }">{{ row.material_name || row.sku_name || row.name || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="定制数据" width="140" align="center">
               <template #default="{ row }">
-                {{ row.category_level1 || '-' }}
+                <span v-if="row.custom_width || row.custom_depth || row.custom_height">
+                  {{ row.custom_width || '-' }}×{{ row.custom_depth || '-' }}×{{ row.custom_height || '-' }}
+                </span>
+                <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="brand" label="品牌" width="100" />
-            <el-table-column prop="spec" label="规格" width="140" />
-            <el-table-column prop="quantity" label="数量" width="80" align="right" />
-            <el-table-column prop="unit" label="单位" width="60" align="center" />
-            <el-table-column label="单价" width="100" align="right">
-              <template #default="{ row }">
-                ¥{{ row.unit_price }}
-              </template>
+            <el-table-column prop="measurement_value" label="计量值" width="70" align="right">
+              <template #default="{ row }">{{ row.measurement_value || '-' }}</template>
             </el-table-column>
-            <el-table-column label="金额" width="120" align="right">
-              <template #default="{ row }">
-                <span class="amount">¥{{ row.total_price }}</span>
-              </template>
+            <el-table-column prop="unit" label="单位" width="55" align="center" />
+            <el-table-column prop="quantity" label="数量" width="65" align="right" />
+            <el-table-column label="单价" width="80" align="right">
+              <template #default="{ row }">¥{{ row.unit_price }}</template>
+            </el-table-column>
+            <el-table-column prop="process_name" label="工艺名称" width="100">
+              <template #default="{ row }">{{ row.process_name || '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="process_coefficient" label="工艺系数" width="75" align="right">
+              <template #default="{ row }">{{ row.process_coefficient != null && row.process_coefficient !== 1 ? row.process_coefficient : '-' }}</template>
+            </el-table-column>
+            <el-table-column prop="process_quantity" label="工艺数量" width="75" align="right">
+              <template #default="{ row }">{{ row.process_quantity || '-' }}</template>
+            </el-table-column>
+            <el-table-column label="工艺金额" width="80" align="right">
+              <template #default="{ row }">{{ row.process_amount ? '¥' + row.process_amount : '-' }}</template>
+            </el-table-column>
+            <el-table-column label="金额" width="100" align="right">
+              <template #default="{ row }"><span class="amount">¥{{ row.total_price || row.row_total }}</span></template>
+            </el-table-column>
+            <el-table-column prop="remark" label="备注" width="100">
+              <template #default="{ row }">{{ row.remark || '-' }}</template>
             </el-table-column>
           </el-table>
         </el-tab-pane>
@@ -430,6 +485,9 @@
     <!-- 编辑物料对话框 -->
     <el-dialog v-model="itemDialogVisible" :title="itemForm.id ? '编辑物料' : '新建物料'" width="680px">
       <el-form :model="itemForm" label-width="90px">
+        <el-form-item label="自定义名称">
+          <el-input v-model="itemForm.custom_name" placeholder="自定义显示名称（可选）" />
+        </el-form-item>
         <el-form-item label="物料名称">
           <div style="display:flex;gap:8px;width:100%">
             <el-input v-model="itemForm.name" placeholder="输入物料名称" />
@@ -439,34 +497,40 @@
         <el-form-item label="数量">
           <el-input-number v-model="itemForm.quantity" :min="0.1" :precision="2" />
         </el-form-item>
+        <el-form-item label="单位">
+          <el-input v-model="itemForm.unit" placeholder="项/m²/m/个" style="width:120px" />
+        </el-form-item>
         <el-form-item label="单价">
           <el-input-number v-model="itemForm.unit_price" :min="0" :precision="2" />
         </el-form-item>
         <el-divider content-position="left">定制参数</el-divider>
-        <el-form-item label="宽(mm)">
+        <el-form-item label="宽(cm)">
           <el-input-number v-model="itemForm.custom_width" :min="0" :precision="0" placeholder="定制宽度" />
         </el-form-item>
-        <el-form-item label="深(mm)">
+        <el-form-item label="深(cm)">
           <el-input-number v-model="itemForm.custom_depth" :min="0" :precision="0" placeholder="定制深度" />
         </el-form-item>
-        <el-form-item label="高(mm)">
+        <el-form-item label="高(cm)">
           <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
         </el-form-item>
-        <el-form-item label="定制结果">
-          <el-input v-model="itemForm.custom_result" placeholder="定制计算结果" />
+        <el-form-item label="计量值">
+          <el-input-number v-model="itemForm.measurement_value" :min="0" :precision="4" placeholder="自动/手动" />
         </el-form-item>
         <el-divider content-position="left">工艺信息</el-divider>
-        <el-form-item label="工艺类型">
-          <el-input v-model="itemForm.craft_type" placeholder="例如：烤漆、覆膜" />
-        </el-form-item>
-        <el-form-item label="工艺单价">
-          <el-input-number v-model="itemForm.craft_price" :min="0" :precision="2" />
-        </el-form-item>
-        <el-form-item label="工艺数量">
-          <el-input-number v-model="itemForm.craft_quantity" :min="0" :precision="2" />
+        <el-form-item label="工艺名称">
+          <el-input v-model="itemForm.process_name" placeholder="例如：烤漆、覆膜" />
         </el-form-item>
         <el-form-item label="工艺系数">
-          <el-input-number v-model="itemForm.craft_coefficient" :min="0" :precision="2" />
+          <el-input-number v-model="itemForm.process_coefficient" :min="0" :precision="3" placeholder="默认1" />
+        </el-form-item>
+        <el-form-item label="工艺数量">
+          <el-input-number v-model="itemForm.process_quantity" :min="0" :precision="2" />
+        </el-form-item>
+        <el-form-item label="工艺单价">
+          <el-input-number v-model="itemForm.process_unit_price" :min="0" :precision="2" />
+        </el-form-item>
+        <el-form-item label="工艺金额">
+          <el-input-number v-model="itemForm.process_amount" :min="0" :precision="2" />
         </el-form-item>
         <el-divider content-position="left">其他</el-divider>
         <el-form-item label="备注">
@@ -999,14 +1063,22 @@ const addItemToActiveSpace = () => {
   itemForm.id = null
   itemForm.space_id = activeSpace.value.id
   itemForm.sku_id = null
+  itemForm.custom_name = ''
   itemForm.name = ''
   itemForm.quantity = 1
   itemForm.unit_price = 0
+  itemForm.unit = ''
+  itemForm.measurement_value = null
   itemForm.remark = ''
   itemForm.custom_width = null
   itemForm.custom_depth = null
   itemForm.custom_height = null
   itemForm.custom_result = ''
+  itemForm.process_name = ''
+  itemForm.process_coefficient = null
+  itemForm.process_quantity = null
+  itemForm.process_unit_price = null
+  itemForm.process_amount = null
   itemForm.craft_type = ''
   itemForm.craft_price = 0
   itemForm.craft_quantity = null
@@ -1050,14 +1122,22 @@ const itemForm = reactive({
   id: null,
   space_id: null,
   sku_id: null,
+  custom_name: '',
   name: '',
   quantity: 1,
   unit_price: 0,
+  unit: '',
+  measurement_value: null,
   remark: '',
   custom_width: null,
   custom_depth: null,
   custom_height: null,
   custom_result: '',
+  process_name: '',
+  process_coefficient: null,
+  process_quantity: null,
+  process_unit_price: null,
+  process_amount: null,
   craft_type: '',
   craft_price: 0,
   craft_quantity: null,
@@ -1068,14 +1148,22 @@ const editItem = (space, item) => {
   itemForm.id = item.id
   itemForm.space_id = space.id || null
   itemForm.sku_id = item.sku_id || null
-  itemForm.name = item.name || item.sku_name || ''
+  itemForm.custom_name = item.custom_name || ''
+  itemForm.name = item.name || item.sku_name || item.material_name || ''
   itemForm.quantity = item.quantity
   itemForm.unit_price = item.unit_price
+  itemForm.unit = item.unit || ''
+  itemForm.measurement_value = item.measurement_value || null
   itemForm.remark = item.remark || ''
   itemForm.custom_width = item.custom_width || null
   itemForm.custom_depth = item.custom_depth || null
   itemForm.custom_height = item.custom_height || null
   itemForm.custom_result = item.custom_result || ''
+  itemForm.process_name = item.process_name || ''
+  itemForm.process_coefficient = item.process_coefficient || null
+  itemForm.process_quantity = item.process_quantity || null
+  itemForm.process_unit_price = item.process_unit_price || null
+  itemForm.process_amount = item.process_amount || null
   itemForm.craft_type = item.craft_type || ''
   itemForm.craft_price = item.craft_price || 0
   itemForm.craft_quantity = item.craft_quantity || null
