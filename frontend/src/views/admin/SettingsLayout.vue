@@ -54,6 +54,8 @@
         <SlideTemplateManage v-if="activeKey === 'slide-template'" />
         <!-- 特殊工艺数据库 -->
         <CraftProcessManage v-if="activeKey === 'craft'" />
+        <!-- 报价规则 -->
+        <QuoteRulesManage v-if="activeKey === 'quote-rules'" />
       </div>
     </div>
   </div>
@@ -62,7 +64,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import {
-  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp
+  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp, Document
 } from '@element-plus/icons-vue'
 import WorkflowTemplateManage from './WorkflowTemplateManage.vue'
 import CategoryManage from './CategoryManage.vue'
@@ -75,6 +77,7 @@ import PointsManage from './PointsManage.vue'
 import KnowledgeManage from './KnowledgeManage.vue'
 import SlideTemplateManage from './SlideTemplateManage.vue'
 import CraftProcessManage from './CraftProcessManage.vue'
+import QuoteRulesManage from './QuoteRulesManage.vue'
 
 const activeKey = ref('workflow')
 
@@ -134,6 +137,14 @@ const navItems = [
     icon: SetUp,
     bg: '#FFF2E8',
     color: '#FA541C'
+  },
+  {
+    key: 'quote-rules',
+    title: '报价规则',
+    desc: '报价模板与计量规则配置',
+    icon: Document,
+    bg: '#E6FFFB',
+    color: '#13C2C2'
   },
   {
     key: 'file',

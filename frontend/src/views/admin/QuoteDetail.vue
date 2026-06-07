@@ -130,55 +130,6 @@
       </el-row>
     </el-card>
 
-    <!-- 报价模板 -->
-    <el-card shadow="never" class="template-card" v-loading="loadingTemplates">
-      <template #header>
-        <div class="card-header">
-          <span>报价模板</span>
-          <el-button type="primary" size="small" @click="applyTemplate" :disabled="!selectedTemplateId">应用</el-button>
-        </div>
-      </template>
-      <div class="template-grid">
-        <div
-          v-for="tpl in templates"
-          :key="tpl.id"
-          class="template-item"
-          :class="{ active: selectedTemplateId === tpl.id }"
-          @click="selectedTemplateId = tpl.id"
-        >
-          <div class="template-preview">{{ tpl.template_type || '标准' }}</div>
-          <div class="template-name">{{ tpl.name }}</div>
-        </div>
-        <el-empty v-if="!templates.length" description="暂无模板" :image-size="60" />
-      </div>
-    </el-card>
-
-    <!-- 计量规则 -->
-    <el-card shadow="never" class="rules-card">
-      <template #header>
-        <div class="card-header">
-          <span>计量规则 <el-tag size="small" type="info">{{ measurementRules.length }}条</el-tag></span>
-          <div>
-            <el-button size="small" @click="showRulesEditor = true" :disabled="quote.status !== 'draft'">
-              <el-icon><Setting /></el-icon> 管理规则
-            </el-button>
-            <el-button size="small" @click="recalculateAll" :disabled="quote.status !== 'draft'">
-              <el-icon><Refresh /></el-icon> 重算全部
-            </el-button>
-          </div>
-        </div>
-      </template>
-      <div class="rules-list">
-        <div v-for="rule in measurementRules" :key="rule.id" class="rule-item">
-          <el-tag :type="ruleTypeTag(rule.rule_type)" size="small" class="rule-tag">{{ ruleTypeName(rule.rule_type) }}</el-tag>
-          <span class="rule-name">{{ rule.name }}</span>
-          <span class="rule-desc">{{ rule.description }}</span>
-          <el-tag size="small" :type="rule.is_enabled ? 'success' : 'info'">{{ rule.is_enabled ? '启用' : '禁用' }}</el-tag>
-        </div>
-        <el-empty v-if="!measurementRules.length" description="暂无规则" :image-size="50" />
-      </div>
-    </el-card>
-
     <!-- 报价空间 -->
     <el-card shadow="never" class="spaces-card" v-loading="loading">
       <template #header>
