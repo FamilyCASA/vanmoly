@@ -219,6 +219,12 @@ const routes = [
         meta: { title: '报价预览' }
       },
       {
+        path: 'quote-templates',
+        name: 'QuoteTemplateSettings',
+        component: () => import('@/views/admin/QuoteTemplateSettings.vue'),
+        meta: { title: '模板管理' }
+      },
+      {
         path: 'schemes',
         name: 'AdminSchemes',
         component: () => import('@/views/admin/SchemeManage.vue'),

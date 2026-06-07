@@ -99,6 +99,49 @@ def create_template(current_user):
     })
 
 
+@quote_bp.route('/templates/<int:template_id>', methods=['PUT'])
+@jwt_required_v2
+def update_template(current_user, template_id):
+    """更新模板"""
+    template = QuoteTemplate.query.get_or_404(template_id)
+    data = request.get_json()
+    if data.get('name'):
+        template.name = data['name']
+    if 'template_type' in data:
+        template.template_type = data['template_type']
+    if 'style_config' in data:
+        template.style_config = data['style_config']
+    if 'background_images' in data:
+        template.background_images = data['background_images']
+    if 'watermark_config' in data:
+        template.watermark_config = data['watermark_config']
+    if 'is_default' in data:
+        template.is_default = data['is_default']
+    if 'sort_order' in data:
+        template.sort_order = data['sort_order']
+    if 'is_enabled' in data:
+        template.is_enabled = data['is_enabled']
+    db.session.commit()
+    return jsonify({
+        'code': 200,
+        'message': '更新成功',
+        'data': template.to_dict()
+    })
+
+
+@quote_bp.route('/templates/<int:template_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_template(current_user, template_id):
+    """删除模板"""
+    template = QuoteTemplate.query.get_or_404(template_id)
+    db.session.delete(template)
+    db.session.commit()
+    return jsonify({
+        'code': 200,
+        'message': '删除成功'
+    })
+
+
 # ========== 报价管理 ==========
 
 @quote_bp.route('', methods=['GET'])

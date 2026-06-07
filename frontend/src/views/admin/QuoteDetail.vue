@@ -431,7 +431,10 @@
     <el-dialog v-model="itemDialogVisible" :title="itemForm.id ? '编辑物料' : '新建物料'" width="680px">
       <el-form :model="itemForm" label-width="90px">
         <el-form-item label="物料名称">
-          <el-input v-model="itemForm.name" placeholder="输入物料名称" />
+          <div style="display:flex;gap:8px;width:100%">
+            <el-input v-model="itemForm.name" placeholder="输入物料名称" />
+            <el-button @click="openMaterialPicker" type="info" plain>从库选择</el-button>
+          </div>
         </el-form-item>
         <el-form-item label="数量">
           <el-input-number v-model="itemForm.quantity" :min="0.1" :precision="2" />
@@ -474,6 +477,48 @@
         <el-button @click="itemDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="saveItem">保存</el-button>
       </template>
+    </el-dialog>
+
+    <!-- 物料选择器 -->
+    <el-dialog v-model="skuPickerVisible" title="从物料库选择" width="700px" append-to-body>
+      <div style="margin-bottom:12px">
+        <el-input
+          v-model="skuKeyword"
+          placeholder="搜索物料名称/编码/品牌"
+          clearable
+          @keyup.enter="searchSku()"
+          @clear="searchSku()"
+          style="width:300px"
+        >
+          <template #append>
+            <el-button @click="searchSku()" :loading="skuLoading">搜索</el-button>
+          </template>
+        </el-input>
+      </div>
+      <el-table :data="skuList" v-loading="skuLoading" max-height="400" highlight-current-row @row-click="selectSku">
+        <el-table-column prop="sku_code" label="编码" width="100" />
+        <el-table-column prop="name" label="名称" min-width="150" />
+        <el-table-column prop="brand" label="品牌" width="100" />
+        <el-table-column prop="specification" label="规格" width="120" />
+        <el-table-column prop="unit" label="单位" width="60" />
+        <el-table-column prop="sale_price" label="售价" width="80" align="right">
+          <template #default="{ row }">{{ row.sale_price?.toFixed(2) || '-' }}</template>
+        </el-table-column>
+        <el-table-column label="操作" width="80" align="center">
+          <template #default="{ row }">
+            <el-button type="primary" size="small" @click.stop="selectSku(row)">选择</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div style="margin-top:12px;text-align:right">
+        <el-pagination
+          v-model:current-page="skuPage"
+          :total="skuTotal"
+          :page-size="20"
+          layout="prev, pager, next"
+          @current-change="searchSku"
+        />
+      </div>
     </el-dialog>
   </div>
 </template>
@@ -1094,6 +1139,44 @@ const cloneItem = async (space, item) => {
   } catch (e) {
     if (e !== 'cancel') ElMessage.error(e.response?.data?.message || '克隆失败')
   }
+}
+
+// 物料选择器
+const skuPickerVisible = ref(false)
+const skuKeyword = ref('')
+const skuList = ref([])
+const skuLoading = ref(false)
+const skuPage = ref(1)
+const skuTotal = ref(0)
+
+const searchSku = async (page = 1) => {
+  try {
+    skuLoading.value = true
+    skuPage.value = page
+    const res = await request.get('/materials', { params: { keyword: skuKeyword.value, page, page_size: 20 } })
+    const data = res.data?.data || res.data
+    skuList.value = data.items || data || []
+    skuTotal.value = data.total || 0
+  } catch (e) {
+    console.error('搜索物料失败', e)
+  } finally {
+    skuLoading.value = false
+  }
+}
+
+const openMaterialPicker = () => {
+  skuPickerVisible.value = true
+  skuKeyword.value = ''
+  searchSku()
+}
+
+const selectSku = (sku) => {
+  itemForm.sku_id = sku.id
+  itemForm.name = sku.name
+  itemForm.unit_price = sku.sale_price || 0
+  if (sku.specification) itemForm.remark = sku.specification + (itemForm.remark ? '\n' + itemForm.remark : '')
+  skuPickerVisible.value = false
+  ElMessage.success(`已选择: ${sku.name}`)
 }
 
 onMounted(() => {
