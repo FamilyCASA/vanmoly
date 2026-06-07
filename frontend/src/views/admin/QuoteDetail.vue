@@ -89,6 +89,70 @@
       </el-form>
     </el-card>
 
+    <!-- 服务团队 -->
+    <el-card shadow="never" class="service-team-card" style="margin-top: 16px">
+      <template #header>
+        <div class="card-header">
+          <span>服务团队</span>
+          <el-button
+            v-if="quote.status === 'draft'"
+            type="primary"
+            size="small"
+            @click="saveServiceTeam"
+            :loading="savingServiceTeam"
+          >保存</el-button>
+        </div>
+      </template>
+      <el-row :gutter="16">
+        <el-col :span="6" v-for="role in SERVICE_TEAM_ROLES" :key="role.value">
+          <div class="team-role">
+            <div class="role-label">{{ role.label }}</div>
+            <el-select
+              v-if="quote.status === 'draft'"
+              v-model="serviceTeam[role.value]"
+              filterable
+              :placeholder="'选择' + role.label"
+              style="width:100%"
+              clearable
+            >
+              <el-option
+                v-for="e in allEmployees"
+                :key="e.id"
+                :label="e.name"
+                :value="e.id"
+              />
+            </el-select>
+            <div v-else class="role-value">
+              {{ getEmployeeName(serviceTeam[role.value]) || '未分配' }}
+            </div>
+          </div>
+        </el-col>
+      </el-row>
+    </el-card>
+
+    <!-- 报价模板 -->
+    <el-card shadow="never" class="template-card" v-loading="loadingTemplates">
+      <template #header>
+        <div class="card-header">
+          <span>报价模板</span>
+          <el-button type="primary" size="small" @click="applyTemplate" :disabled="!selectedTemplateId">应用</el-button>
+        </div>
+      </template>
+      <div class="template-grid">
+        <div
+          v-for="tpl in templates"
+          :key="tpl.id"
+          class="template-item"
+          :class="{ active: selectedTemplateId === tpl.id }"
+          @click="selectedTemplateId = tpl.id"
+        >
+          <div class="template-preview">{{ tpl.template_type || '标准' }}</div>
+          <div class="template-name">{{ tpl.name }}</div>
+        </div>
+        <el-empty v-if="!templates.length" description="暂无模板" :image-size="60" />
+      </div>
+    </el-card>
+
     <!-- 报价空间 -->
     <el-card shadow="never" class="spaces-card" v-loading="loading">
       <template #header>
@@ -188,9 +252,10 @@
                 <span class="amount">¥{{ row.total_price }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100" v-if="quote.status === 'draft'">
+            <el-table-column label="操作" width="180" v-if="quote.status === 'draft'">
               <template #default="{ row }">
                 <el-button link type="primary" @click="editItem(activeSpace, row)">编辑</el-button>
+                <el-button link type="success" @click="cloneItem(activeSpace, row)">克隆</el-button>
                 <el-button link type="danger" @click="deleteItem(activeSpace, row)">删除</el-button>
               </template>
             </el-table-column>
@@ -363,10 +428,10 @@
     </el-card>
 
     <!-- 编辑物料对话框 -->
-    <el-dialog v-model="itemDialogVisible" title="编辑物料" width="600px">
-      <el-form :model="itemForm" label-width="80px">
-        <el-form-item v-if="itemForm.name" label="物料名称">
-          <el-input :model-value="itemForm.name" readonly />
+    <el-dialog v-model="itemDialogVisible" :title="itemForm.id ? '编辑物料' : '新建物料'" width="680px">
+      <el-form :model="itemForm" label-width="90px">
+        <el-form-item label="物料名称">
+          <el-input v-model="itemForm.name" placeholder="输入物料名称" />
         </el-form-item>
         <el-form-item label="数量">
           <el-input-number v-model="itemForm.quantity" :min="0.1" :precision="2" />
@@ -374,6 +439,33 @@
         <el-form-item label="单价">
           <el-input-number v-model="itemForm.unit_price" :min="0" :precision="2" />
         </el-form-item>
+        <el-divider content-position="left">定制参数</el-divider>
+        <el-form-item label="宽(mm)">
+          <el-input-number v-model="itemForm.custom_width" :min="0" :precision="0" placeholder="定制宽度" />
+        </el-form-item>
+        <el-form-item label="深(mm)">
+          <el-input-number v-model="itemForm.custom_depth" :min="0" :precision="0" placeholder="定制深度" />
+        </el-form-item>
+        <el-form-item label="高(mm)">
+          <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
+        </el-form-item>
+        <el-form-item label="定制结果">
+          <el-input v-model="itemForm.custom_result" placeholder="定制计算结果" />
+        </el-form-item>
+        <el-divider content-position="left">工艺信息</el-divider>
+        <el-form-item label="工艺类型">
+          <el-input v-model="itemForm.craft_type" placeholder="例如：烤漆、覆膜" />
+        </el-form-item>
+        <el-form-item label="工艺单价">
+          <el-input-number v-model="itemForm.craft_price" :min="0" :precision="2" />
+        </el-form-item>
+        <el-form-item label="工艺数量">
+          <el-input-number v-model="itemForm.craft_quantity" :min="0" :precision="2" />
+        </el-form-item>
+        <el-form-item label="工艺系数">
+          <el-input-number v-model="itemForm.craft_coefficient" :min="0" :precision="2" />
+        </el-form-item>
+        <el-divider content-position="left">其他</el-divider>
         <el-form-item label="备注">
           <el-input v-model="itemForm.remark" type="textarea" :rows="2" />
         </el-form-item>
@@ -394,6 +486,13 @@ import {
   Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+
+const SERVICE_TEAM_ROLES = [
+  { value: 'designer', label: '设计师' },
+  { value: 'sales', label: '销售顾问' },
+  { value: 'project_manager', label: '项目经理' },
+  { value: 'construction_leader', label: '施工队长' }
+]
 
 const route = useRoute()
 const router = useRouter()
@@ -417,6 +516,48 @@ const basicForm = reactive({
   valid_until: ''
 })
 const customerOptions = ref([])
+
+// 服务团队（4个固定角色）
+const serviceTeam = reactive({
+  designer: null,
+  sales: null,
+  project_manager: null,
+  construction_leader: null
+})
+const allEmployees = ref([])
+const savingServiceTeam = ref(false)
+
+// 报价模板
+const templates = ref([])
+const selectedTemplateId = ref(null)
+const loadingTemplates = ref(false)
+
+const loadTemplates = async () => {
+  try {
+    loadingTemplates.value = true
+    const res = await request.get('/quotes/templates')
+    templates.value = res.data?.data || res.data || []
+    // 当前报价已选模板
+    if (quote.value?.cover_template_id) {
+      selectedTemplateId.value = quote.value.cover_template_id
+    }
+  } catch (e) {
+    console.error('加载模板失败', e)
+  } finally {
+    loadingTemplates.value = false
+  }
+}
+
+const applyTemplate = async () => {
+  if (!selectedTemplateId.value) return
+  try {
+    await request.put(`/quotes/${quoteId.value}`, { cover_template_id: selectedTemplateId.value })
+    ElMessage.success('模板已应用')
+    quote.value.cover_template_id = selectedTemplateId.value
+  } catch (e) {
+    ElMessage.error('应用模板失败')
+  }
+}
 
 // 当前激活的空间对象
 const activeSpace = computed(() => {
@@ -532,6 +673,7 @@ const loadQuote = async () => {
         const firstRoom = legacyGrouped.value[0]?.room_name
         if (firstRoom) activeLegacyRoom.value = firstRoom
       }
+      loadServiceTeam()
     }
   } catch (error) {
     ElMessage.error('加载报价失败')
@@ -574,6 +716,58 @@ const searchCustomers = async (query) => {
     const res = await request.get('/customers', { params: { keyword: query, page_size: 20 } })
     customerOptions.value = res.data || res || []
   } catch (e) { /* ignore */ }
+}
+
+// 服务团队
+const loadAllEmployees = async () => {
+  try {
+    const res = await request.get('/quotes/options')
+    allEmployees.value = res.data?.employees || []
+  } catch (e) { /* ignore */ }
+}
+
+const loadServiceTeam = () => {
+  const st = quote.value.service_team || []
+  serviceTeam.designer = null
+  serviceTeam.sales = null
+  serviceTeam.project_manager = null
+  serviceTeam.construction_leader = null
+  st.forEach(item => {
+    if (item.role && serviceTeam[item.role] !== undefined) {
+      serviceTeam[item.role] = item.employee_id || null
+    }
+  })
+}
+
+const saveServiceTeam = async () => {
+  savingServiceTeam.value = true
+  try {
+    const st = []
+    SERVICE_TEAM_ROLES.forEach(r => {
+      if (serviceTeam[r.value]) {
+        const emp = allEmployees.value.find(e => e.id === serviceTeam[r.value])
+        st.push({
+          role: r.value,
+          employee_id: serviceTeam[r.value],
+          name: emp ? emp.name : ''
+        })
+      }
+    })
+    await request.put(`/quotes/${quoteId.value}`, { service_team: st })
+    ElMessage.success('服务团队已保存')
+    loadQuote()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败')
+  } finally {
+    savingServiceTeam.value = false
+  }
+}
+
+// 获取员工姓名
+const getEmployeeName = (id) => {
+  if (!id) return ''
+  const emp = allEmployees.value.find(e => e.id === id)
+  return emp ? emp.name : ''
 }
 
 // 返回
@@ -759,9 +953,19 @@ const addItemToActiveSpace = () => {
   // 打开物料选择对话框
   itemForm.id = null
   itemForm.space_id = activeSpace.value.id
+  itemForm.sku_id = null
+  itemForm.name = ''
   itemForm.quantity = 1
   itemForm.unit_price = 0
   itemForm.remark = ''
+  itemForm.custom_width = null
+  itemForm.custom_depth = null
+  itemForm.custom_height = null
+  itemForm.custom_result = ''
+  itemForm.craft_type = ''
+  itemForm.craft_price = 0
+  itemForm.craft_quantity = null
+  itemForm.craft_coefficient = null
   itemDialogVisible.value = true
 }
 
@@ -800,26 +1004,37 @@ const itemDialogVisible = ref(false)
 const itemForm = reactive({
   id: null,
   space_id: null,
+  sku_id: null,
+  name: '',
   quantity: 1,
   unit_price: 0,
-  remark: ''
+  remark: '',
+  custom_width: null,
+  custom_depth: null,
+  custom_height: null,
+  custom_result: '',
+  craft_type: '',
+  craft_price: 0,
+  craft_quantity: null,
+  craft_coefficient: null
 })
 
 const editItem = (space, item) => {
   itemForm.id = item.id
-  // 旧格式没有 space 实例，只有 room 分组（无 .id），通过 useLegacyView 判断
   itemForm.space_id = space.id || null
+  itemForm.sku_id = item.sku_id || null
+  itemForm.name = item.name || item.sku_name || ''
   itemForm.quantity = item.quantity
   itemForm.unit_price = item.unit_price
   itemForm.remark = item.remark || ''
-  // 旧格式物料字段名：name/spec，而非 sku_name/specification
-  if (useLegacyView.value) {
-    itemForm.name = item.name
-    itemForm.spec = item.spec
-    itemForm.brand = item.brand
-    itemForm.unit = item.unit
-    itemForm.category_level1 = item.category_level1
-  }
+  itemForm.custom_width = item.custom_width || null
+  itemForm.custom_depth = item.custom_depth || null
+  itemForm.custom_height = item.custom_height || null
+  itemForm.custom_result = item.custom_result || ''
+  itemForm.craft_type = item.craft_type || ''
+  itemForm.craft_price = item.craft_price || 0
+  itemForm.craft_quantity = item.craft_quantity || null
+  itemForm.craft_coefficient = item.craft_coefficient || null
   itemDialogVisible.value = true
 }
 
@@ -865,8 +1080,26 @@ const deleteItem = async (space, item) => {
   }
 }
 
+const cloneItem = async (space, item) => {
+  try {
+    await ElMessageBox.confirm('确认克隆该物料？', '提示', { type: 'info' })
+    const payload = { ...item }
+    delete payload.id
+    const path = space.id
+      ? `/quotes/${quoteId.value}/spaces/${space.id}/items`
+      : `/quotes/${quoteId.value}/items`
+    await request.post(path, payload)
+    ElMessage.success('克隆成功')
+    loadQuote()
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error(e.response?.data?.message || '克隆失败')
+  }
+}
+
 onMounted(() => {
   loadQuote()
+  loadAllEmployees()
+  loadTemplates()
 })
 </script>
 
@@ -1071,4 +1304,62 @@ onMounted(() => {
   width: 100px;
 }
 
+/* 服务团队卡片 */
+.service-team-card .team-role {
+  text-align: center;
+  padding: 8px 4px;
+}
+.service-team-card .role-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 6px;
+}
+.service-team-card .role-value {
+  font-size: 14px;
+  color: #303133;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.template-card .template-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.template-card .template-item {
+  width: 120px;
+  border: 2px solid #e4e7ed;
+  border-radius: 8px;
+  padding: 12px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+}
+.template-card .template-item:hover {
+  border-color: #409eff;
+}
+.template-card .template-item.active {
+  border-color: #409eff;
+  background: #ecf5ff;
+}
+.template-card .template-preview {
+  height: 60px;
+  background: #f5f7fa;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  color: #909399;
+}
+.template-card .template-name {
+  font-size: 13px;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 </style>
