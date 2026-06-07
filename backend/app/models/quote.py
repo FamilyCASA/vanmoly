@@ -67,19 +67,19 @@ class Quote(db.Model):
     # }
 
     # 费用汇总
-    subtotal = db.Column(db.Numeric(12, 2), default=0, comment='小计')
-    management_fee = db.Column(db.Numeric(12, 2), default=0, comment='管理费')
-    management_fee_rate = db.Column(db.Numeric(5, 2), default=0, comment='管理费率%')
-    tax = db.Column(db.Numeric(12, 2), default=0, comment='税费')
-    tax_rate = db.Column(db.Numeric(5, 2), default=0, comment='税率%')
-    total_amount = db.Column(db.Numeric(12, 2), default=0, comment='总价')
+    subtotal = db.Column(db.Float, default=0, comment='小计')
+    management_fee = db.Column(db.Float, default=0, comment='管理费')
+    management_fee_rate = db.Column(db.Float, default=0, comment='管理费率%')
+    tax = db.Column(db.Float, default=0, comment='税费')
+    tax_rate = db.Column(db.Float, default=0, comment='税率%')
+    total_amount = db.Column(db.Float, default=0, comment='总价')
 
     # 签字信息
     signature_customer = db.Column(db.String(255), comment='客户签名')
     signature_planner = db.Column(db.String(255), comment='规划师签名')
     signature_manager = db.Column(db.String(255), comment='店长签名')
     signature_seal = db.Column(db.String(255), comment='电子公章')
-    signed_at = db.Column(db.DateTime, comment='签署时间')
+    signed_at = db.Column(db.String(30), comment='签署时间')
 
     # 状态
     status = db.Column(db.String(20), default='draft', comment='状态')
@@ -87,7 +87,7 @@ class Quote(db.Model):
 
     # 有效期
     valid_days = db.Column(db.Integer, default=30, comment='有效期天数')
-    expire_date = db.Column(db.Date, comment='过期日期')
+    expire_date = db.Column(db.String(20), comment='过期日期')
 
     # 创建人
     creator_id = db.Column(db.Integer, comment='创建人ID')
@@ -95,8 +95,8 @@ class Quote(db.Model):
 
     remark = db.Column(db.Text, comment='备注')
     is_deleted = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.String(30), default=lambda: datetime.utcnow().isoformat())
+    updated_at = db.Column(db.String(30), default=lambda: datetime.utcnow().isoformat())
 
     def to_dict(self, include_items=False):
         data = {
@@ -124,14 +124,14 @@ class Quote(db.Model):
             'signature_planner': self.signature_planner,
             'signature_manager': self.signature_manager,
             'signature_seal': self.signature_seal,
-            'signed_at': self.signed_at.isoformat() if self.signed_at else None,
+            'signed_at': self.signed_at if isinstance(self.signed_at, str) else (self.signed_at.isoformat() if self.signed_at else None),
             'status': self.status,
             'valid_days': self.valid_days,
-            'expire_date': self.expire_date.isoformat() if self.expire_date else None,
+            'expire_date': self.expire_date if isinstance(self.expire_date, str) else (self.expire_date.isoformat() if self.expire_date else None),
             'creator_id': self.creator_id,
             'creator_name': self.creator_name,
             'remark': self.remark,
-            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'created_at': self.created_at if isinstance(self.created_at, str) else (self.created_at.isoformat() if self.created_at else None),
         }
 
         if include_items:
@@ -180,33 +180,33 @@ class QuoteItem(db.Model):
     unit = db.Column(db.String(20), comment='单位')
 
     # 价格
-    quantity = db.Column(db.Numeric(10, 2), default=1, comment='数量')
-    unit_price = db.Column(db.Numeric(10, 2), default=0, comment='单价')
-    total_price = db.Column(db.Numeric(12, 2), default=0, comment='总价')
+    quantity = db.Column(db.Float, default=1, comment='数量')
+    unit_price = db.Column(db.Float, default=0, comment='单价')
+    total_price = db.Column(db.Float, default=0, comment='总价')
 
     # ====== V3.2 定制参数 ======
-    custom_width = db.Column(db.Numeric(8, 2), comment='定制参数-宽度(cm)')
-    custom_depth = db.Column(db.Numeric(8, 2), comment='定制参数-深度(cm)')
-    custom_height = db.Column(db.Numeric(8, 2), comment='定制参数-高度(cm)')
-    custom_result = db.Column(db.Numeric(10, 2), comment='定制参数计算结果')
+    custom_width = db.Column(db.Float, comment='定制参数-宽度(cm)')
+    custom_depth = db.Column(db.Float, comment='定制参数-深度(cm)')
+    custom_height = db.Column(db.Float, comment='定制参数-高度(cm)')
+    custom_result = db.Column(db.Float, comment='定制参数计算结果')
 
     # ====== V3.2 工艺增项字段 ======
     process_id = db.Column(db.Integer, comment='工艺增项ID')
     process_name = db.Column(db.String(100), comment='工艺增项名称')
-    process_coefficient = db.Column(db.Numeric(6, 3), default=1, comment='工艺系数（无特殊工艺默认1）')
-    process_quantity = db.Column(db.Numeric(8, 2), default=0, comment='工艺数量')
+    process_coefficient = db.Column(db.Float, default=1, comment='工艺系数（无特殊工艺默认1）')
+    process_quantity = db.Column(db.Float, default=0, comment='工艺数量')
     process_unit = db.Column(db.String(20), comment='工艺单位')
-    process_unit_price = db.Column(db.Numeric(10, 2), default=0, comment='工艺单价（无特殊工艺默认0）')
-    process_amount = db.Column(db.Numeric(10, 2), default=0, comment='工艺金额')
+    process_unit_price = db.Column(db.Float, default=0, comment='工艺单价（无特殊工艺默认0）')
+    process_amount = db.Column(db.Float, default=0, comment='工艺金额')
 
 
     # ====== V3.2 本行总金额 ======
-    row_total = db.Column(db.Numeric(12, 2), default=0, comment='本行总金额')
+    row_total = db.Column(db.Float, default=0, comment='本行总金额')
 
 
     # 工艺/定制（兼容旧字段）
     craft_type = db.Column(db.String(50), comment='工艺类型')
-    craft_price = db.Column(db.Numeric(10, 2), default=0, comment='工艺费')
+    craft_price = db.Column(db.Float, default=0, comment='工艺费')
 
     # 图片
     image = db.Column(db.String(500), comment='图片')
@@ -216,18 +216,18 @@ class QuoteItem(db.Model):
 
     sort_order = db.Column(db.Integer, default=0, comment='排序')
     tenant_id = db.Column(db.String(32), default='0', index=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.String(30), default=datetime.utcnow)
 
     # ====== V3.2 增强字段（兼容旧） ======
     # 定制尺寸（mm）- 兼容旧版
-    width = db.Column(db.Numeric(10, 2), comment='宽度mm')
-    depth = db.Column(db.Numeric(10, 2), comment='深度mm')
-    height = db.Column(db.Numeric(10, 2), comment='高度mm')
+    width = db.Column(db.Float, comment='宽度mm')
+    depth = db.Column(db.Float, comment='深度mm')
+    height = db.Column(db.Float, comment='高度mm')
     # 计量值：系统根据尺寸自动计算
-    measurement_value = db.Column(db.Numeric(12, 4), default=1, comment='计量值')
+    measurement_value = db.Column(db.Float, default=1, comment='计量值')
     # 工艺数量/系数 - 兼容旧版
-    craft_quantity = db.Column(db.Numeric(10, 2), default=1, comment='工艺数量')
-    craft_coefficient = db.Column(db.Numeric(5, 2), default=1, comment='工艺系数')
+    craft_quantity = db.Column(db.Float, default=1, comment='工艺数量')
+    craft_coefficient = db.Column(db.Float, default=1, comment='工艺系数')
 
     def to_dict(self):
         return {
@@ -325,7 +325,7 @@ class QuoteTemplate(db.Model):
     is_enabled = db.Column(db.Boolean, default=True)
     sort_order = db.Column(db.Integer, default=0)
 
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    created_at = db.Column(db.String(30), default=datetime.utcnow)
 
     def to_dict(self):
         return {

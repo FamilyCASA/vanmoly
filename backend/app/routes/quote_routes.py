@@ -334,6 +334,7 @@ def update_quote(current_user, id):
         'cover_config', 'project_name', 'project_address', 'house_type',
         'related_case_id', 'contract_no', 'cover_template_id',
         'service_team', 'category_summary',
+        'customer_name', 'customer_phone',
         'subtotal', 'management_fee', 'management_fee_rate',
         'tax', 'tax_rate', 'total_amount', 'valid_days', 'remark'
     ]
