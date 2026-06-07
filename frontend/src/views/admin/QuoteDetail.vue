@@ -1477,8 +1477,9 @@ const calcMeasurementValue = () => {
       val = (w || d || h) / 1000  // 取最大边转为米
       break
     case 'area':
-      val = (w * h) / 1000000   // 宽×高 → 平方米（mm²→m²）
-      if (!val && w && d) val = (w * d) / 1000000
+      // 取三个面中最大的面积：max(宽×深, 深×高, 宽×高) / 1000000 → ㎡
+      const areas = [w * d, d * h, w * h].filter(v => v > 0)
+      val = areas.length > 0 ? Math.max(...areas) / 1000000 : 0
       break
     case 'volume':
       val = (w * d * h) / 1000000000  // mm³ → m³
