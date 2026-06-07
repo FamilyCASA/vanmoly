@@ -1474,7 +1474,7 @@ const calcMeasurementValue = () => {
   let val = 0
   switch (calcType) {
     case 'length':
-      val = (w || d || h) / 1000  // 取最大边转为米
+      val = Math.max(w, d, h) / 1000  // 取最大边转为米
       break
     case 'area':
       // 取三个面中最大的面积：max(宽×深, 深×高, 宽×高) / 1000000 → ㎡
