@@ -1020,9 +1020,9 @@ const loadQuote = async () => {
         try {
           const itemsRes = await request.get(`/quotes/${quoteId.value}/space-instances/${space.id}/items`)
           const items = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || itemsRes?.data || [])
-          // 使用 Vue.set 或直接替换整个 spaces 数组以触发响应式更新
-          space.items = [...items]  // 展开运算符确保新数组触发响应式
-          console.log(`[loadQuote] 空间 ${space.id} 加载了 ${space.items.length} 个物料`)
+          space.items = [...items]
+          const itemIds = items.map(i => i.id)
+          console.log(`[loadQuote] 空间 ${space.id} 加载了 ${items.length} 个物料，ID列表:`, itemIds)
         } catch (e) {
           console.warn(`加载空间 ${space.id} 物料失败:`, e)
           space.items = []
@@ -1569,7 +1569,8 @@ const saveItem = async () => {
     }
     itemDialogVisible.value = false
     console.log('[saveItem] 调用 loadQuote() 刷新列表')
-    loadQuote()
+    await loadQuote()
+    console.log('[saveItem] 列表刷新完成')
   } catch (error) {
     console.error('[saveItem] 保存失败:', error)
     ElMessage.error(itemForm.id ? '保存失败' : '添加失败')
