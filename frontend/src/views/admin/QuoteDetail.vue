@@ -492,20 +492,26 @@
           <el-input-number v-model="itemForm.quantity" :min="0.1" :precision="2" />
         </el-form-item>
         <el-form-item label="单位">
-          <el-input v-model="itemForm.unit" placeholder="项/m²/m/个" style="width:120px" />
+          <el-input v-model="itemForm.unit" placeholder="项/m²/m/个" style="width:120px" @change="calcMeasurementValue" />
         </el-form-item>
         <el-form-item label="单价">
           <el-input-number v-model="itemForm.unit_price" :min="0" :precision="2" />
         </el-form-item>
         <el-divider content-position="left">定制参数</el-divider>
         <el-form-item label="宽(mm)">
-          <el-input-number v-model="itemForm.custom_width" :min="0" :precision="0" placeholder="定制宽度" />
+          <el-input-number v-model="itemForm.custom_width" :min="0" :precision="0" placeholder="定制宽度" @change="calcMeasurementValue" />
         </el-form-item>
         <el-form-item label="深(mm)">
-          <el-input-number v-model="itemForm.custom_depth" :min="0" :precision="0" placeholder="定制深度" />
+          <el-input-number v-model="itemForm.custom_depth" :min="0" :precision="0" placeholder="定制深度" @change="calcMeasurementValue" />
         </el-form-item>
         <el-form-item label="高(mm)">
-          <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" />
+          <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" @change="calcMeasurementValue" />
+        </el-form-item>
+        <el-form-item>
+          <el-button type="primary" @click="calcMeasurementValue" :loading="calcLoading">
+            <el-icon style="margin-right:4px"><Cpu /></el-icon> 计算计量值
+          </el-button>
+          <span style="margin-left: 12px; color: #909399; font-size: 12px">输入参数后点击计算</span>
         </el-form-item>
         <el-form-item label="计量值">
           <span style="font-size:16px;font-weight:600;color:#303133">{{ measurementCache }}</span>
@@ -702,7 +708,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled
+  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled, Cpu
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -1465,15 +1471,19 @@ const editItem = (space, item) => {
 
 // 计量值：调用后端规则引擎实时计算
 const measurementCache = ref(1)
+const calcLoading = ref(false)
 let calcDebounce = null
 
 const calcMeasurementValue = async () => {
+  calcLoading.value = true
   const w = Number(itemForm.custom_width || itemForm.width || 0)
   const d = Number(itemForm.custom_depth || itemForm.depth || 0)
   const h = Number(itemForm.custom_height || itemForm.height || 0)
   
+  console.log('[计量计算] 参数:', { w, d, h, unit: itemForm.unit, name: itemForm.name?.substring(0,20) })
+  
   // 无尺寸参数时返回默认1
-  if (!w && !d && !h) { measurementCache.value = 1; return 1 }
+  if (!w && !d && !h) { measurementCache.value = 1; calcLoading.value = false; return 1 }
   
   try {
     const res = await request.post('/quotes/measurement-calc', {
@@ -1485,11 +1495,14 @@ const calcMeasurementValue = async () => {
       material_name: itemForm.name || '',
       process_name: itemForm.process_name || ''
     })
-    const val = res?.data?.data?.measurement_value ?? res?.data?.measurement_value ?? 1
+    console.log('[计量计算] API响应:', res)
+    // 注意：request.js 响应拦截器已解包一层（return res.data），所以 res 直接就是后端的 data 字段
+    const val = res?.measurement_value ?? 1
     measurementCache.value = val
+    calcLoading.value = false
     return val
   } catch (e) {
-    console.warn('计量计算API调用失败，使用本地降级', e)
+    console.warn('[计量计算] API调用失败，使用本地降级', e)
     // 降级：本地简单计算
     const unit = (itemForm.unit || '').toLowerCase()
     let val = 1
@@ -1503,6 +1516,8 @@ const calcMeasurementValue = async () => {
     }
     measurementCache.value = Math.round(val*10000)/10000
     return measurementCache.value
+  } finally {
+    calcLoading.value = false
   }
 }
 
@@ -1533,6 +1548,8 @@ watch(
 // 保存物料（支持新增和编辑）
 const saveItem = async () => {
   try {
+    // 保存前强制重新计算计量值，确保使用最新参数
+    await calcMeasurementValue()
     // 同步计量值到表单
     itemForm.measurement_value = measurementCache.value
     if (itemForm.id) {
