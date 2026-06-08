@@ -1025,7 +1025,10 @@ const loadQuote = async () => {
       for (const space of spaces.value) {
         try {
           const itemsRes = await request.get(`/quotes/${quoteId.value}/space-instances/${space.id}/items`)
-          space.items = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || itemsRes?.data || [])
+          const items = Array.isArray(itemsRes) ? itemsRes : (itemsRes?.items || itemsRes?.data || [])
+          // 使用 Vue.set 或直接替换整个 spaces 数组以触发响应式更新
+          space.items = [...items]  // 展开运算符确保新数组触发响应式
+          console.log(`[loadQuote] 空间 ${space.id} 加载了 ${space.items.length} 个物料`)
         } catch (e) {
           console.warn(`加载空间 ${space.id} 物料失败:`, e)
           space.items = []
@@ -1548,28 +1551,33 @@ watch(
 // 保存物料（支持新增和编辑）
 const saveItem = async () => {
   try {
-    // 保存前强制重新计算计量值，确保使用最新参数
+    console.log('[saveItem] 开始保存，itemForm:', itemForm)
     await calcMeasurementValue()
-    // 同步计量值到表单
     itemForm.measurement_value = measurementCache.value
+    console.log('[saveItem] 计量值:', measurementCache.value)
+    
     if (itemForm.id) {
-      // 编辑模式：旧格式（space_id=null）走直连路径，新格式走 space-instances 路径
+      // 编辑模式
       const path = itemForm.space_id == null
         ? `/quotes/${quoteId.value}/items/${itemForm.id}`
         : `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`
-      await request.put(path, itemForm)
+      console.log('[saveItem] 编辑模式，PUT:', path)
+      const res = await request.put(path, itemForm)
+      console.log('[saveItem] 编辑成功:', res)
       ElMessage.success('保存成功')
     } else {
-      // 新增模式：POST（必须先有 space_id，新建 item 需要空间上下文）
-      await request.post(
-        `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`,
-        itemForm
-      )
+      // 新增模式
+      const path = `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`
+      console.log('[saveItem] 新增模式，POST:', path, '数据:', itemForm)
+      const res = await request.post(path, itemForm)
+      console.log('[saveItem] 添加成功:', res)
       ElMessage.success('添加成功')
     }
     itemDialogVisible.value = false
+    console.log('[saveItem] 调用 loadQuote() 刷新列表')
     loadQuote()
   } catch (error) {
+    console.error('[saveItem] 保存失败:', error)
     ElMessage.error(itemForm.id ? '保存失败' : '添加失败')
   }
 }

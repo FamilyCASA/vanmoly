@@ -179,15 +179,22 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
 
 
 def calc_item_total_price(item, rules=None):
-    """计算单项总价: qty * measurement_value * unit_price + craft_amount(受赠送规则影响)"""
+    """计算单项总价: qty * measurement_value * process_coefficient * unit_price + process_quantity * process_unit_price"""
     qty = float(item.quantity or 1)
     m_val = float(item.measurement_value or 1)
+    p_coef = float(item.process_coefficient or 1)  # 工艺系数，默认1
     u_price = float(item.unit_price or 0)
 
-    # 工艺金额
-    process_amount = float(item.process_amount or 0)
+    # 基础金额 = 数量 × 计量值 × 工艺系数 × 单价
+    base_amount = qty * m_val * p_coef * u_price
+
+    # 工艺金额 = 工艺数量 × 工艺单价
+    process_qty = float(item.process_quantity or 0)
+    process_unit_price = float(item.process_unit_price or 0)
+    process_amount = process_qty * process_unit_price
+
+    # 检查赠送规则（工艺金额归零）
     if process_amount > 0:
-        # 检查赠送规则
         if rules is None:
             rules = _get_measurement_rules()
         process_name = getattr(item, 'process_name', None) or ''
@@ -198,7 +205,7 @@ def calc_item_total_price(item, rules=None):
                     process_amount = 0
                     break
 
-    return round(qty * m_val * u_price + process_amount, 2)
+    return round(base_amount + process_amount, 2)
 
 
 # ========== 报价模板 ==========
