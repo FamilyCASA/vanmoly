@@ -507,12 +507,6 @@
         <el-form-item label="高(mm)">
           <el-input-number v-model="itemForm.custom_height" :min="0" :precision="0" placeholder="定制高度" @change="calcMeasurementValue" />
         </el-form-item>
-        <el-form-item>
-          <el-button type="primary" @click="calcMeasurementValue" :loading="calcLoading">
-            <el-icon style="margin-right:4px"><Cpu /></el-icon> 计算计量值
-          </el-button>
-          <span style="margin-left: 12px; color: #909399; font-size: 12px">输入参数后点击计算</span>
-        </el-form-item>
         <el-form-item label="计量值">
           <span style="font-size:16px;font-weight:600;color:#303133">{{ measurementCache }}</span>
           <span style="margin-left: 8px; color: #909399; font-size: 12px">{{ itemForm.unit || '' }}</span>
@@ -708,7 +702,7 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled, Cpu
+  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
