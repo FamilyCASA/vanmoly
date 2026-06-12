@@ -539,7 +539,7 @@ DEFAULT_MEASUREMENT_RULES = [
         'match_value': '投影',
         'match_field': 'category_level2',
         'rule_type': 'adjust_height',
-        'rule_params': {'thresholds': [{'min': 0, 'adjust_to': 1000}, {'min': 500, 'adjust_to': 500}]},
+        'rule_params': {'thresholds': [{'min': 500, 'adjust_to': 500}, {'min': 1000, 'adjust_to': 1000}]},
         'priority': 20,
     },
     {
