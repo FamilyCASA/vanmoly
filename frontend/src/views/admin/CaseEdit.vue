@@ -361,6 +361,11 @@
                 <el-button type="primary" link @click="addPriceItem" style="margin-top: 12px">
                   <el-icon><Plus /></el-icon>添加明细
                 </el-button>
+                <div style="margin-top:12px;text-align:right">
+                  <el-button type="warning" @click="showTemplateImportDialog = true">
+                    <el-icon><Upload /></el-icon>导入空间物料模板
+                  </el-button>
+                </div>
               </el-form-item>
             </el-form>
           </el-tab-pane>
@@ -860,11 +865,76 @@
         <el-button type="primary" @click="saveImageDescription">保存简介</el-button>
       </template>
     </el-dialog>
+
+    <!-- 空间模板导入对话框 -->
+    <el-dialog v-model="showTemplateImportDialog" title="导入空间物料模板" width="860px">
+      <div style="margin-bottom:12px;display:flex;gap:8px;align-items:center">
+        <el-select v-model="importSpaceType" placeholder="空间类型" clearable style="width:140px">
+          <el-option label="客厅" value="living" />
+          <el-option label="主卧" value="master_bedroom" />
+          <el-option label="次卧" value="second_bedroom" />
+          <el-option label="厨房" value="kitchen" />
+          <el-option label="餐厅" value="dining" />
+          <el-option label="书房" value="study" />
+          <el-option label="卫生间" value="bathroom" />
+          <el-option label="阳台" value="balcony" />
+          <el-option label="玄关" value="entryway" />
+          <el-option label="衣帽间" value="closet" />
+        </el-select>
+        <el-input v-model="importKeyword" placeholder="搜索模板名称" clearable style="width:180px">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button @click="loadImportTemplates">搜索</el-button>
+      </div>
+
+      <el-table ref="importTableRef" :data="importTemplates" border size="small" v-loading="importLoading" max-height="360">
+        <el-table-column width="50" align="center">
+          <template #default="{ row }">
+            <el-checkbox v-model="row._selected" @change="() => {}" />
+          </template>
+        </el-table-column>
+        <el-table-column prop="name" label="模板名称" min-width="160" />
+        <el-table-column prop="space_name" label="空间" width="90">
+          <template #default="{ row }">{{ importSpaceTypeLabel(row.space_type) }}</template>
+        </el-table-column>
+        <el-table-column prop="version_level" label="档位" width="70">
+          <template #default="{ row }">
+            <el-tag size="small" type="warning">{{ row.version_level }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column prop="material_count" label="物料数" width="70" align="center" />
+        <el-table-column prop="total_price" label="空间总价" width="110" align="right">
+          <template #default="{ row }">¥{{ (row.total_price || 0).toLocaleString() }}</template>
+        </el-table-column>
+        <el-table-column label="物料预览" min-width="160">
+          <template #default="{ row }">
+            <span class="import-preview">{{ getImportMaterialPreview(row.items) }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+      <el-pagination
+        v-if="importTotal > 0"
+        v-model:current-page="importPage"
+        :page-size="importPageSize"
+        :total="importTotal"
+        layout="prev,pager,next"
+        style="margin-top:12px"
+        @current-change="loadImportTemplates"
+      />
+      <div v-if="selectedImportTemplates.length > 0" class="import-summary">
+        已选 {{ selectedImportTemplates.length }} 个空间，共 {{ selectedImportTemplates.reduce((s,r) => s + (r.material_count||0), 0) }} 项物料，
+        合计 ¥{{ selectedImportTemplates.reduce((s,r) => s + (r.total_price||0), 0).toLocaleString() }}
+      </div>
+      <template #footer>
+        <el-button @click="showTemplateImportDialog = false">取消</el-button>
+        <el-button type="primary" @click="confirmImportTemplates" :loading="importing">确认导入 ({{ selectedImportTemplates.length }})</el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { ArrowLeft, Plus, View, Upload, ArrowRight, Close } from '@element-plus/icons-vue'
@@ -1416,6 +1486,99 @@ const handleMediaRemove = (file, fileList) => {
 // 图片预览
 const previewVisible = ref(false)
 const previewUrl = ref('')
+
+// 空间模板导入
+const showTemplateImportDialog = ref(false)
+const importLoading = ref(false)
+const importSpaceType = ref('')
+const importKeyword = ref('')
+const importPage = ref(1)
+const importPageSize = ref(20)
+const importTotal = ref(0)
+const importTemplates = ref([])
+const importing = ref(false)
+
+const importSpaceTypeLabel = (type) => {
+  const map = {
+    living: '客厅', master_bedroom: '主卧', second_bedroom: '次卧',
+    children: '儿童房', kitchen: '厨房', dining: '餐厅',
+    study: '书房', bathroom: '卫生间', balcony: '阳台',
+    entryway: '玄关', closet: '衣帽间'
+  }
+  return map[type] || type || '-'
+}
+
+const getImportMaterialPreview = (items) => {
+  if (!items || items.length === 0) return '-'
+  const names = items.slice(0, 3).map(it => it.name).join('、')
+  return items.length > 3 ? `${names}...` : names
+}
+
+const selectedImportTemplates = computed(() =>
+  importTemplates.value.filter(t => t._selected)
+)
+
+const loadImportTemplates = async () => {
+  try {
+    importLoading.value = true
+    const params = {
+      page: importPage.value,
+      page_size: importPageSize.value,
+      space_type: importSpaceType.value || undefined,
+      keyword: importKeyword.value || undefined
+    }
+    const res = await request.get('/quotes/space-templates', { params })
+    const data = res.data?.data || res.data || {}
+    importTemplates.value = (data.items || []).map(t => ({ ...t, _selected: t._selected || false }))
+    importTotal.value = data.total || 0
+  } catch (e) {
+    ElMessage.error('加载模板失败')
+  } finally {
+    importLoading.value = false
+  }
+}
+
+const confirmImportTemplates = async () => {
+  const selected = selectedImportTemplates.value
+  if (selected.length === 0) {
+    ElMessage.warning('请先选择要导入的模板')
+    return
+  }
+  try {
+    importing.value = true
+    const templateIds = selected.map(t => t.id)
+    const res = await request.post('/quotes/space-templates/import-to-case', { template_ids: templateIds })
+    const { templates: importedTemplates, total_price } = res.data.data
+    
+    // 将导入的物料添加到造价明细
+    for (const tpl of importedTemplates) {
+      priceDetailList.value.push({
+        item: `[${tpl.space_name || importSpaceTypeLabel(tpl.space_type)}] ${tpl.template_name}`,
+        desc: `含 ${tpl.material_count} 项物料`,
+        amount: tpl.total_price || 0
+      })
+    }
+    // 累加到案例总价
+    caseData.total_price = (caseData.total_price || 0) + total_price
+    
+    ElMessage.success(`成功导入 ${importedTemplates.length} 个空间模板，共 ¥${total_price.toLocaleString()}`)
+    showTemplateImportDialog.value = false
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '导入失败')
+  } finally {
+    importing.value = false
+  }
+}
+
+// 监听打开对话框时加载数据
+watch(showTemplateImportDialog, (val) => {
+  if (val) {
+    importPage.value = 1
+    importSpaceType.value = ''
+    importKeyword.value = ''
+    loadImportTemplates()
+  }
+})
 
 // 图片简介编辑
 const showImageDescDialog = ref(false)

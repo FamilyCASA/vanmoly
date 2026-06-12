@@ -8,9 +8,9 @@ import math
 from datetime import datetime
 from decimal import Decimal
 
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, landscape
 from reportlab.lib.units import mm
-from reportlab.lib.colors import HexColor, white, black, Color
+from reportlab.lib.colors import HexColor, white, black, Color, red as colors_red
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.platypus import (
     SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer,
@@ -21,13 +21,26 @@ from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 
 # ─── Font registration ────────────────────────────────────────────────────────
-FONT_DIR = r'C:\Windows\Fonts'
+import platform
+_system = platform.system()
+if _system == 'Windows':
+    FONT_DIR = r'C:\Windows\Fonts'
+    _simhei = os.path.join(FONT_DIR, 'simhei.ttf')
+    _simsun = os.path.join(FONT_DIR, 'simsun.ttc')
+elif _system == 'Darwin':  # macOS
+    _simhei = '/System/Library/Fonts/STHeiti Medium.ttc'
+    _simsun = '/System/Library/Fonts/Supplemental/Songti.ttc'
+else:
+    _simhei = ''
+    _simsun = ''
+
 try:
-    pdfmetrics.registerFont(TTFont('SimHei', os.path.join(FONT_DIR, 'simhei.ttf')))
-    pdfmetrics.registerFont(TTFont('SimSun', os.path.join(FONT_DIR, 'simsun.ttc')))
+    pdfmetrics.registerFont(TTFont('SimHei', _simhei))
+    pdfmetrics.registerFont(TTFont('SimSun', _simsun))
     CN_FONT = 'SimHei'
     CN_FONT_BODY = 'SimSun'
-except Exception:
+except Exception as e:
+    print(f'[PDF] Font registration failed: {e}')
     CN_FONT = 'Helvetica-Bold'
     CN_FONT_BODY = 'Helvetica'
 
@@ -223,12 +236,29 @@ def _cover_page(story, quote, styles, is_visitor):
         story.append(Spacer(1, 8*mm))
         story.append(Paragraph('服务团队', styles['CNSec']))
         team_data = [['角色', '姓名', '联系电话']]
+        # 补全员工信息（兼容旧数据只有 employee_id 的情况）
+        _role_map = {
+            'quoter': '报价员', 'designer': '审核', 'planner': '全案规划师',
+            'designer_3d': '效果图设计师', 'project_manager': '全案设计师'
+        }
+        _emp_cache = {}
         for m in quote.service_team:
-            team_data.append([
-                m.get('role_name', ''),
-                m.get('name', ''),
-                m.get('phone', ''),
-            ])
+            role_name = m.get('role_name') or _role_map.get(m.get('role',''), '')
+            name = m.get('name', '')
+            phone = m.get('phone', '')
+            # 如果缺少姓名，尝试从数据库查询
+            if not name and m.get('employee_id'):
+                eid = m['employee_id']
+                if eid not in _emp_cache:
+                    try:
+                        from app.models.employee import Employee
+                        emp = Employee.query.get(eid)
+                        _emp_cache[eid] = {'name': emp.name, 'phone': getattr(emp,'phone','') or ''} if emp else {}
+                    except Exception:
+                        _emp_cache[eid] = {}
+                name = _emp_cache[eid].get('name', '')
+                phone = _emp_cache[eid].get('phone', '')
+            team_data.append([role_name, name, phone])
         tt = Table(team_data, colWidths=[38*mm, 50*mm, 52*mm])
         tt.setStyle(TableStyle([
             ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
@@ -419,65 +449,248 @@ def _cat_table(items, is_visitor, styles, show_ref=True):
     return tbl, total
 
 
+def _money_to_chinese(n):
+    """金额转中文大写（PDF端）"""
+    if not n or n == 0:
+        return '零元整'
+    digits = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+    units = ['', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿']
+    s = '{:.2f}'.format(abs(float(n)))
+    int_part, dec_part = s.split('.')
+    r = ''
+    for i, ch in enumerate(int_part):
+        d = int(ch)
+        ui = len(int_part) - 1 - i
+        r += digits[d] + units[ui]
+    import re
+    r = re.sub(r'零+$', '', r)
+    r = re.sub(r'零{2,}', '零', r)
+    if dec_part and dec_part != '00':
+        for i, ch in enumerate(dec_part[:2]):
+            d = int(ch)
+            if d != 0:
+                r += digits[d] + ('角' if i == 0 else '分')
+    r += '元整'
+    return r
+
+
 def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
-    """Build the category summary section (one continuous flow, page-breaks auto)."""
+    """
+    分类汇总页 — 重构版：
+      费用汇总区：一级分类合计 + 缩进显示各二级分类明细（仅物料金额）
+      其他费用区：仅含工艺费用、管理费、税额、优惠（纯费用项目）
+      最后总价大写。
+    """
+    from app.models.material_sku import MaterialCategory as MC
+    from sqlalchemy import or_ as sql_or
+    from collections import OrderedDict
+
     grouped = _group_by_category(items)
 
-    # Build ordered cat list from DB sort_order
-    from app.models.material_sku import MaterialCategory
-    from sqlalchemy import or_ as sql_or
-    cats = MaterialCategory.query.filter(
-        MaterialCategory.parent_id.is_(None),
-        sql_or(MaterialCategory.is_deleted == False,
-               MaterialCategory.is_deleted.is_(None)),
-        MaterialCategory.is_enabled == True
-    ).order_by(MaterialCategory.sort_order).all()
+    # 构建有序一级分类列表
+    cats = MC.query.filter(
+        MC.parent_id.is_(None),
+        sql_or(MC.is_deleted == False, MC.is_deleted.is_(None)),
+        MC.is_enabled == True
+    ).order_by(MC.sort_order).all()
 
-    # Map L1 id → display name
-    cat_id_to_key = {}
-    for c in cats:
-        cat_id_to_key[c.id] = c.name  # e.g. 1→'全案服务'
+    # 构建有序二级分类列表（全部启用）
+    all_l2 = MC.query.filter(
+        MC.parent_id.isnot(None),
+        sql_or(MC.is_deleted == False, MC.is_deleted.is_(None)),
+        MC.is_enabled == True
+    ).order_by(MC.sort_order).all()
+    l2_order = [c.name for c in all_l2]
 
     grand_total = Decimal('0')
-    cat_totals = []
+    cat_rows = []       # [(一级分类名, 金额, [(二级名, 金额), ...])]
 
     for cat in cats:
-        cat_key = cat.name  # e.g. '全案服务'
+        cat_key = cat.name
         cat_items = grouped.get(cat_key, [])
-        # Also check via CAT_MAP for legacy keys
         if not cat_items:
             for k, v in CAT_MAP.items():
-                if v == cat_key:
+                if v == cat_key and grouped.get(k):
                     cat_items = grouped.get(k, [])
-                    if cat_items:
-                        break
-
+                    break
         if not cat_items:
             continue
-
-        story.append(Paragraph(cat_key, styles['CNSec']))
-        tbl, ct = _cat_table(cat_items, is_visitor, styles, show_ref)
+        ct = sum(Decimal(str(it.total_price or 0)) for it in cat_items)
         grand_total += ct
-        cat_totals.append((cat_key, ct))
-        story.append(tbl)
-        story.append(Spacer(1, 3*mm))
 
-    # Grand total line
-    story.append(Spacer(1, 6*mm))
-    label = '参考总价' if is_visitor else '报价总计'
+        # 二级分类明细（按系统顺序排列）
+        l2_grouped = OrderedDict()
+        for it in cat_items:
+            l2 = it.category_level2 or '其他'
+            l2_grouped.setdefault(l2, []).append(it)
+        l2_detail = []
+        for l2_name in l2_order:
+            if l2_name in l2_grouped:
+                l2_amt = sum(Decimal(str(it.total_price or 0)) for it in l2_grouped[l2_name])
+                l2_detail.append((l2_name, l2_amt))
+        # 未在系统中的二级分类
+        for l2_name, l2_items in l2_grouped.items():
+            if l2_name not in l2_order:
+                l2_amt = sum(Decimal(str(it.total_price or 0)) for it in l2_items)
+                l2_detail.append((l2_name, l2_amt))
+
+        cat_rows.append((cat_key, ct, l2_detail))
+
+    # 未归类的一级分类
+    for gk, gitems in grouped.items():
+        if not any(gk == cr[0] or CAT_MAP.get(gk) == cr[0] for cr in cat_rows):
+            ct = sum(Decimal(str(it.total_price or 0)) for it in gitems)
+            grand_total += ct
+            display_name = CAT_MAP.get(gk, gk)
+            cat_rows.append((display_name, ct, []))
+
+    # ════════════════════════════════════════════
+    #  第一部分：费用汇总（一级分类 + 二级缩进）
+    # ════════════════════════════════════════════
+    story.append(Spacer(1, 4*mm))
+    story.append(Paragraph('<b>费用汇总</b>', styles['CNSec']))
+    story.append(Spacer(1, 2*mm))
+
+    summary_data = []
+    s_style_L = ParagraphStyle('SumL', fontName=CN_FONT_BODY, fontSize=10, leading=14)
+    s_style_R = ParagraphStyle('SumR', fontName=CN_FONT_BODY, fontSize=10, leading=14, alignment=TA_RIGHT)
+    s_style_L2 = ParagraphStyle('SumL2', fontName=CN_FONT_BODY, fontSize=9, leading=12,
+                                leftIndent=8, textColor=MID_GRAY)
+    s_style_R2 = ParagraphStyle('SumR2', fontName=CN_FONT_BODY, fontSize=9, leading=12,
+                                alignment=TA_RIGHT, textColor=MID_GRAY)
+
+    for cname, amt, l2_detail in cat_rows:
+        summary_data.append([Paragraph(cname, s_style_L), Paragraph(_ymoney(amt), s_style_R)])
+        # 二级分类缩进显示
+        for l2_name, l2_amt in l2_detail:
+            summary_data.append([Paragraph(f'  ├ {l2_name}', s_style_L2), Paragraph(_ymoney(l2_amt), s_style_R2)])
+
+    if summary_data:
+        stbl = Table(summary_data, colWidths=[80*mm, 50*mm])
+        stbl.setStyle(TableStyle([
+            ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
+            ('FONTSIZE',(0,0),(-1,-1), 10),
+            ('ALIGN',(0,0),(0,-1),'LEFT'),
+            ('ALIGN',(1,0),(1,-1),'RIGHT'),
+            ('BOTTOMPADDING',(0,0),(-1,-1), 3),
+            ('TOPPADDING',(0,0),(-1,-1), 3),
+            ('LINEBELOW',(0,0),(-1,-1), 0.3, LIGHT_GRAY),
+        ]))
+        story.append(stbl)
+
+    # ════════════════════════════════════════════
+    #  第二部分：其他费用（纯费用项，不含物料分类）
+    # ════════════════════════════════════════════
+    if not is_visitor:
+        story.append(Spacer(1, 6*mm))
+        story.append(Paragraph('<b>其他费用</b>', styles['CNSec']))
+        story.append(Spacer(1, 2*mm))
+
+        quote = globals().get('quote_obj')
+
+        # 计算工艺费用
+        craft_total = Decimal('0')
+        for it in items:
+            if getattr(it, 'item_type', '') in ('craft', 'process'):
+                craft_total += Decimal(str(it.total_price or 0))
+                continue
+            p_coef = float(getattr(it, 'process_coefficient', None) or 1)
+            p_qty = float(getattr(it, 'process_quantity', None) or 0)
+            p_uprice = float(getattr(it, 'process_unit_price', None) or 0)
+            tp = Decimal(str(it.total_price or 0))
+            if p_coef > 1 or p_qty > 0:
+                base_amt = tp / Decimal(str(p_coef)) if p_coef > 1 else tp
+                craft_total += (tp - base_amt) + Decimal(str(p_qty * p_uprice))
+
+        extra_data = []
+        e_style_L = ParagraphStyle('ExtL', fontName=CN_FONT_BODY, fontSize=9, leading=13)
+        e_style_R = ParagraphStyle('ExtR', fontName=CN_FONT_BODY, fontSize=9, leading=13, alignment=TA_RIGHT)
+
+        # 工艺费用
+        if craft_total > 0:
+            extra_data.append([
+                Paragraph('工艺费用', e_style_L),
+                Paragraph(_ymoney(craft_total), e_style_R),
+            ])
+
+        # 管理费
+        mgmt_rate = float(getattr(quote, 'manage_rate', 0) or getattr(quote, 'management_fee_rate', 0) or 0) if quote else 0
+        mgmt_fee = Decimal(str(getattr(quote, 'manage_amount', 0) or getattr(quote, 'management_fee', 0) or 0)) if quote else Decimal('0')
+        if mgmt_rate and not mgmt_fee:
+            mgmt_fee = (grand_total * Decimal(str(mgmt_rate))) / Decimal('100')
+        if mgmt_fee > 0:
+            extra_data.append([
+                Paragraph(f'管理费 ({mgmt_rate}%)', e_style_L),
+                Paragraph(_ymoney(mgmt_fee), e_style_R),
+            ])
+
+        # 税额
+        tax_val = Decimal(str(getattr(quote, 'tax_amount', 0) or getattr(quote, 'tax', 0) or 0)) if quote else Decimal('0')
+        tax_rate = float(getattr(quote, 'tax_rate', 0) or 0) if quote else 0
+        if tax_rate and not tax_val:
+            tax_val = ((grand_total + mgmt_fee) * Decimal(str(tax_rate))) / Decimal('100')
+        if tax_val > 0:
+            extra_data.append([
+                Paragraph(f'税额 ({tax_rate}%)', e_style_L),
+                Paragraph(_ymoney(tax_val), e_style_R),
+            ])
+
+        # 优惠
+        discount_rate = float(getattr(quote, 'discount_rate', 0) or 0) if quote else 0
+        discount = Decimal('0')
+        if quote and discount_rate > 0:
+            discount = round((grand_total + mgmt_fee) * Decimal(str(discount_rate)) / Decimal('100'), 2)
+        if discount > 0:
+            extra_data.append([
+                Paragraph(f'优惠 ({discount_rate}%)', e_style_L),
+                Paragraph('-' + _ymoney(discount), ParagraphStyle('ExtRd', fontName=CN_FONT_BODY, fontSize=9, leading=13, alignment=TA_RIGHT, textColor=colors_red)),
+            ])
+
+        if extra_data:
+            etbl = Table(extra_data, colWidths=[80*mm, 50*mm])
+            etbl.setStyle(TableStyle([
+                ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
+                ('FONTSIZE',(0,0),(-1,-1), 9),
+                ('ALIGN',(0,0),(0,-1),'LEFT'),
+                ('ALIGN',(1,0),(1,-1),'RIGHT'),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 4),
+                ('TOPPADDING',(0,0),(-1,-1), 4),
+                ('LINEBELOW',(0,0),(-1,-1), 0.2, LIGHT_GRAY),
+            ]))
+            story.append(etbl)
+
+    # ════════════════════════════════════════════
+    #  第三部分：总价
+    # ════════════════════════════════════════════
+    final_total = grand_total
+    if not is_visitor:
+        final_total = round(final_total + mgmt_fee + tax_val - discount)
+
+    story.append(Spacer(1, 8*mm))
+    # 总价框
+    total_label = '参考总价' if is_visitor else '本报价表合计'
+    total_box_data = [[
+    Paragraph(
+        f'<b>{total_label}：<font color="red">{_ymoney(final_total)}</font></b>',
+        ParagraphStyle('GrandTotal', fontName=CN_FONT, fontSize=16, leading=24, alignment=TA_CENTER)
+    )]]
+    tbox = Table(total_box_data, colWidths=[140*mm])
+    tbox.setStyle(TableStyle([
+        ('BOX',(0,0),(-1,-1), 1.5, BRAND_BROWN),
+        ('BACKGROUND',(0,0),(-1,-1), HexColor('#FFF8F0')),
+        ('TOPPADDING',(0,0),(-1,-1), 8),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 8),
+    ]))
+    story.append(tbox)
+
+    # 大写
+    story.append(Spacer(1, 3*mm))
     story.append(Paragraph(
-        '{}：{}'.format(label, _ymoney(grand_total)),
-        styles['CNGrand']
+        f'合计人民币大写：<b>{_money_to_chinese(final_total)}</b>',
+        styles['CNBody']
     ))
 
-    # Management fee & tax (customer only)
-    if not is_visitor:
-        extras = []
-        mf = getattr(quote_obj, 'management_fee', None) if 'quote_obj' in dir() else None
-        # use closure quote via outer scope
-        pass
-
-    return grand_total
+    return final_total
 
 
 def _quote_grand_total(quote, items):
@@ -557,13 +770,95 @@ def _room_section(story, room_name, items, is_visitor, styles, show_ref=True):
 
 
 def _room_details_page(story, items, is_visitor, styles, show_ref=True):
-    """Build all room sections in user-specified order."""
-    grouped = _group_by_room(items)
-    rooms_sorted = sorted(grouped.keys(), key=_room_sort_key)
+    """Build all room sections grouped by space name, then by category_level1 inside each space."""
+    from collections import OrderedDict
+
+    # 1. Group by space_name
+    space_groups = OrderedDict()
+    for it in items:
+        sn = it.space_name or it.room_name or '其他'
+        space_groups.setdefault(sn, []).append(it)
+
+    # 2. Sort rooms
+    rooms_sorted = sorted(space_groups.keys(), key=_room_sort_key)
+
     grand = Decimal('0')
     for rn in rooms_sorted:
-        t = _room_section(story, rn, grouped[rn], is_visitor, styles, show_ref)
-        grand += t
+        room_items = space_groups[rn]
+        room_total = sum(Decimal(str(it.total_price or 0)) for it in room_items)
+
+        # ── 空间标题行（绿色表头）──
+        header_text = '{}  —  {}件  小计：{}'.format(rn, len(room_items), _ymoney(room_total))
+        hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V_COMPACT if is_visitor else ROOM_CW_C_COMPACT)
+        cols = len(hdr_cw)
+        hdr_data = [[header_text] + [''] * (cols - 1)]
+        hdr_tbl = Table(hdr_data, colWidths=hdr_cw)
+        hdr_tbl.setStyle(TableStyle([
+            ('SPAN', (0,0), (-1,0)),
+            ('BACKGROUND', (0,0), (-1,0), GREEN_HEADER),
+            ('FONTNAME', (0,0), (-1,0), CN_FONT),
+            ('FONTSIZE', (0,0), (-1,0), 9),
+            ('TEXTCOLOR', (0,0), (-1,0), BRAND_BROWN),
+            ('BOTTOMPADDING', (0,0), (-1,0), 4),
+            ('TOPPADDING', (0,0), (-1,0), 4),
+            ('LEFTPADDING', (0,0), (-1,0), 4),
+        ]))
+        story.append(hdr_tbl)
+
+        # 3. Within room, group by category_level1
+        cat_groups = OrderedDict()
+        for it in room_items:
+            ck = it.category_level1 or '其他'
+            cat_groups.setdefault(ck, []).append(it)
+
+        # Sort categories by predefined order
+        cat_order = list(CAT_MAP.values()) + ['其他']
+        cats_sorted = sorted(cat_groups.keys(), key=lambda c: (cat_order.index(c) if c in cat_order else 999))
+
+        for cat_name in cats_sorted:
+            cat_items = cat_groups[cat_name]
+            cat_total = sum(Decimal(str(it.total_price or 0)) for it in cat_items)
+
+            # ── 分类子标题（棕色小标签）──
+            cat_hdr_text = '{}  —  {}件  ¥{}'.format(cat_name, len(cat_items), _ymoney(cat_total))
+            cat_hdr_data = [[cat_hdr_text] + [''] * (cols - 1)]
+            cat_hdr_tbl = Table(cat_hdr_data, colWidths=hdr_cw)
+            cat_hdr_tbl.setStyle(TableStyle([
+                ('SPAN', (0,0), (-1,0)),
+                ('BACKGROUND', (0,0), (-1,0), HexColor('#FFF8F0')),
+                ('FONTNAME', (0,0), (-1,0), CN_FONT_BODY),
+                ('FONTSIZE', (0,0), (-1,0), 8),
+                ('TEXTCOLOR', (0,0), (-1,0), BRAND_BROWN),
+                ('BOTTOMPADDING', (0,0), (-1,0), 3),
+                ('TOPPADDING', (0,0), (-1,0), 3),
+                ('LEFTPADDING', (0,0), (-1,0), 6),
+                ('LINEBELOW', (0,0), (-1,0), 0.3, BRAND_BROWN),
+            ]))
+            story.append(cat_hdr_tbl)
+
+            # ── 物料明细表格 ──
+            rows = [_room_headers(is_visitor, show_ref)]
+            for it in cat_items:
+                rows.append(_item_row(it, is_visitor, show_ref))
+
+            tbl = Table(rows, colWidths=hdr_cw, repeatRows=1)
+            cmds = [
+                ('FONTNAME', (0,0),(-1,0), CN_FONT),
+                ('FONTNAME', (0,1),(-1,-1), CN_FONT_BODY),
+                ('FONTSIZE', (0,0),(-1,-1), 7.5),
+                ('BACKGROUND',(0,0),(-1,0), BRAND_BROWN),
+                ('TEXTCOLOR',(0,0),(-1,0), white),
+                ('GRID',(0,0),(-1,-1), 0.3, MID_GRAY),
+                ('BOTTOMPADDING',(0,0),(-1,-1), 3),
+                ('TOPPADDING',(0,0),(-1,-1), 3),
+            ]
+            tbl.setStyle(TableStyle(cmds))
+            story.append(tbl)
+            story.append(Spacer(1, 2*mm))
+
+        grand += room_total
+        story.append(Spacer(1, 4*mm))
+
     return grand
 
 
@@ -628,7 +923,7 @@ def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
     fpath = os.path.join(pdf_dir, fname)
 
     doc = SimpleDocTemplate(
-        fpath, pagesize=A4,
+        fpath, pagesize=landscape(A4),
         topMargin=12*mm, bottomMargin=12*mm,
         leftMargin=12*mm, rightMargin=12*mm,
     )
@@ -645,15 +940,15 @@ def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
         # Header line
         canvas.setFillColor(BRAND_BROWN)
         canvas.setFont(CN_FONT, 8)
-        canvas.drawString(12*mm, A4[1] - 8*mm,
+        canvas.drawString(12*mm, landscape(A4)[1] - 8*mm,
                           '\u5c1a\u6807\u00b7\u8bbe\u8bb0\u5bb6  \u62a5\u4ef7\u5355')
-        canvas.drawRightString(A4[0] - 12*mm, A4[1] - 8*mm,
+        canvas.drawRightString(landscape(A4)[0] - 12*mm, landscape(A4)[1] - 8*mm,
                                (quote.quote_no or '') + '  ' + ('\u5ba2\u6237\u7248' if not is_visitor else '\u53c2\u8003\u7248'))
         # Footer line
         canvas.setFillColor(MID_GRAY)
         canvas.setFont(CN_FONT_BODY, 7)
         canvas.drawString(12*mm, 8*mm, '\u2014\u2014  \u4fdd\u5bc6\u6587\u4ef6  \u2014\u2014')
-        canvas.drawRightString(A4[0] - 12*mm, 8*mm, 'p{}\u9875'.format(doc.page))
+        canvas.drawRightString(landscape(A4)[0] - 12*mm, 8*mm, 'p{}\u9875'.format(doc.page))
         canvas.restoreState()
 
     # Page 1 = cover (already built), Pages 2+ = category summary
@@ -663,70 +958,11 @@ def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
             return
         _page_header_footer(canvas, doc)
 
-    grouped = _group_by_category(items)
-    from app.models.material_sku import MaterialCategory
-    from sqlalchemy import or_ as sql_or
-    cats = MaterialCategory.query.filter(
-        MaterialCategory.parent_id.is_(None),
-        sql_or(MaterialCategory.is_deleted == False,
-               MaterialCategory.is_deleted.is_(None)),
-        MaterialCategory.is_enabled == True
-    ).order_by(MaterialCategory.sort_order).all()
+    # ── Page 2+: Category summary (简洁汇总) ──────
+    final_total = _category_summary_page(story, items, is_visitor, styles, show_ref)
 
-    grand_total = Decimal('0')
-    cat_totals_list = []
-
-    for cat in cats:
-        cat_key = cat.name
-        cat_items = grouped.get(cat_key, [])
-        if not cat_items:
-            for k, v in CAT_MAP.items():
-                if v == cat_key:
-                    cat_items = grouped.get(k, [])
-                    if cat_items:
-                        break
-        if not cat_items:
-            continue
-
-        story.append(Paragraph(cat_key, styles['CNSec']))
-        tbl, ct = _cat_table(cat_items, is_visitor, styles, show_ref)
-        grand_total += ct
-        cat_totals_list.append((cat_key, ct))
-        story.append(tbl)
-        story.append(Spacer(1, 3*mm))
-
-    # Grand total banner
-    story.append(Spacer(1, 6*mm))
-    lbl = '\u53c2\u8003\u603b\u4ef7' if is_visitor else '\u62a5\u4ef7\u603b\u8ba1'
-    story.append(Paragraph('{}：{}'.format(lbl, _ymoney(grand_total)), styles['CNGrand']))
-
-    # Management fee + tax
-    if not is_visitor:
-        extras = []
-        for lbl, val in [('\u7ba1\u7406\u8d39', 'management_fee'),
-                          ('\u7a0e\u8d39', 'tax')]:
-            v = getattr(quote, val, None)
-            if v and float(v or 0) > 0:
-                extras.append([lbl, _ymoney(v)])
-        if extras:
-            story.append(Spacer(1, 4*mm))
-            et = Table(extras, colWidths=[38*mm, 50*mm])
-            et.setStyle(TableStyle([
-                ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
-                ('FONTSIZE',(0,0),(-1,-1), 9),
-                ('ALIGN',(1,0),(1,-1),'RIGHT'),
-            ]))
-            story.append(et)
-        if getattr(quote, 'total_amount', None) and float(quote.total_amount or 0) > 0:
-            story.append(Paragraph('\u6700\u7ec8\u62a5\u4ef7\uff1a{}'.format(
-                _ymoney(quote.total_amount)), styles['CNTotal']))
-
+    # ── Room details pages (按空间→分类分组物料详单) ─────────────────────
     story.append(PageBreak())
-
-    # ── Room details pages ─────────────────────────────────────────────────
-    def _room_page_header(canvas, doc):
-        _page_header_footer(canvas, doc)
-
     _room_details_page(story, items, is_visitor, styles, show_ref)
 
     # ── Final page: Principles ─────────────────────────────────────────────

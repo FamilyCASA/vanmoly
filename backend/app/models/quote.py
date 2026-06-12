@@ -28,6 +28,7 @@ class Quote(db.Model):
     # 报价升级新增字段
     project_name = db.Column(db.String(200), comment='项目名称')
     project_address = db.Column(db.String(500), comment='项目地址')
+    building_name = db.Column(db.String(200), comment='楼盘名称')
     house_type = db.Column(db.String(50), comment='户型')
     related_case_id = db.Column(db.Integer, comment='关联案例ID')
     contract_no = db.Column(db.String(50), comment='合同编号')
@@ -67,11 +68,20 @@ class Quote(db.Model):
     # }
 
     # 费用汇总
-    subtotal = db.Column(db.Float, default=0, comment='小计')
+    subtotal = db.Column(db.Float, default=0, comment='小计(物料总额)')
+    material_amount = db.Column(db.Float, default=0, comment='物料总额')
+    craft_amount = db.Column(db.Float, default=0, comment='工艺费用')
+    design_amount = db.Column(db.Float, default=0, comment='设计费用')
+    install_amount = db.Column(db.Float, default=0, comment='安装费用')
     management_fee = db.Column(db.Float, default=0, comment='管理费')
     management_fee_rate = db.Column(db.Float, default=0, comment='管理费率%')
+    manage_rate = db.Column(db.Float, default=0, comment='管理费率%(前端字段)')
+    manage_amount = db.Column(db.Float, default=0, comment='管理费(前端字段)')
     tax = db.Column(db.Float, default=0, comment='税费')
     tax_rate = db.Column(db.Float, default=0, comment='税率%')
+    tax_amount = db.Column(db.Float, default=0, comment='税额(前端字段)')
+    discount_rate = db.Column(db.Float, default=0, comment='优惠比例%')
+    discount_amount = db.Column(db.Float, default=0, comment='优惠金额(自动计算)')
     total_amount = db.Column(db.Float, default=0, comment='总价')
 
     # 签字信息
@@ -108,6 +118,7 @@ class Quote(db.Model):
             'cover_config': self.cover_config or {},
             'project_name': self.project_name,
             'project_address': self.project_address,
+            'building_name': self.building_name,
             'house_type': self.house_type,
             'related_case_id': self.related_case_id,
             'contract_no': self.contract_no,
@@ -115,10 +126,19 @@ class Quote(db.Model):
             'service_team': self.service_team or [],
             'category_summary': self.category_summary or {},
             'subtotal': float(self.subtotal) if self.subtotal else 0,
+            'material_amount': float(self.material_amount) if self.material_amount else 0,
+            'craft_amount': float(self.craft_amount) if self.craft_amount else 0,
+            'design_amount': float(self.design_amount) if self.design_amount else 0,
+            'install_amount': float(self.install_amount) if self.install_amount else 0,
             'management_fee': float(self.management_fee) if self.management_fee else 0,
             'management_fee_rate': float(self.management_fee_rate) if self.management_fee_rate else 0,
+            'manage_rate': float(self.manage_rate or self.management_fee_rate or 0),
+            'manage_amount': float(self.manage_amount or self.management_fee or 0),
             'tax': float(self.tax) if self.tax else 0,
             'tax_rate': float(self.tax_rate) if self.tax_rate else 0,
+            'tax_amount': float(self.tax_amount or self.tax or 0),
+            'discount_rate': float(self.discount_rate) if self.discount_rate else 0,
+            'discount_amount': float(self.discount_amount) if self.discount_amount else 0,
             'total_amount': float(self.total_amount) if self.total_amount else 0,
             'signature_customer': self.signature_customer,
             'signature_planner': self.signature_planner,
@@ -151,6 +171,7 @@ class QuoteItem(db.Model):
 
     # ====== V3.2 空间分组字段 ======
     space_name = db.Column(db.String(100), comment='空间名称')
+    space_instance_id = db.Column(db.Integer, comment='空间实例ID')
     category_id = db.Column(db.Integer, comment='引用的公库物料一级分类')
 
     # ====== V3.2 物料字段 ======
@@ -237,6 +258,7 @@ class QuoteItem(db.Model):
             'quote_id': self.quote_id,
             # V3.2 空间分组
             'space_name': self.space_name,
+            'space_instance_id': self.space_instance_id,
             'category_id': self.category_id,
             # V3.2 物料字段
             'sku_code': self.sku_code,

@@ -13,23 +13,23 @@
         </template>
         <template #extra>
           <el-button-group>
-            <el-button type="primary" @click="editQuote" v-if="quote.status === 'draft'">
-              <el-icon><Edit /></el-icon> 编辑
+            <el-button type="primary" @click="saveAll" :loading="savingAll" v-if="quote.status === 'draft'">
+              <el-icon><DocumentChecked /></el-icon> 保存
             </el-button>
-            <el-button type="success" @click="handleExportPDF">
-              <el-icon><Printer /></el-icon> 导出PDF
+            <el-button type="success" @click="submitForReview" v-if="quote.status === 'draft'">
+              <el-icon><Check /></el-icon> 提交审核
+            </el-button>
+            <el-button type="warning" @click="saveAsTemplate">
+              <el-icon><DocumentCopy /></el-icon> 另存为模板
             </el-button>
             <el-dropdown @command="handleCommand">
               <el-button>
                 更多操作 <el-icon><ArrowDown /></el-icon>
               </el-button>
               <template #dropdown>
-                <el-dropdown-menu>
-                  <el-dropdown-item command="copy">复制报价</el-dropdown-item>
-                  <el-dropdown-item command="convert" v-if="quote.status === 'accepted'">转订单</el-dropdown-item>
-                  <el-dropdown-item command="export">导出PDF</el-dropdown-item>
-                  <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
-                </el-dropdown-menu>
+                <el-dropdown-item command="copy">复制报价</el-dropdown-item>
+                <el-dropdown-item command="convert" v-if="quote.status === 'accepted'">转订单</el-dropdown-item>
+                <el-dropdown-item command="delete" divided>删除</el-dropdown-item>
               </template>
             </el-dropdown>
           </el-button-group>
@@ -37,83 +37,102 @@
       </el-page-header>
     </div>
 
-    <!-- 基本信息 -->
+    <!-- 基本信息 + 服务团队（合并，可直接编辑） -->
     <el-card shadow="never" class="info-card">
       <template #header>
         <div class="card-header">
           <span>基本信息</span>
-          <div v-if="quote.status === 'draft'">
-            <el-button v-if="!isEditingBasic" size="small" @click="startEditBasic">编辑</el-button>
-            <template v-else>
-              <el-button size="small" @click="cancelEditBasic">取消</el-button>
-              <el-button type="primary" size="small" @click="saveBasicInfo" :loading="basicSaving">保存</el-button>
-            </template>
-          </div>
         </div>
       </template>
-      <el-descriptions v-if="!isEditingBasic" :column="4" border>
-        <el-descriptions-item label="客户姓名">{{ quote.customer_name || '未设置' }}</el-descriptions-item>
-        <el-descriptions-item label="联系电话">{{ quote.customer_phone || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="客户地址">{{ quote.customer_address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="报价日期">{{ formatDate(quote.created_at) }}</el-descriptions-item>
-        <el-descriptions-item label="项目地址">{{ quote.project_address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="有效期至">{{ quote.valid_until ? formatDate(quote.valid_until) : '-' }}</el-descriptions-item>
-        <el-descriptions-item label="设计师">{{ quote.designer_name || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="销售顾问">{{ quote.sales_name || '-' }}</el-descriptions-item>
-      </el-descriptions>
-      <el-form v-else :model="basicForm" label-width="100px" style="max-width:900px">
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="客户">
-              <el-select v-model="basicForm.customer_id" filterable remote :remote-method="searchCustomers" placeholder="搜索客户姓名/电话" style="width:100%">
-                <el-option v-for="c in customerOptions" :key="c.id" :label="c.name + ' ' + (c.phone||'')" :value="c.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="报价单号">
-              <el-input v-model="basicForm.quote_no" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="项目地址">
-              <el-input v-model="basicForm.project_address" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="有效期至">
-              <el-date-picker v-model="basicForm.valid_until" type="date" style="width:100%" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-      </el-form>
-    </el-card>
-
-    <!-- 服务团队 -->
-    <el-card shadow="never" class="service-team-card" style="margin-top: 16px">
-      <template #header>
-        <div class="card-header">
-          <span>服务团队</span>
-          <el-button
+      
+      <!-- 客户信息行 -->
+      <el-row :gutter="16" class="info-row">
+        <el-col :span="6">
+          <div class="info-label">客户筛选</div>
+          <el-select 
             v-if="quote.status === 'draft'"
-            type="primary"
-            size="small"
-            @click="saveServiceTeam"
-            :loading="savingServiceTeam"
-          >保存</el-button>
-        </div>
-      </template>
+            v-model="quoteInfo.customer_id" 
+            filterable 
+            remote 
+            :remote-method="searchCustomers" 
+            placeholder="搜索客户姓名/电话"
+            style="width:100%"
+            @change="onCustomerChange"
+          >
+            <el-option v-for="c in customerOptions" :key="c.id" :label="c.name + ' ' + (c.phone||'')" :value="c.id" />
+          </el-select>
+          <div v-else class="info-value">{{ quote.customer_name || '未设置' }}</div>
+        </el-col>
+        <el-col :span="6">
+          <div class="info-label">联系电话</div>
+          <div class="info-value">{{ quoteInfo.customer_phone || quote.customer_phone || '-' }}</div>
+        </el-col>
+        <el-col :span="6">
+          <div class="info-label">楼盘</div>
+          <div class="info-value">{{ quoteInfo.building_name || quote.building_name || '-' }}</div>
+        </el-col>
+        <el-col :span="6">
+          <div class="info-label">户型</div>
+          <div class="info-value">{{ quoteInfo.house_type || quote.house_type || '-' }}</div>
+        </el-col>
+      </el-row>
+      
+      <!-- 地址行 -->
+      <el-row :gutter="16" class="info-row">
+        <el-col :span="12">
+          <div class="info-label">项目地址</div>
+          <el-input 
+            v-if="quote.status === 'draft'"
+            v-model="quoteInfo.project_address" 
+            placeholder="项目地址"
+          />
+          <div v-else class="info-value">{{ quote.project_address || '-' }}</div>
+        </el-col>
+        <el-col :span="6">
+          <div class="info-label">报价有效期</div>
+          <el-date-picker 
+            v-if="quote.status === 'draft'"
+            v-model="quoteInfo.valid_until" 
+            type="date" 
+            value-format="YYYY-MM-DD"
+            style="width:100%"
+            placeholder="选择有效期"
+          />
+          <div v-else class="info-value">{{ quote.expire_date ? formatDate(quote.expire_date) : (quote.valid_until ? formatDate(quote.valid_until) : '-') }}</div>
+        </el-col>
+        <el-col :span="6">
+          <div class="info-label">报价日期</div>
+          <div class="info-value">{{ formatDate(quote.created_at) }}</div>
+        </el-col>
+      </el-row>
+      
+      <!-- 服务团队行 -->
+      <el-divider content-position="left">服务团队</el-divider>
       <el-row :gutter="16">
-        <el-col :span="6" v-for="role in SERVICE_TEAM_ROLES" :key="role.value">
+        <el-col :span="4" v-for="role in QUOTE_TEAM_ROLES" :key="role.value">
           <div class="team-role">
             <div class="role-label">{{ role.label }}</div>
             <el-select
-              v-if="quote.status === 'draft'"
+              v-if="quote.status === 'draft' && role.value !== 'auditor'"
               v-model="serviceTeam[role.value]"
               filterable
               :placeholder="'选择' + role.label"
               style="width:100%"
               clearable
+            >
+              <el-option
+                v-for="e in allEmployees"
+                :key="e.id"
+                :label="e.name"
+                :value="e.id"
+              />
+            </el-select>
+            <el-select
+              v-else-if="quote.status === 'draft' && role.value === 'auditor'"
+              v-model="serviceTeam[role.value]"
+              disabled
+              style="width:100%"
+              placeholder="提交后自动填充"
             >
               <el-option
                 v-for="e in allEmployees"
@@ -371,32 +390,42 @@
       </template>
       <el-row :gutter="32">
         <el-col :span="16">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="物料总额">
-              ¥{{ formatMoney(quote.material_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="工艺费用">
-              ¥{{ formatMoney(quote.craft_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="设计费用">
-              ¥{{ formatMoney(quote.design_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="安装费用">
-              ¥{{ formatMoney(quote.install_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="管理费率">
-              {{ quote.manage_rate || 0 }}%
-            </el-descriptions-item>
-            <el-descriptions-item label="管理费">
-              ¥{{ formatMoney(quote.manage_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="税额">
-              ¥{{ formatMoney(quote.tax_amount) }}
-            </el-descriptions-item>
-            <el-descriptions-item label="优惠金额">
-              <span class="discount">-¥{{ formatMoney(quote.discount_amount) }}</span>
-            </el-descriptions-item>
-          </el-descriptions>
+          <div class="fee-summary-table">
+            <!-- 自动统计（只读） -->
+            <div class="fee-row">
+              <span class="fee-label">物料总额</span>
+              <span class="fee-value readonly">¥{{ formatMoney(quote.material_amount) }}</span>
+              <span class="fee-label">工艺费用</span>
+              <span class="fee-value readonly">¥{{ formatMoney(quote.craft_amount) }}</span>
+            </div>
+            <!-- 手动输入 -->
+            <div class="fee-row">
+              <span class="fee-label">管理费率</span>
+              <el-input-number
+                v-model="quote.manage_rate"
+                :precision="1" :step="0.5" :min="0" :max="100" size="small"
+                controls-position="right" @change="onMgmtRateChange" />
+              <span style="color:#999;font-size:13px;">%</span>
+              <span class="fee-label">管理费</span>
+              <el-input-number
+                v-model="quote.manage_amount"
+                :precision="2" :step="100" :min="0" size="small"
+                controls-position="right" @change="onFeeChange" />
+            </div>
+            <div class="fee-row">
+              <span class="fee-label">税额</span>
+              <el-input-number
+                v-model="quote.tax_amount"
+                :precision="2" :step="100" :min="0" size="small"
+                controls-position="right" @change="onFeeChange" />
+              <span class="fee-label">优惠比例</span>
+              <el-input-number
+                v-model="quote.discount_rate"
+                :precision="1" :step="0.5" :min="0" :max="100" size="small"
+                controls-position="right" @change="onDiscountRateChange" />
+              <span style="color:#999;font-size:13px;">%</span>
+            </div>
+          </div>
         </el-col>
         <el-col :span="8">
           <div class="total-box">
@@ -702,16 +731,21 @@ import { ref, reactive, onMounted, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
-  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled
+  Edit, Printer, ArrowDown, Plus, DocumentCopy, MoreFilled, Check, DocumentChecked
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
-const SERVICE_TEAM_ROLES = [
-  { value: 'designer', label: '设计师' },
-  { value: 'sales', label: '销售顾问' },
-  { value: 'project_manager', label: '项目经理' },
-  { value: 'construction_leader', label: '施工队长' }
+// 服务团队角色（报价单用）
+const QUOTE_TEAM_ROLES = [
+  { value: 'quoter', label: '报价员' },
+  { value: 'auditor', label: '审核员' },
+  { value: 'designer', label: '全案设计师' },
+  { value: 'planner', label: '全案规划师' },
+  { value: 'project_manager', label: '项目经理' }
 ]
+
+// 兼容旧代码
+const SERVICE_TEAM_ROLES = QUOTE_TEAM_ROLES
 
 const route = useRoute()
 const router = useRouter()
@@ -725,7 +759,29 @@ const quote = ref({})
 const spaces = ref([])
 const activeSpaceId = ref('') // 当前激活的空间ID
 
-// 基本信息编辑
+// 基本信息 + 服务团队（合并编辑）
+const savingQuoteInfo = ref(false)
+const quoteInfo = reactive({
+  customer_id: null,
+  customer_phone: '',
+  customer_address: '',
+  building_name: '',
+  house_type: '',
+  project_address: '',
+  valid_until: ''
+})
+// 服务团队单独用 ref 确保响应式
+const serviceTeam = ref({
+  quoter: null,
+  auditor: null,
+  designer: null,
+  planner: null,
+  project_manager: null
+})
+const customerOptions = ref([])
+const allEmployees = ref([])
+
+// 兼容旧代码
 const isEditingBasic = ref(false)
 const basicSaving = ref(false)
 const basicForm = reactive({
@@ -734,16 +790,6 @@ const basicForm = reactive({
   project_address: '',
   valid_until: ''
 })
-const customerOptions = ref([])
-
-// 服务团队（4个固定角色）
-const serviceTeam = reactive({
-  designer: null,
-  sales: null,
-  project_manager: null,
-  construction_leader: null
-})
-const allEmployees = ref([])
 const savingServiceTeam = ref(false)
 
 // 报价模板
@@ -984,6 +1030,34 @@ const moneyToChinese = (money) => {
   return result
 }
 
+// ── 费用汇总编辑逻辑 ──
+const onFeeChange = async () => {
+  // 重新计算总价：物料+工艺 + 管理费 + 税额 - 优惠金额
+  const subtotal = parseFloat(quote.value.material_amount || 0) + parseFloat(quote.value.craft_amount || 0)
+  const mgmt = parseFloat(quote.value.manage_amount || 0)
+  const tax = parseFloat(quote.value.tax_amount || 0)
+  // 优惠金额 = (subtotal + mgmt) × discount_rate%
+  const discountRate = parseFloat(quote.value.discount_rate || 0)
+  const discount = Math.round((subtotal + mgmt) * discountRate / 100 * 100) / 100
+  quote.value.discount_amount = discount
+  quote.value.total_amount = Math.round(subtotal + mgmt + tax - discount)
+}
+
+const onMgmtRateChange = () => {
+  // 按费率自动计算管理费（基于物料+工艺总额）
+  const subtotal = parseFloat(quote.value.material_amount || 0) + parseFloat(quote.value.craft_amount || 0)
+  const rate = parseFloat(quote.value.manage_rate || 0)
+  if (rate > 0) {
+    quote.value.manage_amount = Math.round(subtotal * rate / 100 * 100) / 100
+  }
+  onFeeChange()
+}
+
+const onDiscountRateChange = () => {
+  // 按优惠比例自动计算优惠金额，再重算总价
+  onFeeChange()
+}
+
 // 旧报价扁平物料（按room_name分组）
 const legacyItems = ref([])
 const legacyGrouped = computed(() => {
@@ -1015,7 +1089,7 @@ const loadQuote = async () => {
       // 拦截器已解包，spacesRes 可能是 {instances:[...]} 或直接是数组
       spaces.value = Array.isArray(spacesRes) ? spacesRes : (spacesRes?.instances || spacesRes?.items || [])
       
-      // 加载每个空间的物料列表
+      // 加载每个空间的物料列表，并计算统计数据
       for (const space of spaces.value) {
         try {
           const itemsRes = await request.get(`/quotes/${quoteId.value}/space-instances/${space.id}/items`)
@@ -1023,6 +1097,34 @@ const loadQuote = async () => {
           space.items = [...items]
           const itemIds = items.map(i => i.id)
           console.log(`[loadQuote] 空间 ${space.id} 加载了 ${items.length} 个物料，ID列表:`, itemIds)
+          
+          // 动态计算空间统计数据（如果API返回为空）
+          if (!space.material_cost && items.length > 0) {
+            let materialCost = 0
+            let laborCost = 0
+            for (const it of items) {
+              const qty = parseFloat(it.quantity || 1)
+              const mv = parseFloat(it.measurement_value || 1)
+              const up = parseFloat(it.unit_price || 0)
+              const coeff = parseFloat(it.process_coefficient || it.craft_coefficient || 1)
+              const baseAmount = qty * mv * up  // 不含工艺的基础金额
+              materialCost += baseAmount
+              // 工艺费用 = 基础金额×(系数-1) + 工艺数量×工艺单价
+              if (coeff > 1) {
+                laborCost += baseAmount * (coeff - 1)
+              }
+              const pq = parseFloat(it.process_quantity || it.craft_quantity || 0)
+              const pup = parseFloat(it.process_unit_price || 0)
+              if (pq > 0 && pup > 0) {
+                laborCost += pq * pup
+              }
+            }
+            space.material_cost = Math.round(materialCost * 100) / 100
+            space.labor_cost = Math.round(laborCost * 100) / 100
+            space.total_price = Math.round((materialCost + laborCost) * 100) / 100
+            space.material_count = items.length
+            console.log(`[loadQuote] 空间 ${space.space_name} 动态计算: mc=${space.material_cost}, lc=${space.labor_cost}, tp=${space.total_price}`)
+          }
         } catch (e) {
           console.warn(`加载空间 ${space.id} 物料失败:`, e)
           space.items = []
@@ -1048,8 +1150,10 @@ const loadQuote = async () => {
         const firstRoom = legacyGrouped.value[0]?.room_name
         if (firstRoom) activeLegacyRoom.value = firstRoom
       }
-      loadServiceTeam()
     }
+    
+    // 初始化 quoteInfo
+    initQuoteInfo()
   } catch (error) {
     ElMessage.error('加载报价失败')
     console.error(error)
@@ -1063,7 +1167,7 @@ const startEditBasic = () => {
   basicForm.customer_id = quote.value.customer_id || null
   basicForm.quote_no = quote.value.quote_no || ''
   basicForm.project_address = quote.value.project_address || ''
-  basicForm.valid_until = quote.value.valid_until || ''
+  basicForm.valid_until = quote.value.expire_date || quote.value.valid_until || ''
   isEditingBasic.value = true
 }
 
@@ -1086,21 +1190,198 @@ const saveBasicInfo = async () => {
 }
 
 const searchCustomers = async (query) => {
-  if (!query) { customerOptions.value = []; return }
+  if (!query || !query.trim()) { customerOptions.value = []; return }
   try {
-    const res = await request.get('/customers', { params: { keyword: query, page_size: 20 } })
-    // 拦截器已解包
+    const encodedQuery = encodeURIComponent(query.trim())
+    const res = await request.get(`/customers?keyword=${encodedQuery}&page_size=20`)
     customerOptions.value = Array.isArray(res) ? res : (res?.items || res?.data || [])
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    console.error('[searchCustomers] 错误:', e)
+    ElMessage.error('客户搜索失败')
+  }
+}
+
+// 客户选择变化 - 自动填充客户信息
+const onCustomerChange = (customerId) => {
+  const customer = customerOptions.value.find(c => c.id === customerId)
+  if (customer) {
+    quoteInfo.customer_phone = customer.phone || ''
+    quoteInfo.customer_address = customer.address || ''
+    quoteInfo.building_name = customer.building_name || ''
+    quoteInfo.house_type = customer.house_type || ''
+    // 如果项目地址为空，默认使用客户地址
+    if (!quoteInfo.project_address) {
+      quoteInfo.project_address = customer.address || ''
+    }
+  }
+}
+
+// 初始化 quoteInfo 从 quote 数据
+const initQuoteInfo = () => {
+  quoteInfo.customer_id = quote.value.customer_id || null
+  quoteInfo.customer_phone = quote.value.customer_phone || ''
+  quoteInfo.customer_address = quote.value.customer_address || ''
+  quoteInfo.building_name = quote.value.building_name || ''
+  quoteInfo.house_type = quote.value.house_type || ''
+  quoteInfo.project_address = quote.value.project_address || ''
+  // 后端返回 expire_date，前端显示用 valid_until（日期字符串）
+  quoteInfo.valid_until = quote.value.expire_date || quote.value.valid_until || ''
+  
+  // 将当前客户加入选项列表，确保el-select能正确显示名称
+  if (quote.value.customer_id && quote.value.customer_name) {
+    const exists = customerOptions.value.find(c => c.id === quote.value.customer_id)
+    if (!exists) {
+      customerOptions.value.push({
+        id: quote.value.customer_id,
+        name: quote.value.customer_name,
+        phone: quote.value.customer_phone
+      })
+    }
+  }
+  
+  // 初始化服务团队
+  let st = quote.value.service_team || []
+  // 确保 st 是数组
+  if (!Array.isArray(st)) {
+    console.warn('[initQuoteInfo] service_team 不是数组:', st)
+    st = []
+  }
+  serviceTeam.value = {
+    quoter: null,
+    auditor: null,
+    designer: null,
+    planner: null,
+    project_manager: null
+  }
+  st.forEach(item => {
+    if (item && item.role && serviceTeam.value[item.role] !== undefined) {
+      serviceTeam.value[item.role] = item.employee_id || null
+    }
+  })
+}
+
+// 保存报价基本信息 + 服务团队
+const saveQuoteInfo = async () => {
+  savingQuoteInfo.value = true
+  try {
+    // 构建 service_team 数组
+    const st = []
+    QUOTE_TEAM_ROLES.forEach(r => {
+      if (serviceTeam.value[r.value]) {
+        st.push({
+          role: r.value,
+          employee_id: serviceTeam.value[r.value]
+        })
+      }
+    })
+    
+    const payload = {
+      customer_id: quoteInfo.customer_id,
+      customer_phone: quoteInfo.customer_phone,
+      customer_name: customerOptions.value.find(c => c.id === quoteInfo.customer_id)?.name || '',
+      building_name: quoteInfo.building_name,
+      house_type: quoteInfo.house_type,
+      project_address: quoteInfo.project_address,
+      valid_until: quoteInfo.valid_until,
+      service_team: st
+    }
+    
+    await request.put(`/quotes/${quoteId.value}`, payload)
+    ElMessage.success('保存成功')
+    loadQuote()
+  } catch (e) {
+    ElMessage.error(e.response?.data?.message || '保存失败')
+  } finally {
+    savingQuoteInfo.value = false
+  }
+}
+
+// 保存所有信息（基本信息 + 物料表）
+const savingAll = ref(false)
+const saveAll = async () => {
+  savingAll.value = true
+  try {
+    // 1. 保存基本信息
+    const st = []
+    QUOTE_TEAM_ROLES.forEach(r => {
+      if (serviceTeam.value[r.value]) {
+        st.push({
+          role: r.value,
+          employee_id: serviceTeam.value[r.value]
+        })
+      }
+    })
+    
+    const basicPayload = {
+      customer_id: quoteInfo.customer_id,
+      customer_phone: quoteInfo.customer_phone,
+      customer_name: customerOptions.value.find(c => c.id === quoteInfo.customer_id)?.name || '',
+      building_name: quoteInfo.building_name,
+      house_type: quoteInfo.house_type,
+      project_address: quoteInfo.project_address,
+      valid_until: quoteInfo.valid_until,
+      service_team: st,
+      // 费用汇总字段
+      design_amount: parseFloat(quote.value.design_amount || 0),
+      install_amount: parseFloat(quote.value.install_amount || 0),
+      manage_rate: parseFloat(quote.value.manage_rate || 0),
+      manage_amount: parseFloat(quote.value.manage_amount || 0),
+      tax_amount: parseFloat(quote.value.tax_amount || 0),
+      tax_rate: parseFloat(quote.value.tax_rate || 0),
+      discount_rate: parseFloat(quote.value.discount_rate || 0),
+      discount_amount: parseFloat(quote.value.discount_amount || 0),
+    }
+    await request.put(`/quotes/${quoteId.value}`, basicPayload)
+    
+    // 2. 保存物料表（遍历所有空间实例，保存每个空间的物料）
+    for (const space of spaces.value) {
+      const items = space.items || []
+      for (const item of items) {
+        if (item.id) {
+          // 更新现有物料
+          await request.put(`/quotes/${quoteId.value}/space-instances/${space.id}/items/${item.id}`, {
+            quantity: item.quantity,
+            unit_price: item.unit_price,
+            custom_width: item.custom_width,
+            custom_depth: item.custom_depth,
+            custom_height: item.custom_height,
+            custom_result: item.custom_result,
+            process_name: item.process_name,
+            process_quantity: item.process_quantity,
+            process_unit_price: item.process_unit_price,
+            remark: item.remark
+          })
+        }
+      }
+    }
+    
+    ElMessage.success('保存成功')
+    loadQuote()
+  } catch (e) {
+    console.error('[saveAll] 保存失败:', e)
+    console.error('[saveAll] 错误详情:', e.response?.data || e.message)
+    ElMessage.error(e.response?.data?.message || e.message || '保存失败')
+  } finally {
+    savingAll.value = false
+  }
 }
 
 // 服务团队
 const loadAllEmployees = async () => {
   try {
+    console.log('[loadAllEmployees] 开始加载...')
     const res = await request.get('/quotes/options')
-    // 拦截器已解包
+    console.log('[loadAllEmployees] API返回:', res)
+    // 拦截器已解包到 data 层
     allEmployees.value = res?.employees || res?.data?.employees || []
-  } catch (e) { /* ignore */ }
+    console.log('[loadAllEmployees] 员工数量:', allEmployees.value.length)
+    if (allEmployees.value.length === 0) {
+      console.warn('[loadAllEmployees] 警告: 员工列表为空!')
+    }
+  } catch (e) { 
+    console.error('[loadAllEmployees] 错误:', e)
+    ElMessage.error('加载员工列表失败: ' + (e.message || '未知错误'))
+  }
 }
 
 const loadServiceTeam = () => {
@@ -1150,6 +1431,87 @@ const getEmployeeName = (id) => {
 // 返回
 const goBack = () => {
   router.push('/admin/quotes')
+}
+
+// 提交审核
+const submitForReview = async () => {
+  try {
+    await ElMessageBox.confirm('确定要提交该报价进行审核吗？提交后报价将进入待审核状态，部分字段将不可编辑。', '确认提交审核', {
+      confirmButtonText: '确定提交',
+      cancelButtonText: '取消',
+      type: 'warning'
+    })
+    await request.post(`/quotes/${quoteId.value}/submit`)
+    ElMessage.success('报价已提交审核')
+    loadQuote()
+  } catch (e) {
+    if (e !== 'cancel') {
+      console.error('[submitForReview] 错误:', e)
+      ElMessage.error('提交审核失败: ' + (e.response?.data?.message || e.message || '未知错误'))
+    }
+  }
+}
+
+// 另存为模板
+const saveAsTemplate = async () => {
+  try {
+    const { value: templateName } = await ElMessageBox.prompt('请输入模板名称', '另存为模板', {
+      confirmButtonText: '保存',
+      cancelButtonText: '取消',
+      inputPlaceholder: '例如：标准三室两厅套餐',
+      inputValidator: (val) => {
+        if (!val || val.trim() === '') return '模板名称不能为空'
+        if (val.trim().length > 50) return '模板名称不能超过50个字符'
+        return true
+      }
+    })
+    
+    if (!templateName) return
+    
+    // 构建模板数据：去掉客户敏感信息，保留户型等基本信息
+    const templateData = {
+      name: templateName.trim(),
+      // 保留户型信息，去掉客户名称、电话等敏感信息
+      building_name: quote.value.building_name || null,
+      house_type: quote.value.house_type || null,
+      house_area: quote.value.house_area || null,
+      project_address: null, // 清空具体地址
+      // 完整保留空间和物料信息
+      spaces: spaces.value.map(space => ({
+        space_name: space.space_name,
+        space_type: space.space_type,
+        items: (space.items || []).map(item => ({
+          sku_id: item.sku_id,
+          custom_name: item.custom_name,
+          material: item.material,
+          calc_type: item.calc_type,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+          craft_name: item.craft_name,
+          craft_coefficient: item.craft_coefficient,
+          craft_quantity: item.craft_quantity,
+          craft_unit_price: item.craft_unit_price,
+          custom_width: item.custom_width,
+          custom_depth: item.custom_depth,
+          custom_height: item.custom_height,
+          measurement_value: item.measurement_value,
+          category_level1: item.category_level1,
+          category_level2: item.category_level2
+        }))
+      }))
+    }
+    
+    await request.post('/quotes/templates/from-quote', {
+      quote_id: quoteId.value,
+      template_data: templateData
+    })
+    ElMessage.success('模板保存成功')
+  } catch (e) {
+    if (e !== 'cancel') {
+      console.error('[saveAsTemplate] 错误:', e)
+      ElMessage.error('保存模板失败: ' + (e.response?.data?.message || e.message || '未知错误'))
+    }
+  }
 }
 
 // 编辑报价
@@ -1550,20 +1912,52 @@ const saveItem = async () => {
     itemForm.measurement_value = measurementCache.value
     console.log('[saveItem] 计量值:', measurementCache.value)
     
+    // 构建纯净的 payload，避免 reactive 代理对象的问题
+    const payload = {
+      sku_id: itemForm.sku_id,
+      custom_name: itemForm.custom_name,
+      name: itemForm.name,
+      quantity: itemForm.quantity,
+      unit_price: itemForm.unit_price,
+      unit: itemForm.unit,
+      brand: itemForm.brand,
+      spec: itemForm.spec,
+      material: itemForm.material,
+      image: itemForm.image,
+      category_level1: itemForm.category_level1,
+      category_level2: itemForm.category_level2,
+      calc_type: itemForm.calc_type,
+      measurement_value: itemForm.measurement_value,
+      remark: itemForm.remark,
+      custom_width: itemForm.custom_width,
+      custom_depth: itemForm.custom_depth,
+      custom_height: itemForm.custom_height,
+      custom_result: itemForm.custom_result,
+      process_name: itemForm.process_name,
+      process_coefficient: itemForm.process_coefficient,
+      process_quantity: itemForm.process_quantity,
+      process_unit_price: itemForm.process_unit_price,
+      process_amount: itemForm.process_amount,
+      craft_type: itemForm.craft_type,
+      craft_price: itemForm.craft_price,
+      craft_quantity: itemForm.craft_quantity,
+      craft_coefficient: itemForm.craft_coefficient
+    }
+    
     if (itemForm.id) {
       // 编辑模式
       const path = itemForm.space_id == null
         ? `/quotes/${quoteId.value}/items/${itemForm.id}`
         : `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items/${itemForm.id}`
       console.log('[saveItem] 编辑模式，PUT:', path)
-      const res = await request.put(path, itemForm)
+      const res = await request.put(path, payload)
       console.log('[saveItem] 编辑成功:', res)
       ElMessage.success('保存成功')
     } else {
       // 新增模式
       const path = `/quotes/${quoteId.value}/space-instances/${itemForm.space_id}/items`
-      console.log('[saveItem] 新增模式，POST:', path, '数据:', itemForm)
-      const res = await request.post(path, itemForm)
+      console.log('[saveItem] 新增模式，POST:', path, '数据:', payload)
+      const res = await request.post(path, payload)
       console.log('[saveItem] 添加成功:', res)
       ElMessage.success('添加成功')
     }
@@ -1796,6 +2190,44 @@ onMounted(() => {
   font-weight: 600;
 }
 
+/* 费用汇总编辑表格 */
+.fee-summary-table {
+  border: 1px solid #ebeef5;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.fee-row {
+  display: flex;
+  align-items: center;
+  border-bottom: 1px solid #ebeef5;
+}
+.fee-row:last-child {
+  border-bottom: none;
+}
+.fee-label {
+  width: 80px;
+  padding: 12px 16px;
+  background: #fafafa;
+  color: #606266;
+  font-size: 14px;
+  flex-shrink: 0;
+  border-right: 1px solid #ebeef5;
+}
+.fee-value {
+  flex: 1;
+  padding: 12px 16px;
+  font-size: 14px;
+  color: #303133;
+}
+.fee-value.readonly {
+  color: #909399;
+  font-weight: 500;
+}
+.fee-row .el-input-number {
+  flex: 1;
+  margin-right: 4px;
+}
+
 .sign-box {
   border: 1px solid #e4e7ed;
   border-radius: 4px;
@@ -1821,7 +2253,24 @@ onMounted(() => {
   margin-top: 8px;
 }
 
-/* ========== 新增：自定义空间Tab样式 ========== */
+/* ========== 基本信息样式 ========== */
+.info-row {
+  margin-bottom: 16px;
+}
+
+.info-label {
+  font-size: 12px;
+  color: #909399;
+  margin-bottom: 4px;
+}
+
+.info-value {
+  font-size: 14px;
+  color: #303133;
+  line-height: 32px;
+}
+
+/* ========== 自定义空间Tab样式 ==========*/
 .spaces-container {
   background: #fff;
   border-radius: 4px;
@@ -1830,6 +2279,7 @@ onMounted(() => {
 
 .space-tabs {
   display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 8px;
   padding: 16px;
@@ -1860,11 +2310,18 @@ onMounted(() => {
 }
 
 .space-tab.active {
-  background: #409eff;
-  border-color: #409eff;
-  color: #fff;
-  font-weight: 600;
-  box-shadow: 0 2px 4px rgba(64, 158, 255, 0.3);
+  background: #67c23a !important;
+  border-color: #67c23a !important;
+  color: #fff !important;
+  font-weight: 700;
+  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.4);
+  transform: scale(1.02);
+}
+
+.space-tab:not(.active) {
+  background: #f5f7fa;
+  border-color: #dcdfe6;
+  color: #606266;
 }
 
 .space-tab .tab-name {

@@ -6,6 +6,7 @@ from flask import Blueprint, request, jsonify
 import os
 from app import db
 from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS, MeasurementRule, DEFAULT_MEASUREMENT_RULES
+from app.models.quote_space_template import QuoteSpaceTemplate
 from app.models.customer import Customer
 from app.models import Employee  # 从 hr_v2 导入
 from app.routes.auth_routes_v2 import jwt_required_v2
@@ -295,6 +296,340 @@ def delete_template(current_user, template_id):
     })
 
 
+@quote_bp.route('/templates/from-quote', methods=['POST'])
+@jwt_required_v2
+def create_template_from_quote(current_user):
+    """从报价单创建模板（另存为模板功能）
+    同时创建 QuoteSpaceTemplate 按空间粒度存储物料
+    """
+    import json as json_lib
+    data = request.get_json() or {}
+    quote_id = data.get('quote_id')
+    template_data = data.get('template_data', {})
+    
+    if not quote_id:
+        return jsonify({'code': 400, 'message': '缺少报价单ID'}), 400
+    
+    if not template_data.get('name'):
+        return jsonify({'code': 400, 'message': '模板名称不能为空'}), 400
+    
+    # 验证报价单存在
+    quote = Quote.query.get(quote_id)
+    if not quote:
+        return jsonify({'code': 404, 'message': '报价单不存在'}), 404
+    
+    # 创建 QuoteTemplate（封面模板）
+    template = QuoteTemplate(
+        name=template_data['name'],
+        template_type='custom',
+        style_config={
+            'building_name': template_data.get('building_name'),
+            'house_type': template_data.get('house_type'),
+            'house_area': template_data.get('house_area'),
+            'spaces': template_data.get('spaces', [])
+        },
+        created_by=current_user.get('id') if isinstance(current_user, dict) else current_user.id,
+        is_default=False
+    )
+    db.session.add(template)
+    db.session.flush()
+    
+    # 按空间分组创建 QuoteSpaceTemplate
+    items = QuoteItem.query.filter_by(quote_id=quote_id).all()
+    space_groups = {}
+    for item in items:
+        space_key = item.space_name or '默认空间'
+        if space_key not in space_groups:
+            space_groups[space_key] = []
+        space_groups[space_key].append(item)
+    
+    base_name = template_data['name']
+    version_level = template_data.get('version_level', '标配')
+    
+    space_templates = []
+    for idx, (space_name, space_items) in enumerate(space_groups.items()):
+        # 构建物料快照
+        item_snaps = []
+        material_cost = 0.0
+        total_price = 0.0
+        
+        for it in space_items:
+            snap = {
+                'sku_id': it.sku_id,
+                'sku_code': it.sku_code,
+                'name': it.name,
+                'spec': it.spec,
+                'brand': it.brand,
+                'unit': it.unit,
+                'material': it.material,
+                'calc_type': it.calc_type,
+                'quantity': it.quantity,
+                'unit_price': it.unit_price,
+                'total_price': it.row_total or it.total_price,
+                'custom_width': it.custom_width,
+                'custom_depth': it.custom_depth,
+                'custom_height': it.custom_height,
+                'custom_result': it.custom_result,
+                'process_name': it.process_name,
+                'process_coefficient': it.process_coefficient,
+                'process_quantity': it.process_quantity,
+                'process_unit_price': it.process_unit_price,
+                'process_amount': it.process_amount,
+                'measurement_value': it.measurement_value,
+                'craft_quantity': it.craft_quantity,
+                'craft_coefficient': it.craft_coefficient,
+                'category_level1': it.category_level1,
+                'category_level2': it.category_level2,
+                'material_image': it.material_image,
+                'remark': it.remark,
+            }
+            item_snaps.append(snap)
+            material_cost += float(it.row_total or it.total_price or 0)
+            total_price += float(it.row_total or it.total_price or 0)
+        
+        # 推断 space_type
+        space_type_map = {
+            '客厅': 'living', '主卧': 'master_bedroom', '次卧': 'second_bedroom',
+            '儿童房': 'children', '厨房': 'kitchen', '餐厅': 'dining',
+            '卫生间': 'bathroom', '阳台': 'balcony', '书房': 'study',
+            '玄关': 'entryway', '衣帽间': 'closet'
+        }
+        space_type = space_type_map.get(space_name, space_name)
+        
+        space_tpl = QuoteSpaceTemplate(
+            tenant_id=current_user.get('tenant_id', '0'),
+            name=f"{base_name}-{space_name}",
+            source_quote_id=quote_id,
+            space_type=space_type,
+            space_name=space_name,
+            version_level=version_level,
+            house_type=template_data.get('house_type'),
+            style=template_data.get('style'),
+            area_range=template_data.get('area_range'),
+            items_json=json_lib.dumps(item_snaps),
+            material_count=len(item_snaps),
+            material_cost=material_cost,
+            total_price=total_price,
+            sort_order=idx,
+            created_by=current_user.id
+        )
+        db.session.add(space_tpl)
+        space_templates.append(space_tpl)
+    
+    db.session.commit()
+    
+    return jsonify({
+        'code': 200,
+        'message': f'模板创建成功，共生成 {len(space_templates)} 个空间模板',
+        'data': {
+            'template': template.to_dict(),
+            'space_templates': [st.to_dict() for st in space_templates]
+        }
+    })
+
+
+# ========== 报价空间模板管理 ==========
+
+@quote_bp.route('/space-templates', methods=['GET'])
+@jwt_required_v2
+def get_space_templates(current_user):
+    """获取报价空间模板列表"""
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    space_type = request.args.get('space_type')
+    keyword = request.args.get('keyword', '').strip()
+    is_enabled = request.args.get('is_enabled')
+    
+    query = QuoteSpaceTemplate.query.filter_by(
+        tenant_id=current_user.get('tenant_id', '0')
+    )
+    
+    if space_type:
+        query = query.filter_by(space_type=space_type)
+    if keyword:
+        query = query.filter(
+            db.or_(
+                QuoteSpaceTemplate.name.contains(keyword),
+                QuoteSpaceTemplate.space_name.contains(keyword)
+            )
+        )
+    if is_enabled is not None:
+        query = query.filter_by(is_enabled=is_enabled == 'true')
+    
+    query = query.order_by(QuoteSpaceTemplate.sort_order, QuoteSpaceTemplate.updated_at.desc())
+    pagination = query.paginate(page=page, per_page=page_size, error_out=False)
+    
+    return jsonify({
+        'code': 200,
+        'message': 'success',
+        'data': {
+            'items': [t.to_dict() for t in pagination.items],
+            'total': pagination.total,
+            'page': page,
+            'page_size': page_size,
+            'pages': pagination.pages
+        }
+    })
+
+
+@quote_bp.route('/space-templates', methods=['POST'])
+@jwt_required_v2
+def create_space_template(current_user):
+    """创建空间模板"""
+    import json as json_lib
+    data = request.get_json() or {}
+    
+    if not data.get('name'):
+        return jsonify({'code': 400, 'message': '模板名称不能为空'}), 400
+    
+    items = data.get('items', [])
+    material_cost = sum(float(it.get('total_price', 0)) or (float(it.get('quantity', 0)) * float(it.get('unit_price', 0))) for it in items)
+    
+    tpl = QuoteSpaceTemplate(
+        tenant_id=current_user.get('tenant_id', '0'),
+        name=data['name'],
+        space_type=data.get('space_type'),
+        space_name=data.get('space_name'),
+        version_level=data.get('version_level', '标配'),
+        house_type=data.get('house_type'),
+        style=data.get('style'),
+        area_range=data.get('area_range'),
+        items_json=json_lib.dumps(items),
+        material_count=len(items),
+        material_cost=material_cost,
+        total_price=material_cost,
+        sort_order=data.get('sort_order', 0),
+        created_by=current_user.get('id')
+    )
+    db.session.add(tpl)
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': '创建成功', 'data': tpl.to_dict()})
+
+
+@quote_bp.route('/space-templates/<int:template_id>', methods=['GET'])
+@jwt_required_v2
+def get_space_template(current_user, template_id):
+    """获取空间模板详情"""
+    tpl = QuoteSpaceTemplate.query.filter_by(
+        id=template_id,
+        tenant_id=current_user.get('tenant_id', '0')
+    ).first()
+    
+    if not tpl:
+        return jsonify({'code': 404, 'message': '模板不存在'}), 404
+    
+    return jsonify({'code': 200, 'message': 'success', 'data': tpl.to_dict()})
+
+
+@quote_bp.route('/space-templates/<int:template_id>', methods=['PUT'])
+@jwt_required_v2
+def update_space_template(current_user, template_id):
+    """更新空间模板"""
+    import json as json_lib
+    tpl = QuoteSpaceTemplate.query.filter_by(
+        id=template_id,
+        tenant_id=current_user.get('tenant_id', '0')
+    ).first()
+    
+    if not tpl:
+        return jsonify({'code': 404, 'message': '模板不存在'}), 404
+    
+    data = request.get_json() or {}
+    tpl.name = data.get('name', tpl.name)
+    tpl.space_type = data.get('space_type', tpl.space_type)
+    tpl.space_name = data.get('space_name', tpl.space_name)
+    tpl.version_level = data.get('version_level', tpl.version_level)
+    tpl.house_type = data.get('house_type', tpl.house_type)
+    tpl.style = data.get('style', tpl.style)
+    tpl.area_range = data.get('area_range', tpl.area_range)
+    tpl.is_enabled = data.get('is_enabled', tpl.is_enabled)
+    tpl.sort_order = data.get('sort_order', tpl.sort_order)
+    
+    # 更新物料
+    if 'items' in data:
+        tpl.items_json = json_lib.dumps(data['items'])
+        tpl.material_count = len(data['items'])
+        material_cost = sum(float(it.get('total_price', 0)) for it in data['items'])
+        tpl.material_cost = material_cost
+        tpl.total_price = material_cost
+    
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': '更新成功', 'data': tpl.to_dict()})
+
+
+
+@quote_bp.route('/space-templates/<int:template_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_space_template(current_user, template_id):
+    """删除空间模板"""
+    tpl = QuoteSpaceTemplate.query.filter_by(
+        id=template_id,
+        tenant_id=current_user.get('tenant_id', '0')
+    ).first()
+    
+    if not tpl:
+        return jsonify({'code': 404, 'message': '模板不存在'}), 404
+    
+    tpl.is_enabled = False
+    db.session.commit()
+    
+    return jsonify({'code': 200, 'message': '删除成功'})
+
+
+# ========== 案例/提案导入 ==========
+
+@quote_bp.route('/space-templates/import-to-case', methods=['POST'])
+@jwt_required_v2
+def import_space_templates_to_case(current_user):
+    """将空间模板导入案例报价配置
+    请求体: { template_ids: [1,2,3] }
+    返回: 各模板的物料列表汇总
+    """
+    import json as json_lib
+    data = request.get_json() or {}
+    template_ids = data.get('template_ids', [])
+    
+    if not template_ids:
+        return jsonify({'code': 400, 'message': '请选择要导入的模板'}), 400
+    
+    tenant_id = current_user.get('tenant_id', '0')
+    templates = QuoteSpaceTemplate.query.filter(
+        QuoteSpaceTemplate.id.in_(template_ids),
+        QuoteSpaceTemplate.tenant_id == tenant_id,
+        QuoteSpaceTemplate.is_enabled == True
+    ).all()
+    
+    if not templates:
+        return jsonify({'code': 404, 'message': '未找到有效模板'}), 404
+    
+    result = []
+    for tpl in templates:
+        items = json_lib.loads(tpl.items_json) if tpl.items_json else []
+        result.append({
+            'template_id': tpl.id,
+            'template_name': tpl.name,
+            'space_name': tpl.space_name,
+            'space_type': tpl.space_type,
+            'version_level': tpl.version_level,
+            'material_count': tpl.material_count,
+            'total_price': tpl.total_price,
+            'items': items
+        })
+    
+    total_price = sum(r['total_price'] for r in result)
+    
+    return jsonify({
+        'code': 200,
+        'message': f'成功导入 {len(result)} 个空间模板',
+        'data': {
+            'templates': result,
+            'total_price': total_price
+        }
+    })
+
+
 # ========== 报价管理 ==========
 
 @quote_bp.route('', methods=['GET'])
@@ -482,18 +817,21 @@ def update_quote(current_user, id):
     """更新报价"""
     quote = Quote.query.get_or_404(id)
     data = request.get_json()
+    print(f'[update_quote] id={id}, data={data}')
 
     # 只有草稿可以修改
     if quote.status != 'draft':
         return jsonify({'code': 400, 'message': '只有草稿状态可以修改'}), 400
 
     fields = [
-        'cover_config', 'project_name', 'project_address', 'house_type',
-        'related_case_id', 'contract_no', 'cover_template_id',
+        'customer_id', 'cover_config', 'project_name', 'project_address', 'house_type',
+        'building_name', 'related_case_id', 'contract_no', 'cover_template_id',
         'service_team', 'category_summary',
         'customer_name', 'customer_phone',
-        'subtotal', 'management_fee', 'management_fee_rate',
-        'tax', 'tax_rate', 'total_amount', 'valid_days', 'remark'
+        'subtotal', 'material_amount', 'craft_amount', 'design_amount', 'install_amount',
+        'management_fee', 'management_fee_rate', 'manage_rate', 'manage_amount',
+        'tax', 'tax_rate', 'tax_amount', 'discount_rate', 'discount_amount',
+        'total_amount', 'valid_days', 'remark'
     ]
 
     for field in fields:
@@ -503,6 +841,13 @@ def update_quote(current_user, id):
     # 更新过期日期
     if 'valid_days' in data:
         quote.expire_date = date.today() + timedelta(days=data['valid_days'])
+    elif 'valid_until' in data:
+        # 支持直接传入日期字符串
+        from datetime import datetime
+        try:
+            quote.expire_date = datetime.strptime(data['valid_until'], '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            pass  # 忽略无效日期格式
 
     # 更新报价项
     if 'items' in data:
@@ -1413,15 +1758,47 @@ def calculate_quote(current_user):
 def get_space_instances(current_user, id):
     """获取报价单的空间配置实例"""
     from app.models.space_config import QuoteSpaceInstance
+    from app.models.quote import QuoteItem
     
     instances = QuoteSpaceInstance.query.filter_by(
         quote_id=id,
         is_selected=True
     ).all()
     
+    result = []
+    for inst in instances:
+        data = inst.to_dict()
+        # 动态计算该空间的工艺费用和物料成本
+        # row_total = qty × measurement_value × process_coefficient × unit_price + process_amount
+        # 物料成本(不含工艺) = qty × measurement_value × unit_price
+        # 工艺费用 = 物料成本 × (coeff-1) + process_qty × process_unit_price
+        items = QuoteItem.query.filter_by(space_instance_id=inst.id).all()
+        material_cost = 0.0
+        labor_cost = 0.0
+        for it in items:
+            row_total = float(it.row_total or it.total_price or 0)
+            qty = float(it.quantity or 1)
+            m_val = float(it.measurement_value or 1)
+            unit_price = float(it.unit_price or 0)
+            base_amount = qty * m_val * unit_price  # 不含工艺系数的基础金额
+            coeff = float(it.process_coefficient or it.craft_coefficient or 1)
+            # 工艺费用 = 基础金额 × (系数-1) + 工艺附加
+            craft_fee = base_amount * (coeff - 1) if coeff > 1 else 0
+            pq = float(it.process_quantity or it.craft_quantity or 0)
+            pup = float(it.process_unit_price or 0)
+            if pq > 0 and pup > 0:
+                craft_fee += pq * pup
+            material_cost += base_amount  # 物料成本不含工艺
+            labor_cost += craft_fee
+        data['material_cost'] = round(material_cost, 2)
+        data['labor_cost'] = round(labor_cost, 2)
+        data['material_count'] = len(items)
+        data['total_price'] = round(material_cost + labor_cost, 2)
+        result.append(data)
+    
     return jsonify({
         'code': 200,
-        'data': [inst.to_dict() for inst in instances]
+        'data': result
     })
 
 
@@ -1467,9 +1844,15 @@ def get_space_items(current_user, quote_id, instance_id):
     from app.models.quote import QuoteItem
     
     # 验证空间实例存在且属于该报价
-    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first_or_404()
+    instance = QuoteSpaceInstance.query.filter_by(id=instance_id, quote_id=quote_id).first()
+    if not instance:
+        return jsonify({'code': 404, 'message': '空间实例不存在'}), 404
     
-    items = QuoteItem.query.filter_by(quote_id=quote_id, space_name=instance.space_name).all()
+    # 查询物料：优先按 space_instance_id，如果没有则按 space_name 兜底（兼容旧数据）
+    items = QuoteItem.query.filter_by(quote_id=quote_id, space_instance_id=instance_id).all()
+    if not items:
+        # 旧数据没有 space_instance_id，用 space_name 兜底
+        items = QuoteItem.query.filter_by(quote_id=quote_id, space_name=instance.space_name).all()
     
     return jsonify({
         'code': 200,
@@ -1510,13 +1893,14 @@ def add_item_to_space_instance(current_user, quote_id, instance_id):
     item = QuoteItem(
         quote_id=quote_id,
         room_name=instance.space_name or instance.space_type,
+        space_name=instance.space_name,
         category_level1=data.get('category_level1'),
         category_level2=data.get('category_level2'),
         category_level3=data.get('category_level3'),
         item_type=data.get('item_type', 'product'),
         sku_id=data.get('sku_id'),
         name=data.get('name'),
-        spec=data.get('spec'),
+        custom_name=data.get('custom_name'),
         brand=data.get('brand'),
         material=data.get('material'),
         unit=unit,
@@ -1537,6 +1921,7 @@ def add_item_to_space_instance(current_user, quote_id, instance_id):
         process_unit=data.get('process_unit'),
         process_unit_price=data.get('process_unit_price', 0),
         process_amount=data.get('process_amount', 0),
+        space_instance_id=instance_id,  # 关联空间实例
         craft_type=data.get('craft_type'),
         craft_price=data.get('craft_price', 0),
         craft_quantity=data.get('craft_quantity', 1),
@@ -1904,13 +2289,47 @@ def _recalculate_quote_total(quote_id):
     # 3. 构建分类汇总
     category_summary = _build_category_summary(quote_id)
 
-    # 4. 更新报价
+    # 4. 自动计算物料总额和工艺费用
+    # 工艺费用 = Σ(基础金额 × (工艺系数-1)) + Σ(工艺数量×工艺单价)，仅统计有工艺加成的项
+    all_items = QuoteItem.query.filter_by(quote_id=quote_id).all()
+    craft_total = 0
+    material_total = 0
+    for it in all_items:
+        tp = float(it.total_price or 0)
+        p_coef = float(getattr(it, 'process_coefficient', None) or 1)
+        p_qty = float(getattr(it, 'process_quantity', None) or 0)
+        p_uprice = float(getattr(it, 'process_unit_price', None) or 0)
+        item_type = getattr(it, 'item_type', '') or ''
+        
+        if item_type in ('craft', 'process'):
+            # 独立工艺项，全额计入工艺费
+            craft_total += tp
+        else:
+            # 普通物料项：提取工艺加成部分
+            if p_coef > 1 or p_qty > 0:
+                # 基础金额（不含工艺系数）= total_price / process_coefficient
+                base_amt = tp / p_coef if p_coef > 1 else tp
+                craft_from_coef = tp - base_amt  # 工艺系数产生的加价
+                craft_from_process = p_qty * p_uprice  # 工艺附加金额
+                craft_total += (craft_from_coef + craft_from_process)
+                material_total += base_amt
+            else:
+                material_total += tp
+
+    # 5. 更新报价
     quote.subtotal = items_total
+    quote.material_amount = material_total
+    quote.craft_amount = craft_total
     quote.category_summary = category_summary
-    # total_amount = subtotal + management_fee + tax
-    mgmt_fee = float(quote.management_fee or 0)
-    tax = float(quote.tax or 0)
-    quote.total_amount = float(items_total) + mgmt_fee + tax
+    # total_amount = subtotal + management_fee + tax - discount
+    mgmt_fee = float(quote.management_fee or quote.manage_amount or 0)
+    tax_val = float(quote.tax or quote.tax_amount or 0)
+    # 优惠金额自动计算：(物料+工艺+管理费) × discount_rate%
+    discount_rate = float(quote.discount_rate or 0)
+    subtotal_for_discount = material_total + craft_total + mgmt_fee
+    discount = round(subtotal_for_discount * discount_rate / 100, 2) if discount_rate > 0 else 0
+    quote.discount_amount = discount
+    quote.total_amount = round(float(items_total) + mgmt_fee + tax_val - discount)
 
 
 # ========== 预览 / 复制 / 批量 ==========
@@ -2290,7 +2709,9 @@ def submit_quote(current_user, id):
     from app.routes.auth_routes_v2 import jwt_required_v2
     quote = Quote.query.get_or_404(id)
     
-    if quote.created_by != current_user.id and current_user.role != 'admin':
+    uid = current_user.get('id') if isinstance(current_user, dict) else current_user.id
+    urole = current_user.get('role') if isinstance(current_user, dict) else getattr(current_user, 'role', None)
+    if quote.creator_id and quote.creator_id != uid and urole != 'admin':
         return jsonify({'code': 403, 'message': 'no permission'}), 403
     
     if not quote.customer_name or not quote.customer_phone:

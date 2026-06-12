@@ -101,4 +101,6 @@ __all__ = [
     'CaseSpaceConfig', 'CaseSpaceConfigItem', 'QuoteSpaceInstance', 'MaterialExclusiveRule',
     # 特殊工艺
     'CraftProcess',
+    # 报价空间模板
+    'QuoteSpaceTemplate',
 ]
