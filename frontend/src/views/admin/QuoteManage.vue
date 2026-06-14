@@ -85,9 +85,9 @@
         </el-table-column>
         <el-table-column label="操作" width="250" fixed="right">
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button link type="success" @click="previewHtml(row)">预览</el-button>
             <el-button link type="primary" @click="editQuote(row)" v-if="row.status === 'draft'">编辑</el-button>
-            <el-button link type="success" @click="previewQuote(row)">预览</el-button>
+            <el-button link type="warning" @click="downloadPdf(row)">PDF</el-button>
             <el-button link type="warning" @click="submitQuote(row)" v-if="row.status === 'draft'">提交</el-button>
             <el-button link type="success" @click="approveQuote(row)" v-if="row.status === 'pending'">通过</el-button>
             <el-button link type="danger" @click="rejectQuote(row)" v-if="row.status === 'pending'">驳回</el-button>
@@ -303,61 +303,82 @@
 
       <!-- 步骤4: 分类汇总 -->
       <div v-show="activeStep === 3" class="step-content">
-        <el-card>
+        <el-card class="summary-main-card">
           <template #header>
             <div class="card-header">
-              <span>分类汇总</span>
+              <span class="summary-title">分类汇总</span>
+              <span class="summary-meta">{{ form.quote_no }} · {{ form.customer_name }}</span>
             </div>
           </template>
 
-          <el-row :gutter="16">
-            <el-col :span="12" v-for="cat in categoryList" :key="cat.key">
-              <el-card class="category-card" shadow="hover">
-                <div class="category-header">
-                  <span class="category-name">{{ cat.label }}</span>
-                  <span class="category-amount">¥{{ formatMoney(getCategoryAmount(cat.key)) }}</span>
+          <div class="section-label">报价分类明细</div>
+
+          <div class="category-cards">
+            <div
+              class="cat-card"
+              v-for="(cat, idx) in categoryList"
+              :key="cat.key"
+              :class="{ 'cat-empty': getCategoryAmount(cat.key) <= 0 }"
+            >
+              <div class="cat-color-bar" :style="{ background: CAT_COLORS[idx % CAT_COLORS.length].bar }"></div>
+              <div class="cat-info">
+                <div class="cat-name">
+                  <span class="cat-icon">{{ CAT_COLORS[idx % CAT_COLORS.length].icon }}</span>
+                  {{ cat.label }}
                 </div>
-              </el-card>
-            </el-col>
-          </el-row>
+                <div class="cat-meta">{{ getCategoryCount(cat.key) }} 项单品</div>
+              </div>
+              <div class="cat-right">
+                <div class="cat-amount">¥{{ formatMoney(getCategoryAmount(cat.key)) }}</div>
+                <div class="cat-percent">占总价 {{ getCategoryPercent(cat.key) }}%</div>
+              </div>
+              <div class="cat-progress">
+                <div
+                  class="cat-progress-bar"
+                  :style="{ width: getCategoryPercent(cat.key) + '%', background: CAT_COLORS[idx % CAT_COLORS.length].bar }"
+                ></div>
+              </div>
+            </div>
+          </div>
 
-          <el-divider />
-
-          <el-row :gutter="16">
-            <el-col :span="8">
-              <el-form-item label="小计">
-                <el-input-number v-model="form.subtotal" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="管理费率 %">
-                <el-input-number v-model="form.management_fee_rate" :min="0" :max="100" :precision="2" :controls="false" style="width:100px" @change="calculateTotal" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="管理费">
-                <el-input-number v-model="form.management_fee" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
-              </el-form-item>
-            </el-col>
-          </el-row>
-
-          <el-row :gutter="16">
-            <el-col :span="8">
-              <el-form-item label="税率 %">
-                <el-input-number v-model="form.tax_rate" :min="0" :max="100" :precision="2" :controls="false" style="width:100px" @change="calculateTotal" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="税费">
-                <el-input-number v-model="form.tax" :min="0" :precision="2" disabled :controls="false" style="width:100px" />
-              </el-form-item>
-            </el-col>
-            <el-col :span="8">
-              <el-form-item label="总价">
-                <div class="total-amount">¥{{ formatMoney(form.total_amount) }}</div>
-              </el-form-item>
-            </el-col>
-          </el-row>
+          <!-- 发票风格汇总 -->
+          <div class="summary-invoice">
+            <div class="sum-row sum-subtotal">
+              <span class="sum-label">小计（材料 + 工艺）</span>
+              <span class="sum-value">¥{{ formatMoney(form.subtotal) }}</span>
+            </div>
+            <div class="sum-row">
+              <span class="sum-label">
+                管理费
+                <el-input-number
+                  v-model="form.management_fee_rate"
+                  :min="0" :max="100" :precision="2" :controls="false"
+                  size="small" class="rate-input"
+                  @change="calculateTotal"
+                />
+                <span class="rate-unit">%</span>
+              </span>
+              <span class="sum-value">¥{{ formatMoney(form.management_fee) }}</span>
+            </div>
+            <div class="sum-row">
+              <span class="sum-label">
+                税费
+                <el-input-number
+                  v-model="form.tax_rate"
+                  :min="0" :max="100" :precision="2" :controls="false"
+                  size="small" class="rate-input"
+                  @change="calculateTotal"
+                />
+                <span class="rate-unit">%</span>
+              </span>
+              <span class="sum-value">¥{{ formatMoney(form.tax) }}</span>
+            </div>
+            <div class="sum-divider"></div>
+            <div class="sum-row sum-total">
+              <span class="sum-label">含税总价</span>
+              <span class="sum-total-value">¥{{ formatMoney(form.total_amount) }}</span>
+            </div>
+          </div>
         </el-card>
       </div>
 
@@ -607,6 +628,17 @@ import { Plus, FullScreen, Download, Delete, Edit, Stamp, DocumentCopy, Search }
 import request from '@/utils/request'
 import MaterialSelector from '@/components/MaterialSelector.vue'
 import SignaturePad from '@/components/SignaturePad.vue'
+
+// 分类汇总色彩方案
+const CAT_COLORS = [
+  { icon: '🪵', bar: 'linear-gradient(90deg, #3b82f6, #2563eb)' },   // 蓝
+  { icon: '🛋️', bar: 'linear-gradient(90deg, #10b981, #059669)' },   // 绿
+  { icon: '🖼️', bar: 'linear-gradient(90deg, #f59e0b, #d97706)' },   // 琥珀
+  { icon: '⚙️', bar: 'linear-gradient(90deg, #8b5cf6, #7c3aed)' },   // 紫
+  { icon: '🏗️', bar: 'linear-gradient(90deg, #ec4899, #db2777)' },   // 粉
+  { icon: '📦', bar: 'linear-gradient(90deg, #14b8a6, #0d9488)' },   // 青
+  { icon: '🔧', bar: 'linear-gradient(90deg, #f97316, #ea580c)' },   // 橙
+]
 
 const loading = ref(false)
 const quotes = ref([])
@@ -1144,6 +1176,26 @@ const getCategoryAmount = (categoryKey) => {
   return total
 }
 
+// 获取某分类下的单品数量
+const getCategoryCount = (categoryKey) => {
+  let count = 0
+  form.spaces.forEach(space => {
+    (space.children || []).forEach(item => {
+      if (item.category_level1 === categoryKey) {
+        count++
+      }
+    })
+  })
+  return count
+}
+
+// 获取某分类占总价的百分比
+const getCategoryPercent = (categoryKey) => {
+  if (!form.total_amount || form.total_amount <= 0) return 0
+  const amount = getCategoryAmount(categoryKey)
+  return Math.round((amount / form.total_amount) * 1000) / 10
+}
+
 const calculateTotal = () => {
   // 优先计算 spaces 分组模式
   if (form.spaces.length > 0) {
@@ -1536,12 +1588,19 @@ const editQuote = (row) => {
   router.push(`/admin/quotes/${row.id}`)
 }
 
-const previewQuote = async (row) => {
+// HTML预览 - 打开新窗口
+const previewHtml = (row) => {
+  const token = localStorage.getItem('token')
+  const url = `/api/v3/quotes/${row.id}/html-preview?token=${token}`
+  window.open(url, '_blank', 'width=1280,height=720,scrollbars=yes')
+}
+
+// PDF下载
+const downloadPdf = async (row) => {
   try {
-    ElMessage.info('正在生成PDF预览...')
+    ElMessage.info('正在生成PDF...')
     isExportPdf.value = true
     const token = localStorage.getItem('token')
-    // 生成紧凑版预览（show_ref=false），按需展开引用参数列
     const response = await fetch(`/api/v3/quotes/${row.id}/pdf-preview?show_ref=true`, {
       headers: { 'Authorization': `Bearer ${token}` }
     })
@@ -1553,9 +1612,9 @@ const previewQuote = async (row) => {
     a.download = `报价单_${row.quote_no}.pdf`
     a.click()
     window.URL.revokeObjectURL(url)
-    ElMessage.success('PDF预览生成成功')
+    ElMessage.success('PDF下载成功')
   } catch (error) {
-    ElMessage.error('PDF预览失败：' + (error.message || '未知错误'))
+    ElMessage.error('PDF下载失败：' + (error.message || '未知错误'))
   } finally {
     isExportPdf.value = false
   }
@@ -1943,26 +2002,217 @@ onMounted(() => {
   color: #8c8c8c;
 }
 
-/* 分类卡片 */
-.category-card {
-  margin-bottom: 16px;
+/* ===== 方案A：发票单据风 - 分类汇总 ===== */
+
+/* 主卡片 */
+.summary-main-card {
+  border-radius: 12px;
 }
 
-.category-card .category-header {
+.summary-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: 0.5px;
+}
+
+.summary-meta {
+  font-size: 12px;
+  color: #aaa;
+}
+
+/* 分类明细标签 */
+.section-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 14px;
+  padding-left: 2px;
+}
+
+/* 分类卡片容器 */
+.category-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* 单张分类卡 */
+.cat-card {
+  background: #fafaf8;
+  border-radius: 10px;
+  padding: 16px 18px 10px;
+  border: 1px solid #efeae2;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.cat-card:hover {
+  border-color: #d4cdc0;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  transform: translateY(-1px);
+}
+
+.cat-card.cat-empty {
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+/* 左侧色彩条 */
+.cat-color-bar {
+  width: 5px;
+  height: 48px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+/* 中间信息区 */
+.cat-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.cat-icon {
+  font-size: 15px;
+  margin-right: 6px;
+}
+
+.cat-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin-bottom: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.cat-meta {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+/* 右侧金额区 */
+.cat-right {
+  text-align: right;
+  flex-shrink: 0;
+  padding-bottom: 6px;
+}
+
+.cat-amount {
+  font-size: 19px;
+  font-weight: 700;
+  color: #1a1a1a;
+  letter-spacing: -0.5px;
+}
+
+.cat-percent {
+  font-size: 11px;
+  color: #b0b0b0;
+  margin-top: 2px;
+}
+
+/* 底部进度条 */
+.cat-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+}
+
+.cat-progress-bar {
+  height: 100%;
+  border-radius: 0 2px 0 0;
+  transition: width 0.6s ease;
+}
+
+/* ===== 发票风格汇总区 ===== */
+.summary-invoice {
+  border-top: 2px dashed #e0dcd4;
+  padding-top: 18px;
+}
+
+.sum-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 12px;
+  padding: 8px 4px;
+  font-size: 14px;
+  color: #6b7280;
 }
 
-.category-card .category-name {
-  font-weight: 500;
+.sum-row.sum-subtotal {
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
 }
 
-.total-amount {
+.sum-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* 费率输入 */
+.rate-input {
+  width: 72px !important;
+}
+
+.rate-input .el-input__wrapper {
+  background: #f5f5f4;
+  border-radius: 4px;
+  box-shadow: none !important;
+  padding: 0 8px;
+}
+
+.rate-input .el-input__inner {
+  text-align: right;
+  font-size: 13px;
+  color: #374151;
+}
+
+.rate-unit {
+  font-size: 12px;
+  color: #9ca3af;
+  margin-left: -4px;
+}
+
+.sum-value {
+  font-weight: 600;
+  color: #374151;
+  font-variant-numeric: tabular-nums;
+}
+
+.sum-divider {
+  height: 1px;
+  background: #e0dcd4;
+  margin: 10px 4px;
+}
+
+.sum-row.sum-total {
+  padding-top: 12px;
+  padding-bottom: 2px;
+}
+
+.sum-total .sum-label {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a1a1a;
+}
+
+.sum-total-value {
   font-size: 24px;
-  font-weight: bold;
-  color: #f5222d;
+  font-weight: 800;
+  color: #c0392b;
+  letter-spacing: 0.5px;
 }
 
 /* 物料项 */

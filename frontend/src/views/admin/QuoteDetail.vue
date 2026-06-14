@@ -22,6 +22,9 @@
             <el-button type="warning" @click="saveAsTemplate">
               <el-icon><DocumentCopy /></el-icon> 另存为模板
             </el-button>
+            <el-button type="info" @click="showHtmlPreview">
+              <el-icon><View /></el-icon> 预览
+            </el-button>
             <el-dropdown @command="handleCommand">
               <el-button>
                 更多操作 <el-icon><ArrowDown /></el-icon>
@@ -38,17 +41,12 @@
     </div>
 
     <!-- 基本信息 + 服务团队（合并，可直接编辑） -->
-    <el-card shadow="never" class="info-card">
-      <template #header>
-        <div class="card-header">
-          <span>基本信息</span>
-        </div>
-      </template>
-      
-      <!-- 客户信息行 -->
-      <el-row :gutter="16" class="info-row">
-        <el-col :span="6">
-          <div class="info-label">客户筛选</div>
+    <!-- 基本信息卡片（美化版） -->
+    <div class="info-section">
+      <!-- 客户信息区 -->
+      <div class="info-grid">
+        <div class="info-field">
+          <label class="field-label">客户</label>
           <el-select 
             v-if="quote.status === 'draft'"
             v-model="quoteInfo.customer_id" 
@@ -56,98 +54,83 @@
             remote 
             :remote-method="searchCustomers" 
             placeholder="搜索客户姓名/电话"
-            style="width:100%"
+            size="default"
             @change="onCustomerChange"
           >
             <el-option v-for="c in customerOptions" :key="c.id" :label="c.name + ' ' + (c.phone||'')" :value="c.id" />
           </el-select>
-          <div v-else class="info-value">{{ quote.customer_name || '未设置' }}</div>
-        </el-col>
-        <el-col :span="6">
-          <div class="info-label">联系电话</div>
-          <div class="info-value">{{ quoteInfo.customer_phone || quote.customer_phone || '-' }}</div>
-        </el-col>
-        <el-col :span="6">
-          <div class="info-label">楼盘</div>
-          <div class="info-value">{{ quoteInfo.building_name || quote.building_name || '-' }}</div>
-        </el-col>
-        <el-col :span="6">
-          <div class="info-label">户型</div>
-          <div class="info-value">{{ quoteInfo.house_type || quote.house_type || '-' }}</div>
-        </el-col>
-      </el-row>
-      
-      <!-- 地址行 -->
-      <el-row :gutter="16" class="info-row">
-        <el-col :span="12">
-          <div class="info-label">项目地址</div>
+          <div v-else class="field-value-static">{{ quote.customer_name || '未设置' }}</div>
+        </div>
+        <div class="info-field">
+          <label class="field-label">联系电话</label>
+          <div class="field-value-static">{{ quoteInfo.customer_phone || quote.customer_phone || '-' }}</div>
+        </div>
+        <div class="info-field">
+          <label class="field-label">楼盘</label>
+          <div class="field-value-static">{{ quoteInfo.building_name || quote.building_name || '-' }}</div>
+        </div>
+        <div class="info-field">
+          <label class="field-label">户型</label>
+          <div class="field-value-static">{{ quoteInfo.house_type || quote.house_type || '-' }}</div>
+        </div>
+        <div class="info-field field-wide">
+          <label class="field-label">项目地址</label>
           <el-input 
             v-if="quote.status === 'draft'"
             v-model="quoteInfo.project_address" 
             placeholder="项目地址"
+            size="default"
           />
-          <div v-else class="info-value">{{ quote.project_address || '-' }}</div>
-        </el-col>
-        <el-col :span="6">
-          <div class="info-label">报价有效期</div>
+          <div v-else class="field-value-static">{{ quote.project_address || '-' }}</div>
+        </div>
+        <div class="info-field">
+          <label class="field-label">报价有效期</label>
           <el-date-picker 
             v-if="quote.status === 'draft'"
             v-model="quoteInfo.valid_until" 
             type="date" 
             value-format="YYYY-MM-DD"
-            style="width:100%"
+            size="default"
             placeholder="选择有效期"
           />
-          <div v-else class="info-value">{{ quote.expire_date ? formatDate(quote.expire_date) : (quote.valid_until ? formatDate(quote.valid_until) : '-') }}</div>
-        </el-col>
-        <el-col :span="6">
-          <div class="info-label">报价日期</div>
-          <div class="info-value">{{ formatDate(quote.created_at) }}</div>
-        </el-col>
-      </el-row>
-      
-      <!-- 服务团队行 -->
-      <el-divider content-position="left">服务团队</el-divider>
-      <el-row :gutter="16">
-        <el-col :span="4" v-for="role in QUOTE_TEAM_ROLES" :key="role.value">
-          <div class="team-role">
-            <div class="role-label">{{ role.label }}</div>
+          <div v-else class="field-value-static">{{ quote.expire_date ? formatDate(quote.expire_date) : (quote.valid_until ? formatDate(quote.valid_until) : '-') }}</div>
+        </div>
+        <div class="info-field">
+          <label class="field-label">报价日期</label>
+          <div class="field-value-static">{{ formatDate(quote.created_at) }}</div>
+        </div>
+      </div>
+
+      <!-- 服务团队区 -->
+      <div class="team-section">
+        <div class="section-title">服务团队</div>
+        <div class="team-grid">
+          <div class="team-item" v-for="role in QUOTE_TEAM_ROLES" :key="role.value">
+            <div class="team-role-name">{{ role.label }}</div>
             <el-select
               v-if="quote.status === 'draft' && role.value !== 'auditor'"
               v-model="serviceTeam[role.value]"
               filterable
-              :placeholder="'选择' + role.label"
-              style="width:100%"
+              size="small"
               clearable
+              placeholder="选择人员"
             >
-              <el-option
-                v-for="e in allEmployees"
-                :key="e.id"
-                :label="e.name"
-                :value="e.id"
-              />
+              <el-option v-for="e in allEmployees" :key="e.id" :label="e.name" :value="e.id" />
             </el-select>
             <el-select
               v-else-if="quote.status === 'draft' && role.value === 'auditor'"
               v-model="serviceTeam[role.value]"
               disabled
-              style="width:100%"
+              size="small"
               placeholder="提交后自动填充"
             >
-              <el-option
-                v-for="e in allEmployees"
-                :key="e.id"
-                :label="e.name"
-                :value="e.id"
-              />
+              <el-option v-for="e in allEmployees" :key="e.id" :label="e.name" :value="e.id" />
             </el-select>
-            <div v-else class="role-value">
-              {{ getEmployeeName(serviceTeam[role.value]) || '未分配' }}
-            </div>
+            <div v-else class="team-member-name">{{ getEmployeeName(serviceTeam[role.value]) || '未分配' }}</div>
           </div>
-        </el-col>
-      </el-row>
-    </el-card>
+        </div>
+      </div>
+    </div>
 
     <!-- 报价空间 -->
     <el-card shadow="never" class="spaces-card" v-loading="loading">
@@ -453,40 +436,16 @@
       />
     </el-card>
 
-    <!-- 签字区 -->
-    <el-card shadow="never" class="sign-card">
-      <template #header>
-        <div class="card-header">
-          <span>签字确认</span>
-        </div>
+
+
+    <!-- HTML预览对话框 -->
+    <el-dialog v-model="htmlPreviewVisible" title="报价单预览" width="90%" top="3vh" :fullscreen="false">
+      <iframe :src="htmlPreviewUrl" style="width:100%;height:80vh;border:1px solid #eee;border-radius:4px;"></iframe>
+      <template #footer>
+        <el-button @click="htmlPreviewVisible = false">关闭</el-button>
+        <el-button type="primary" @click="handleExportPDF">下载 PDF</el-button>
       </template>
-      <el-row :gutter="32">
-        <el-col :span="8">
-          <div class="sign-box">
-            <div class="sign-label">客户签字</div>
-            <div class="sign-value">{{ quote.customer_sign || '待签字' }}</div>
-            <div class="sign-date" v-if="quote.customer_sign_date">
-              {{ formatDate(quote.customer_sign_date) }}
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="sign-box">
-            <div class="sign-label">设计师签字</div>
-            <div class="sign-value">{{ quote.designer_sign || '待签字' }}</div>
-            <div class="sign-date" v-if="quote.designer_sign_date">
-              {{ formatDate(quote.designer_sign_date) }}
-            </div>
-          </div>
-        </el-col>
-        <el-col :span="8">
-          <div class="sign-box">
-            <div class="sign-label">公司盖章</div>
-            <div class="sign-value">{{ quote.company_seal ? '已盖章' : '待盖章' }}</div>
-          </div>
-        </el-col>
-      </el-row>
-    </el-card>
+    </el-dialog>
 
     <!-- 编辑物料对话框 -->
     <el-dialog v-model="itemDialogVisible" :title="itemForm.id ? '编辑物料' : '新建物料'" width="680px">
@@ -1519,6 +1478,16 @@ const editQuote = () => {
   router.push(`/admin/quotes/${quoteId.value}/edit`)
 }
 
+// HTML预览（不生成PDF文件）
+const htmlPreviewVisible = ref(false)
+const htmlPreviewUrl = ref('')
+const showHtmlPreview = async () => {
+  const id = quoteId.value
+  const token = localStorage.getItem('token') || localStorage.getItem('auth_token') || ''
+  htmlPreviewUrl.value = `/api/v3/quotes/${id}/html-preview?token=${token}`
+  htmlPreviewVisible.value = true
+}
+
 // 导出PDF（携带token，fetch+blob触发下载）
 const handleExportPDF = async () => {
   const id = quoteId.value
@@ -2138,10 +2107,6 @@ onMounted(() => {
 .spaces-card,
 .summary-card,
 .remark-card,
-.sign-card {
-  margin-bottom: 16px;
-}
-
 .card-header {
   display: flex;
   justify-content: space-between;
@@ -2228,38 +2193,124 @@ onMounted(() => {
   margin-right: 4px;
 }
 
-.sign-box {
+/* ========== 基本信息样式（美化版） ========== */
+.info-section {
+  background: #fff;
   border: 1px solid #e4e7ed;
-  border-radius: 4px;
-  padding: 16px;
-  text-align: center;
-}
-
-.sign-label {
-  font-size: 12px;
-  color: #909399;
-  margin-bottom: 8px;
-}
-
-.sign-value {
-  font-size: 16px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.sign-date {
-  font-size: 12px;
-  color: #909399;
-  margin-top: 8px;
-}
-
-/* ========== 基本信息样式 ========== */
-.info-row {
+  border-radius: 8px;
+  padding: 24px 28px;
   margin-bottom: 16px;
 }
 
+/* 信息网格 */
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px 32px;
+}
+
+.info-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field-wide {
+  grid-column: span 2;
+}
+
+.field-label {
+  font-size: 13px;
+  color: #909399;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+}
+
+.field-value-static {
+  font-size: 14px;
+  color: #303133;
+  background: #f5f7fa;
+  padding: 6px 12px;
+  border-radius: 4px;
+  min-height: 34px;
+  display: flex;
+  align-items: center;
+  line-height: 1.4;
+}
+
+/* 服务团队区 */
+.team-section {
+  margin-top: 28px;
+  padding-top: 22px;
+  border-top: 1px solid #ebeef5;
+}
+
+.section-title {
+  font-size: 15px;
+  color: #606266;
+  font-weight: 600;
+  margin-bottom: 18px;
+  position: relative;
+  padding-left: 12px;
+}
+
+.section-title::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 15px;
+  background: linear-gradient(180deg, #409eff, #67c23a);
+  border-radius: 2px;
+}
+
+.team-grid {
+  display: flex;
+  gap: 12px;
+}
+
+.team-item {
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+  padding: 14px 10px;
+  background: #fafbfc;
+  border: 1px solid #e9ecf0;
+  border-radius: 6px;
+  transition: all 0.25s;
+}
+
+.team-item:hover {
+  border-color: #c0c4cc;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.team-role-name {
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 10px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.team-member-name {
+  font-size: 14px;
+  color: #303133;
+  min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 3px;
+  margin-top: -2px;
+}
+
+/* 旧样式保留兼容（已废弃，待清理） */
 .info-label {
-  font-size: 12px;
+  font-size: 13px;
   color: #909399;
   margin-bottom: 4px;
 }

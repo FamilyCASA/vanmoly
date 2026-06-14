@@ -2,7 +2,7 @@
 报价管理模块 - API路由
 V3.0 全新设计
 """
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, render_template
 import os
 from app import db
 from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS, MeasurementRule, DEFAULT_MEASUREMENT_RULES
@@ -1387,6 +1387,29 @@ def import_from_sku(current_user):
 
 # ========== Phase 2: 从案例模板克隆报价 ==========
 
+@quote_bp.route('/<int:quote_id>/html-preview', methods=['GET'])
+def html_preview(quote_id):
+    """HTML预览（与PDF样式一致）"""
+    # 手动验 token（兼容 jwt_required_v2，支持 header + query param）
+    from flask import request as _req
+    auth_header = _req.headers.get('Authorization', '')
+    if auth_header.startswith('Bearer '):
+        token = auth_header.split(' ', 1)[1]
+    else:
+        token = _req.args.get('token', '')
+    if not token:
+        return {'code': 401, 'message': '缺少认证令牌'}, 401
+    from app.routes.auth_routes_v2 import verify_token
+    payload = verify_token(token)
+    if not payload:
+        return {'code': 401, 'message': '令牌无效或已过期'}, 401
+
+    from app.models.quote import Quote, QuoteItem
+    quote = Quote.query.get_or_404(quote_id)
+    items = QuoteItem.query.filter_by(quote_id=quote_id).all()
+    html = _build_quote_html(quote, items, None)
+    return html, 200, {'Content-Type': 'text/html; charset=utf-8'}
+
 @quote_bp.route('/preview-clone', methods=['POST'])
 @jwt_required_v2
 def preview_clone(current_user):
@@ -2222,6 +2245,248 @@ def _apply_adjustment_to_quote(quote_id, adjustment):
             if 'unit_price' in adjustment:
                 item.unit_price = adjustment['unit_price']
                 item.total_price = item.quantity * item.unit_price
+
+
+
+def _money_to_chinese(num):
+    """PDF同款大写金额转换"""
+    from decimal import Decimal, ROUND_HALF_UP
+    units = ['', '拾', '佰', '仟', '万', '拾', '佰', '仟', '亿']
+    digits = ['零', '壹', '贰', '叁', '肆', '伍', '陆', '柒', '捌', '玖']
+    n = int(Decimal(str(num)).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+    if n == 0:
+        return '零元整'
+    result = ''
+    unit_idx = 0
+    while n > 0:
+        d = n % 10
+        if d != 0 or (result and result[0] != digits[0]):
+            result = digits[d] + (units[unit_idx] if d > 0 else '') + result
+        elif not result:
+            result = digits[0]
+        n //= 10
+        unit_idx += 1
+    return result + '元整'
+
+
+def _build_quote_html(quote, items, spaces_or_instances, instances=None, is_visitor=False):
+    """
+    HTML预览：严格对齐 pdf_generator.py 的视觉标准与计算逻辑
+    使用 Jinja2 模板渲染，Python 只负责计算数据
+    """
+    from collections import defaultdict
+    from decimal import Decimal
+    from datetime import datetime
+    from flask import render_template
+
+    # ─── 基础数据 ───────────────────────────────────────────────────────
+    qno = quote.quote_no or str(quote.id)
+    cn = getattr(quote, 'customer_name', '') or ''
+    building = getattr(quote, 'building_name', '') or ''
+    pa = getattr(quote, 'project_address', '') or ''
+    ht = getattr(quote, 'house_type', '') or ''
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+    bg_url = '/static/quote_bg/inner_bg.png'
+
+    # ─── 费用字段（与 PDF _category_summary_page 完全一致）───
+    material_amt = Decimal(str(getattr(quote, 'material_amount', 0) or 0))
+    craft_amt = Decimal(str(getattr(quote, 'craft_amount', 0) or 0))
+    design_amt = Decimal(str(getattr(quote, 'design_amount', 0) or 0))
+    install_amt = Decimal(str(getattr(quote, 'install_amount', 0) or 0))
+    mgmt_rate = float(getattr(quote, 'manage_rate', 0) or 0)
+    mgmt_fee = Decimal(str(getattr(quote, 'manage_amount', 0) or 0))
+    tax_rate_val = float(getattr(quote, 'tax_rate', 0) or 0)
+    tax_amt = Decimal(str(getattr(quote, 'tax_amount', 0) or 0))
+    disc_rate = float(getattr(quote, 'discount_rate', 0) or 0)
+    disc_amt = Decimal(str(getattr(quote, 'discount_amount', 0) or 0))
+
+    grand_total = sum(Decimal(str(it.total_price or 0)) for it in items)
+    if material_amt > 0:
+        grand_total = material_amt
+
+    subtotal_val = material_amt + craft_amt + design_amt + install_amt
+    final_total = subtotal_val + mgmt_fee + tax_amt - disc_amt
+
+    # ─── 分类汇总 ─────────────────────────────────────────────────────────
+    CAT_MAP = {
+        'hard_material': '硬装主材', 'construction': '硬装施工服务',
+        'custom': '固装家具', 'furniture': '成品家具',
+        'soft': '软装饰品', 'design': '全案服务',
+        'installation': '硬装施工服务',
+        'delivery': '其他辅助物料及服务', 'other': '其他辅助物料及服务',
+        'moving': '其他辅助物料及服务',
+        'equipment': '电气设备', 'smart_home': '智能家居',
+        'Custom Furniture': '固装家具', 'Finished Furniture': '成品家具',
+        'Soft Furnishing': '软装饰品',
+    }
+
+    cat_groups = defaultdict(list)
+    for it in items:
+        k = it.category_level1 or 'other'
+        cat_groups[k].append(it)
+
+    try:
+        from app.models.material_sku import MaterialCategory as MC
+        from sqlalchemy import or_ as sql_or
+        cats = MC.query.filter(
+            MC.parent_id.is_(None),
+            sql_or(MC.is_deleted == False, MC.is_deleted.is_(None)),
+            MC.is_enabled == True
+        ).order_by(MC.sort_order).all()
+        cat_keys = [c.name for c in cats]
+    except Exception:
+        cat_keys = list(CAT_MAP.values())
+
+    cat_cards = []
+    CAT_COLORS = ['#8B5A2B', '#C8A96E', '#6B7F5E', '#5B7A9D',
+                   '#9B6B8D', '#B8865A', '#5A8B8B', '#8B6B5A']
+    cat_idx = 0
+    for cat_key in cat_keys:
+        display = cat_key if cat_key in ('硬装主材', '固装家具', '成品家具', '软装饰品',
+                                         '全案服务', '硬装施工服务', '其他辅助物料及服务',
+                                         '电气设备', '智能家居') else CAT_MAP.get(cat_key, cat_key)
+        # 匹配所有属于此一级分类的原始 key
+        matched_items = []
+        for orig_key, item_list in cat_groups.items():
+            orig_display = CAT_MAP.get(orig_key, orig_key)
+            if orig_display == display or orig_key == cat_key:
+                matched_items.extend(item_list)
+        if not matched_items:
+            continue
+        ct = sum(Decimal(str(it.total_price or 0)) for it in matched_items)
+        pct = round(float(ct / grand_total * 100), 1) if grand_total > 0 else 0
+
+        # 二级分类子项
+        subs = []
+        sub_groups = defaultdict(list)
+        for it in matched_items:
+            sub_key = it.category_level2 or '其他'
+            sub_groups[sub_key].append(it)
+        for sn in sorted(sub_groups.keys()):
+            stotal = sum(Decimal(str(it.total_price or 0)) for it in sub_groups[sn])
+            spct = round(float(stotal / ct * 100), 1) if ct > 0 else 0
+            subs.append({'name': sn, 'amount': float(stotal), 'pct': spct})
+
+        cat_cards.append({
+            'name': display,
+            'amount': float(ct),
+            'pct': pct,
+            'color': CAT_COLORS[cat_idx % len(CAT_COLORS)],
+            'subs': subs,
+        })
+        cat_idx += 1
+
+    # ─── 服务团队 ───────────────────────────────────────────────────────
+    _role_map = {
+        'quoter': '报价员', 'auditor': '审核员',
+        'designer': '全案设计师', 'planner': '全案规划师',
+        'project_manager': '项目经理',
+    }
+    team_members = []
+    st = getattr(quote, 'service_team', None) or []
+    _emp_cache = {}
+    for m in st:
+        role_name = m.get('role_name') or _role_map.get(m.get('role', ''), '')
+        name = m.get('name', '')
+        phone = m.get('phone', '')
+        if not name and m.get('employee_id'):
+            eid = m['employee_id']
+            if eid not in _emp_cache:
+                try:
+                    from app.models.hr import Employee
+                    emp = Employee.query.get(eid)
+                    if emp:
+                        _emp_cache[eid] = {
+                            'name': emp.name,
+                            'phone': getattr(emp, 'phone', '') or ''
+                        }
+                    else:
+                        _emp_cache[eid] = {}
+                except Exception:
+                    _emp_cache[eid] = {}
+            name = _emp_cache[eid].get('name', '')
+            phone = _emp_cache[eid].get('phone', '')
+        team_members.append({'role_name': role_name, 'name': name, 'phone': phone})
+
+    # ─── 物料明细：按空间分组 ───────────────────────────────────────────
+    space_items = defaultdict(list)
+    for it in items:
+        sname = getattr(it, 'room_name', '') or '其他'
+        space_items[sname].append(it)
+
+    ROOM_ORDER = [
+        '客厅', '餐厅', '主卧', '次卧', '儿童房', '老人房',
+        '书房', '中厨', '西厨', '主卫', '客卫',
+        '玄关', '入户花园', '生活阳台', '休闲阳台',
+        '过道', '步入式衣帽间', '储藏室', '阁楼', '地下室',
+        '影音室', '健身室', '茶室', '琴房', '保姆房',
+        '宠物房', '阳光房', '酒窖', '冥想室',
+    ]
+
+    def _room_sort_key(name):
+        n = (name or '').strip()
+        for i, r in enumerate(ROOM_ORDER):
+            if r == n:
+                return (i, name)
+        return (9999, name)
+
+    room_groups = []
+    for sname in sorted(space_items.keys(), key=_room_sort_key):
+        ilist = space_items[sname]
+        s_total = sum(float(it.total_price or 0) for it in ilist)
+        room_groups.append({
+            'name': sname,
+            'total': s_total,
+            'items': ilist
+        })
+
+    # ─── 大写金额 ────────────────────────────────────────────────────────
+    chinese_total = _money_to_chinese(final_total)
+
+    # ─── 副标题文字 ───────────────────────────────────────────────────────
+    subtitle_parts = []
+    if cn:
+        subtitle_parts.append(cn)
+    if building:
+        subtitle_parts.append(building)
+    if pa and pa != building:
+        subtitle_parts.append(pa)
+    subtitle_text = (' · '.join(subtitle_parts) + ' · 报价表') if subtitle_parts else '全案落地报价单'
+
+    # ─── 费用汇总 dict ────────────────────────────────────────────────────
+    fees = {
+        'material': float(material_amt),
+        'craft': float(craft_amt),
+        'design': float(design_amt),
+        'install': float(install_amt),
+        'subtotal': float(subtotal_val),
+        'manage': float(mgmt_fee),
+        'manage_rate': mgmt_rate,
+        'tax': float(tax_amt),
+        'tax_rate': tax_rate_val,
+        'discount': float(disc_amt),
+        'discount_rate': disc_rate,
+    }
+
+    total_label = '参考总价' if is_visitor else '含税总价'
+
+    # ─── 渲染模板 ────────────────────────────────────────────────────────
+    html = render_template(
+        'quote_preview.html',
+        quote=quote,
+        bg_url=bg_url,
+        subtitle_text=subtitle_text,
+        now_str=now_str,
+        team_members=team_members,
+        cat_cards=cat_cards,
+        fees=fees,
+        total_label=total_label,
+        final_total=float(final_total),
+        chinese_total=chinese_total,
+        room_groups=room_groups,
+    )
+
+    return html
 
 
 def _build_category_summary(quote_id):

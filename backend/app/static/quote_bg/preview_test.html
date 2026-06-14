@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>报价单预览 - BJ202606100001</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif; background:#f5f5f5; color:#333; }
+
+/* 16:9 页面 */
+.page {
+  position: relative;
+  width: 1200px;
+  aspect-ratio: 16 / 9;
+  margin: 20px auto;
+  background: url('/static/quote_bg/inner_bg.png') center/cover no-repeat #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  padding: 40px 50px;
+  overflow: hidden;
+}
+.page::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.82);
+  z-index: 0;
+}
+.page > * { position: relative; z-index: 1; }
+
+/* Multi-page sections */
+.page-section {
+  width: 1200px;
+  aspect-ratio: 16 / 9;
+  margin: 12px auto;
+  background: url('/static/quote_bg/inner_bg.png') center/cover no-repeat #fff;
+  box-shadow: 0 2px 12px rgba(0,0,0,.08);
+  padding: 30px 50px;
+  overflow: hidden;
+  page-break-inside: avoid;
+  position: relative;
+}
+.page-section::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: rgba(255,255,255,0.82);
+  z-index: 0;
+}
+.page-section > * { position: relative; z-index: 1; }
+
+/* 封面 */
+.cover { text-align:center; padding:30px 0; border-bottom:3px solid #C4A35A; margin-bottom:30px; }
+.brand { font-size:13px; color:#8B7355; letter-spacing:2px; }
+.main-title { font-size:42px; color:#8B4513; font-weight:700; margin:8px 0; letter-spacing:6px; }
+.subtitle { font-size:14px; color:#888; margin-top:4px; }
+.sep-line { width:200px; height:2px; background:#C4A35A; margin:16px auto; }
+
+/* 双卡片 */
+.cards { display:flex; gap:24px; margin-top:24px; justify-content:center; }
+.card { flex:1; max-width:420px; border:1px solid #D4C4A8; border-radius:6px; overflow:hidden; }
+.card-header { background:#8B5A2B; color:#fff; padding:8px 14px; font-weight:600; font-size:14px; }
+.card-body { background:#F8F5F0; padding:12px 14px; }
+.card-body table { width:100%; border-collapse:collapse; }
+.card-body td { padding:5px 0; font-size:13px; }
+.card-body .label { color:#8B5A2B; min-width:70px; display:inline-block; }
+
+/* 分类汇总 */
+.section-title { font-size:18px; color:#333; border-left:4px solid #C4A35A; padding-left:12px; margin:30px 0 16px; }
+.cat-table { width:100%; border-collapse:collapse; margin-bottom:20px; }
+.cat-table th { background:#8B5A2B; color:#fff; padding:8px 12px; text-align:left; font-size:13px; }
+.cat-table td { padding:7px 12px; border-bottom:1px solid #eee; font-size:13px; }
+.cat-table .cat-name { font-weight:600; color:#333; padding-left:16px; }
+.fee-row { background:#FAFAFA; }
+.fee-row .label { color:#666; }
+.total-box { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:18px 24px; text-align:center; border-radius:8px; margin-top:16px; }
+.total-box .amount { font-size:28px; font-weight:700; }
+.total-box .chinese { font-size:12px; opacity:.85; margin-top:4px; }
+
+/* 物料明细 */
+.space-section { margin-bottom:24px; }
+.space-section h3 { font-size:15px; color:#555; padding:8px 0; border-bottom:1px solid #eee; }
+.space-total { float:right; color:#C4A35A; font-weight:600; font-size:14px; }
+.data-table { width:100%; border-collapse:collapse; font-size:12px; }
+.data-table th { background:#f8f8f8; padding:6px 8px; text-align:left; border-bottom:2px solid #ddd; color:#666; white-space:nowrap; }
+.data-table td { padding:5px 8px; border-bottom:1px solid #f0f0f0; }
+.data-table tr:hover { background:#fafafa; }
+.craft { color:#E6A23C; font-size:11px; }
+
+.danger { color:#F56C6C; }
+.print-btn { position:fixed;top:20px;right:40px;z-index:99;padding:8px 20px;background:#409EFF;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:14px; }
+.print-btn:hover { background:#66b1ff; }
+@media print { .print-btn { display:none; } body { background:#fff; } .page { box-shadow:none; padding:20px; } }
+</style>
+</head>
+<body>
+
+<button class="print-btn" onclick="window.print()">🖨️ 打印</button>
+
+<div class="page">
+<!-- ══ 封面 ══ -->
+<div class="cover">
+  <div class="brand">D&B·帝标｜设记家</div>
+  <div class="main-title">DESIGNARY</div>
+  <div class="subtitle">刘亚东 · 都江堰观江府4期 · 报价表</div>
+  <div class="sep-line"></div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-header">报价信息</div>
+      <div class="card-body">
+        <table>
+          <tr><td class="label">报价编号</td><td>BJ202606100001</td></tr>
+          <tr><td class="label">生成时间</td><td>2026-06-13 22:49</td></tr>
+          <tr><td class="label">有效期至</td><td>2026-07-10</td></tr>
+          <tr><td class="label">户型信息</td><td>3室1厅跃层带地下室</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header">服务团队</div>
+      <div class="card-body">
+        <table><tr><td class="label">报价员</td><td></td></tr><tr><td class="label">全案设计师</td><td></td></tr><tr><td class="label">全案规划师</td><td></td></tr><tr><td class="label">项目经理</td><td></td></tr></table>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ 分类汇总 ══ -->
+<div class="page-section">
+<h2 class="section-title">报价汇总</h2>
+<table class="cat-table">
+  <thead><tr><th>分类</th><th style="text-align:right">金额</th><th style="text-align:center;width:60px">占比</th></tr></thead>
+  <tbody>
+    <tr><td class="cat-name">固装家具</td><td style="text-align:right">¥0.00</td><td style="text-align:center;color:#999">0%</td></tr>
+    <tr class="fee-row"><td class="label" style="padding-left:16px">工艺费用</td><td style="text-align:right">¥0.00</td><td></td></tr>
+    <tr class="fee-row" style="font-weight:700;background:#f0f0f0;"><td style="padding-left:16px">小计（材料+工艺）</td><td style="text-align:right">¥0.00</td><td></td></tr>
+    <tr class="fee-row"><td class="label" style="padding-left:16px">管理费(3.0%）</td><td style="text-align:right">¥0.00</td><td></td></tr>
+    <tr class="fee-row"><td class="label" style="padding-left:16px">税费(0.0%）</td><td style="text-align:right">¥13.00</td><td></td></tr>
+    <tr class="fee-row danger"><td class="label" style="padding-left:16px">优惠折扣(-5.0%）</td><td style="text-align:right">-¥0.65</td><td></td></tr>
+  </tbody>
+</table>
+
+<div class="total-box">
+  <div>报价总额</div>
+  <div class="amount">¥12.35</div>
+  <div class="chinese">（大写：壹拾贰元整）</div>
+</div>
+</div>
+
+<!-- ══ 物料明细 ══ -->
+<div class="page-section">
+<h2 class="section-title">物料详单</h2>
+
+            <div class="space-section">
+                <h3>📦 客厅 <span class="space-total">¥0.00</span></h3>
+                <table class="data-table"><thead><tr>
+                    <th>商品名称</th><th>数量</th><th>单位</th><th>单价</th><th>金额</th><th>备注</th><th>工艺费</th>
+                </tr></thead>
+                <tbody><tr>
+                <td>客厅护墙</td>
+                <td style="text-align:center">6×1.44</td>
+                <td style="text-align:center">㎡</td>
+                <td style="text-align:right">400.00</td>
+                <td style="text-align:right">0.00</td>
+                <td>1200*2720*18mm</td>
+                <td style="text-align:right"></td>
+            </tr><tr>
+                <td>柜体</td>
+                <td style="text-align:center">2×1.2</td>
+                <td style="text-align:center">㎡</td>
+                <td style="text-align:right">899.00</td>
+                <td style="text-align:right">0.00</td>
+                <td>1200*2720*12/18mm</td>
+                <td style="text-align:right"></td>
+            </tr></tbody></table>
+            </div>
+            <div class="space-section">
+                <h3>📦 餐厅 <span class="space-total">¥0.00</span></h3>
+                <table class="data-table"><thead><tr>
+                    <th>商品名称</th><th>数量</th><th>单位</th><th>单价</th><th>金额</th><th>备注</th><th>工艺费</th>
+                </tr></thead>
+                <tbody><tr>
+                <td>柜体</td>
+                <td style="text-align:center">1×6</td>
+                <td style="text-align:center">㎡</td>
+                <td style="text-align:right">899.00</td>
+                <td style="text-align:right">0.00</td>
+                <td>1200*2720*12/18mm</td>
+                <td style="text-align:right"></td>
+            </tr><tr>
+                <td>柜门</td>
+                <td style="text-align:center">6×1</td>
+                <td style="text-align:center">㎡</td>
+                <td style="text-align:right">460.00</td>
+                <td style="text-align:right">0.00</td>
+                <td>1200*2720*22mm</td>
+                <td style="text-align:right"></td>
+            </tr></tbody></table>
+            </div>
+</div>
+</body>
+</html>

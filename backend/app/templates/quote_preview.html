@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>报价单预览 - {{ quote.quote_no or quote.id }}</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body {
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "SimHei", "SimSun", sans-serif;
+  background: #f0ebe3; color: #333;
+}
+.page-section {
+  width: 1200px; aspect-ratio: 16/9; margin: 24px auto;
+  background: url('{{ bg_url }}') center/cover no-repeat #fff;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.10); padding: 44px 56px;
+  position: relative; overflow: hidden; page-break-inside: avoid;
+}
+.page-section::before {
+  content: ""; position: absolute; inset: 0;
+  background: transparent; z-index: 0;
+}
+.page-section > * { position: relative; z-index: 1; }
+
+/* 封面 */
+.cover-brand {
+  text-align: center; font-size: 12px; color: #8B7355;
+  letter-spacing: 2px; margin-bottom: 2px;
+}
+.cover-title {
+  text-align: center; font-size: 38px; color: #8B5A2B; font-weight: 700;
+  letter-spacing: 6px; margin: 4px 0 8px;
+  font-family: "Helvetica-Bold", "Arial Black", sans-serif;
+}
+.cover-subtitle {
+  text-align: center; font-size: 13px; color: #999;
+  margin-top: 2px; margin-bottom: 12px;
+}
+.sep-line {
+  width: 160px; height: 2px; background: #C4A35A;
+  margin: 12px auto 20px;
+}
+
+/* 双卡片 */
+.cards-wrap { display: flex; gap: 20px; justify-content: center; margin-top: 16px; }
+.info-card {
+  flex: 1; max-width: 440px; border: 1px solid #D4C4A8;
+  border-radius: 6px; overflow: hidden;
+}
+.card-header {
+  background: #8B5A2B; color: #fff; padding: 8px 14px;
+  font-weight: 600; font-size: 13px;
+}
+.card-body { background: #F8F5F0; padding: 10px 14px; }
+.card-body table { width: 100%; border-collapse: collapse; }
+.card-body td { padding: 5px 0; font-size: 12.5px; vertical-align: top; }
+.td-label { color: #8B5A2B; font-weight: 600; min-width: 64px; display: inline-block; }
+
+/* 汇总页 */
+.section-title {
+  font-size: 22px; color: #8B5A2B; text-align: center;
+  letter-spacing: 8px; font-weight: 700; margin: 20px 0 4px;
+}
+.section-subtitle {
+  font-size: 11px; color: #999; text-align: center;
+  margin-bottom: 20px;
+}
+/* 左右双栏 */
+.summary-cols { display: flex; gap: 28px; margin-top: 16px; }
+.summary-left { flex: 1; min-width: 0; }
+.summary-right { flex: 1; min-width: 0; }
+.col-header {
+  font-size: 13px; color: #8B5A2B; font-weight: 700;
+  margin-bottom: 10px; padding-bottom: 4px;
+  border-bottom: 1px solid #D4C4A8;
+}
+/* 分类卡片 */
+.cat-card {
+  background: #FAF8F5; border: 1px solid #E8E0D4; border-radius: 4px;
+  padding: 8px 12px; margin-bottom: 8px;
+  border-left: 3px solid #C4A35A;
+}
+.cat-name {
+  font-size: 13px; font-weight: 600; color: #333;
+  display: flex; justify-content: space-between; align-items: baseline;
+}
+.cat-amount { font-size: 14px; font-weight: 700; color: #333; white-space: nowrap; margin-left: 8px; }
+.cat-pct { font-size: 11px; color: #999; margin-left: 4px; }
+.cat-sub {
+  font-size: 11.5px; color: #666; line-height: 1.7;
+  padding-left: 14px; margin-top: 2px;
+}
+.cat-sub-row { display: flex; justify-content: space-between; }
+/* 费用明细表 */
+.fee-table {
+  width: 100%; border-collapse: collapse; font-size: 12.5px;
+}
+.fee-table td {
+  padding: 7px 10px; border-bottom: 1px solid #f0ece4;
+  vertical-align: middle;
+}
+.fee-table tr:last-child td { border-bottom: none; }
+.fee-label { color: #444; }
+.fee-value { text-align: right; font-weight: 500; color: #333; }
+.fee-highlight { color: #CC0000; }
+/* 底部总计栏 */
+.total-bar {
+  margin-top: 20px; border: 2px solid #8B5A2B; border-radius: 6px;
+  background: #FFFDF8; overflow: hidden;
+}
+.total-main {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 16px 28px;
+}
+.total-label { font-size: 17px; color: #8B5A2B; font-weight: 700; }
+.total-amount { font-size: 26px; color: #CC0000; font-weight: 700; }
+.total-chinese-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 28px 14px; border-top: 1px solid #E8DCC8;
+  font-size: 12.5px; color: #666;
+}
+
+/* 物料明细 */
+.space-section { margin-bottom: 20px; }
+.space-title {
+  font-size: 14px; color: #555; padding: 7px 0;
+  border-bottom: 1px solid #eee; margin-bottom: 8px;
+}
+.space-total { float: right; color: #C4A35A; font-weight: 600; }
+.table-wrap { overflow-x: auto; }
+.data-table {
+  width: 100%; border-collapse: collapse; font-size: 11.5px;
+}
+.data-table th {
+  background: #f8f4ee; padding: 6px 7px; text-align: left;
+  border-bottom: 2px solid #ddd; color: #666;
+  white-space: nowrap; font-size: 11px;
+}
+.data-table td {
+  padding: 5px 7px; border-bottom: 1px solid #f0f0f0;
+  vertical-align: top;
+}
+.data-table tr:hover { background: #fcfbf8; }
+
+/* 打印 */
+.print-btn {
+  position: fixed; top: 20px; right: 40px; z-index: 99;
+  padding: 8px 20px; background: #8B5A2B; color: #fff;
+  border: none; border-radius: 4px; cursor: pointer; font-size: 13px;
+}
+.print-btn:hover { background: #A06B3A; }
+@media print {
+  .print-btn { display: none; }
+  body { background: #fff; }
+  .page-section { box-shadow: none; margin: 0; padding: 20px; }
+}
+</style>
+</head>
+<body>
+<button class="print-btn" onclick="window.print()">打印</button>
+
+<!-- 第1页：封面 -->
+<div class="page-section">
+  <div class="cover-brand">D&amp;Bmiddot;帝标&middot;设记家</div>
+  <div class="cover-title">DESIGNARY</div>
+  <div class="cover-subtitle">{{ subtitle_text }}</div>
+  <div class="sep-line"></div>
+  <div class="cards-wrap">
+    <div class="info-card">
+      <div class="card-header">报价信息</div>
+      <div class="card-body">
+        <table>
+          <tr><td><span class="td-label">报价编号</span></td><td>{{ quote.quote_no or quote.id }}</td></tr>
+          <tr><td><span class="td-label">生成时间</span></td><td>{{ now_str }}</td></tr>
+          {% if quote.expire_date %}
+          <tr><td><span class="td-label">有效期至</span></td><td>{{ quote.expire_date }}</td></tr>
+          {% endif %}
+          {% if quote.house_type %}
+          <tr><td><span class="td-label">户型信息</span></td><td>{{ quote.house_type }}</td></tr>
+          {% endif %}
+        </table>
+      </div>
+    </div>
+    <div class="info-card">
+      <div class="card-header">服务团队</div>
+      <div class="card-body">
+        <table>
+          {% for m in team_members %}
+          <tr>
+            <td class="td-label">{{ m.role_name }}</td>
+            <td>{{ m.name }}{% if m.phone %} {{ m.phone }}{% endif %}</td>
+          </tr>
+          {% else %}
+          <tr><td class="td-label">暂无</td><td></td></tr>
+          {% endfor %}
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 第2页：分类汇总 -->
+<div class="page-section" style="background-image:url('/static/quote_bg/inner_page_bg.png');background-size:cover;background-position:center;">
+  <div class="section-title">报 价 汇 总</div>
+  <div class="section-subtitle">分类费用明细与总计</div>
+
+  <!-- 左右双栏 -->
+  <div class="summary-cols">
+    <!-- 左侧：分类汇总 -->
+    <div class="summary-left">
+      <div class="col-header">分类汇总</div>
+      {% for card in cat_cards %}
+      <div class="cat-card">
+        <div class="cat-name">
+          <span>&#9632; {{ card.name }}</span>
+          <span class="cat-amount">&yen;{{ "%.2f"|format(card.amount) }}
+            <span class="cat-pct">{{ card.pct }}%</span></span>
+        </div>
+        {% if card.subs %}
+        <div class="cat-sub">
+          {% for s in card.subs %}
+          <div class="cat-sub-row">
+            <span>&bull; {{ s.name }}</span>
+            <span>{{ "%.2f"|format(s.amount) }}</span>
+            <span class="cat-pct">{{ s.pct }}%</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- 右侧：费用明细 -->
+    <div class="summary-right">
+      <div class="col-header">费用明细</div>
+      <table class="fee-table">
+        <tr><td class="fee-label">物料总额</td><td class="fee-value">{{ "%.2f"|format(fees.material) }}</td></tr>
+        {% if fees.craft > 0 %}
+        <tr><td class="fee-label">工艺费用</td><td class="fee-value">{{ "%.2f"|format(fees.craft) }}</td></tr>
+        {% endif %}
+        {% if fees.design > 0 %}
+        <tr><td class="fee-label">设计费</td><td class="fee-value">{{ "%.2f"|format(fees.design) }}</td></tr>
+        {% endif %}
+        {% if fees.install > 0 %}
+        <tr><td class="fee-label">安装费</td><td class="fee-value">{{ "%.2f"|format(fees.install) }}</td></tr>
+        {% endif %}
+        <tr><td colspan="2" style="padding:6px 0;border:none;"></td></tr>
+        <tr>
+          <td class="fee-label" style="font-weight:700;">小计（材料+工艺）</td>
+          <td class="fee-value" style="font-weight:700;">&yen;{{ "%.2f"|format(fees.subtotal) }}</td>
+        </tr>
+        {% if fees.manage > 0 %}
+        <tr><td class="fee-label">管理费{{ fees.manage_rate }}%</td><td class="fee-value">{{ "%.2f"|format(fees.manage) }}</td></tr>
+        {% endif %}
+        {% if fees.tax > 0 %}
+        <tr><td class="fee-label">税费</td><td class="fee-value">{{ "%.2f"|format(fees.tax) }}</td></tr>
+        {% endif %}
+        {% if fees.discount > 0 %}
+        <tr><td class="fee-label fee-highlight">优惠折扣{{ fees.discount_rate }}%</td><td class="fee-value fee-highlight">-{{ "%.2f"|format(fees.discount) }}</td></tr>
+        {% endif %}
+      </table>
+    </div>
+  </div>
+
+  <!-- 底部总费用栏 -->
+  <div class="total-bar">
+    <div class="total-main">
+      <div class="total-label">总计：</div>
+      <div class="total-amount">&yen;{{ "%d"|format(final_total) }}</div>
+    </div>
+    <div class="total-chinese-row">
+      <span>合计人民币（大写）：</span>
+      <span style="color:#8B5A2B;font-weight:700;">{{ chinese_total }}</span>
+    </div>
+  </div>
+</div>
+
+<!-- 第3页起：物料详单 -->
+<div class="page-section" style="background-image:url('/static/quote_bg/inner_page_bg.png');background-size:cover;background-position:center;">
+  <div class="section-title" style="text-align:left;letter-spacing:2px;">物料详单</div>
+  {% for room in room_groups %}
+  <div class="space-section">
+    <h3 class="space-title">{{ room.name }} <span class="space-total">&yen;{{ "%.2f"|format(room.total) }}</span></h3>
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>名称</th><th>定制参数</th><th>计量值x数量</th><th>单位</th>
+            <th>工艺与系数</th><th>工艺数量</th><th>工艺金额</th><th>金额</th><th>备注</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for it in room["items"] %}
+          <tr>
+            <td>{{ it.custom_name or it.name or it.material_name or '-' }}</td>
+            <td style="color:#888;font-size:11px;">{{ it.spec or it.remark or '' }}</td>
+            <td style="text-align:center;">{{ "%.1f"|format(it.quantity or 0) }}x{{ "%.2f"|format(it.measurement_value or 0) }}</td>
+            <td style="text-align:center;">{{ it.unit or '' }}</td>
+            <td style="text-align:center;">
+              {% if it.process_coef and it.process_coef > 0 %}工艺系数x{{ "%.2f"|format(it.process_coef) }}{% endif %}
+              {% if it.process_num and it.process_num > 0 %}{% if it.process_coef and it.process_coef > 0 %} + {% endif %}工艺数量x{{ "%.1f"|format(it.process_num) }}{% endif %}
+            </td>
+            <td style="text-align:center;">{{ "%.1f"|format(it.process_num or 0) }}</td>
+            <td style="text-align:right;">
+              {% if it.craft_amount and it.craft_amount > 0 %}&yen;{{ "%.2f"|format(it.craft_amount) }}{% else %}-{% endif %}
+            </td>
+            <td style="text-align:right;font-weight:600;">&yen;{{ "%.2f"|format(it.total_price or 0) }}</td>
+            <td style="color:#888;font-size:11px;">{{ it.remark or '' }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+</body>
+</html>

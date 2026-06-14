@@ -53,6 +53,17 @@ DARK_TEXT     = HexColor('#333333')
 GREEN_HEADER  = HexColor('#E8F5E9')
 WATERMARK_CLR = HexColor('#D4C5B0')
 
+# ─── Background image ─────────────────────────────────────────────────────
+BG_IMAGE_PATH = os.path.normpath(os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'app', 'static', 'quote_bg', 'inner_bg.png'
+))
+
+# ─── Page size: 16:9 landscape ───────────────────────────────────────────────
+# 16:9 at 297mm wide → height = 297 * 9/16 = 167.06mm
+PAGE_W = 297*mm
+PAGE_H = 297*mm * 9 / 16
+PAGE_SIZE = (PAGE_W, PAGE_H)
+
 # ─── Path ────────────────────────────────────────────────────────────────────
 UPLOAD_ROOT = os.path.normpath(os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), 'upload'
@@ -179,103 +190,230 @@ def _build_styles():
 
 # ─── Cover page ──────────────────────────────────────────────────────────────
 
+
 def _cover_page(story, quote, styles, is_visitor):
-    # Watermark text
-    story.append(Spacer(1, 25*mm))
-    story.append(Paragraph('帝标 · 设记家', styles['WMTxt']))
-    story.append(Spacer(1, 5*mm))
+    """
+    v4.0 — 封面页：品牌 + DESIGNARY大标题 + 副标题(客户+楼盘) + 双卡片 + 背景图
+    布局：
+      ① 背景图（从SlideTemplate内页背景图获取，16:9适配横版A4）
+      ② 顶部：D&B·帝标｜设记家（品牌名）+ DESIGNARY（大标题）
+      ③ 副标题行：客户名称 + 楼盘名 + 门牌号 + 报价表
+      ④ 双卡片（左：报价编号/有效期/生成时间/户型，右：服务团队）
+    """
+    from reportlab.lib.colors import HexColor
+    from reportlab.platypus import KeepTogether
+    from app.models.case import SlideTemplate
 
-    # Title
-    title = '报价单' if not is_visitor else '价格参考单'
-    story.append(Paragraph(title, styles['CNTitle']))
-    story.append(Paragraph('帝标·设记家  全案落地报价单', styles['CNSubT']))
-    story.append(Paragraph('★ 保密文件，严禁外泄 ★', styles['CNSmall']))
+    # ══════════════════════════════════════
+    # 背景图（全页覆盖，16:9）— 由 _page_header_footer 在 canvas 层绘制
+    # ══════════════════════════════════════
+    # Background is drawn via canvas.drawImage in _page_header_footer
+    # No need to add Image to story (it would overlap with canvas layer)
 
-    story.append(Spacer(1, 8*mm))
+    # ══════════════════════════════════════
+    # 颜色常量
+    # ══════════════════════════════════════
+    CARD_BG       = HexColor('#F8F5F0')
+    CARD_HEADER_BG = HexColor('#8B5A2B')
+    CARD_BORDER   = HexColor('#D4C4A8')
 
-    # Info table
-    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
-    rows = [
-        ['报价编号', quote.quote_no or ''],
-        ['生成时间', now_str],
-    ]
-    if not is_visitor:
-        cn = getattr(quote, 'customer_name', '') or ''
-        if cn:
-            rows.append(['客户名称', cn])
-        cp = getattr(quote, 'customer_phone', '') or ''
-        if cp:
-            rows.append(['联系电话', cp])
-    pn = getattr(quote, 'project_name', '') or ''
-    if pn:
-        rows.append(['项目名称', pn])
+    # ══════════════════════════════════════
+    # ① 品牌名 + 大标题 DESIGNARY
+    # ══════════════════════════════════════
+    story.append(Spacer(1, 6*mm))
+
+    brand_style = ParagraphStyle(
+        'CoverBrand', fontName=CN_FONT_BODY, fontSize=11, leading=15,
+        textColor=HexColor('#8B7355'), alignment=TA_CENTER,
+    )
+    story.append(Paragraph('D&B·帝标｜设记家', brand_style))
+
+    story.append(Spacer(1, 2*mm))
+
+    # 大标题 DESIGNARY
+    title_style = ParagraphStyle(
+        'DesignaryTitle', fontName='Helvetica-Bold', fontSize=36, leading=44,
+        textColor=BRAND_BROWN, alignment=TA_CENTER,
+        spaceAfter=1*mm,
+    )
+    story.append(Paragraph('<b>DESIGNARY</b>', title_style))
+
+    # ══════════════════════════════════════
+    # ② 副标题（客户名称 + 楼盘名 + 门牌号 + 报价表）
+    # ══════════════════════════════════════
+    cn = getattr(quote, 'customer_name', '') or ''
+    building = getattr(quote, 'building_name', '') or ''
     pa = getattr(quote, 'project_address', '') or ''
-    if pa:
-        rows.append(['项目地址', pa])
+    qno = quote.quote_no or ''
+
+    subtitle_parts = []
+    if cn:
+        subtitle_parts.append(cn)
+    if building:
+        subtitle_parts.append(building)
+    if pa and pa != building:
+        # 取门牌号部分
+        subtitle_parts.append(pa)
+
+    subtitle_text = ' · '.join(subtitle_parts) + (' · 报价表' if qno else '')
+    if not subtitle_text.strip():
+        subtitle_text = '全案落地报价单'
+
+    subtitle_style = ParagraphStyle(
+        'CoverSub', fontName=CN_FONT_BODY, fontSize=12, leading=18,
+        textColor=MID_GRAY, alignment=TA_CENTER, spaceBefore=2*mm, spaceAfter=3*mm,
+    )
+    story.append(Paragraph(subtitle_text, subtitle_style))
+
+    # 金色分隔线
+    sep_line = Table([['']], colWidths=[140*mm], rowHeights=[2*mm])
+    sep_line.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), HexColor('#C4A35A')),
+        ('LINEABOVE', (0,0), (-1,-1), 0, white),
+    ]))
+    story.append(sep_line)
+    story.append(Spacer(1, 6*mm))
+
+    # ══════════════════════════════════════
+    # ③ 双卡片区域
+    # ══════════════════════════════════════
+
+    now_str = datetime.now().strftime('%Y-%m-%d %H:%M')
+
+    # ── 左卡：报价信息 ──
+    cust_rows = [[_ch('报价信息'), _ch('')]]
+
+    if qno:
+        cust_rows.append([_fl('报价编号'), _fv(qno)])
+    cust_rows.append([_fl('生成时间'), _fv(now_str)])
+
+    exp = getattr(quote, 'expire_date', '') or ''
+    if exp:
+        cust_rows.append([_fl('有效期至'), _fv(exp)])
+
     ht = getattr(quote, 'house_type', '') or ''
     if ht:
-        rows.append(['户型信息', ht])
-    cno = getattr(quote, 'contract_no', '') or ''
-    if cno:
-        rows.append(['合同编号', cno])
+        cust_rows.append([_fl('户型信息'), _fv(ht)])
 
-    t = Table(rows, colWidths=[38*mm, 102*mm])
-    t.setStyle(TableStyle([
-        ('FONTNAME',  (0,0),(0,-1), CN_FONT),
-        ('FONTNAME',  (1,0),(1,-1), CN_FONT_BODY),
-        ('FONTSIZE',  (0,0),(-1,-1), 10),
-        ('TEXTCOLOR', (0,0),(0,-1), BRAND_BROWN),
-        ('TEXTCOLOR', (1,0),(1,-1), DARK_TEXT),
+    cust_table = Table(cust_rows, colWidths=[32*mm, 68*mm])
+    cust_table.setStyle(TableStyle([
+        ('BACKGROUND',  (0,0),(-1,0), CARD_HEADER_BG),
+        ('TEXTCOLOR',   (0,0),(0,0), white),
+        ('FONTNAME',    (0,0),(0,0), CN_FONT),
+        ('FONTSIZE',   (0,0),(0,0), 11),
+        ('ALIGN',       (0,0),(0,0), 'CENTER'),
+        ('SPAN',        (0,0),(1,0)),
+        ('BACKGROUND',  (0,1),(-1,-1), CARD_BG),
+        ('FONTNAME',    (0,1),(-1,-1), CN_FONT_BODY),
+        ('FONTSIZE',    (0,1),(-1,-1), 9),
+        ('TEXTCOLOR',   (0,1),(0,1), BRAND_BROWN),
+        ('TEXTCOLOR',   (1,1),(1,-1), DARK_TEXT),
+        ('GRID',        (0,1),(-1,-1), 0.5, CARD_BORDER),
         ('BOTTOMPADDING',(0,0),(-1,-1), 5),
-        ('TOPPADDING',   (0,0),(-1,-1), 5),
+        ('TOPPADDING',  (0,0),(-1,-1), 5),
+        ('LEFTPADDING', (0,0),(-1,-1), 6),
+        ('RIGHTPADDING',(0,0),(-1,-1), 6),
+        ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
     ]))
-    story.append(t)
 
-    # Service team
+    # ── 右卡：服务团队 ──
+    team_rows = [[_ch('服务团队'), _ch('')]]
+
     if not is_visitor and getattr(quote, 'service_team', None):
-        story.append(Spacer(1, 8*mm))
-        story.append(Paragraph('服务团队', styles['CNSec']))
-        team_data = [['角色', '姓名', '联系电话']]
-        # 补全员工信息（兼容旧数据只有 employee_id 的情况）
         _role_map = {
-            'quoter': '报价员', 'designer': '审核', 'planner': '全案规划师',
-            'designer_3d': '效果图设计师', 'project_manager': '全案设计师'
+            'quoter': '报价员',
+            'auditor': '审核员',
+            'designer': '全案设计师',
+            'planner': '全案规划师',
+            'project_manager': '项目经理',
         }
         _emp_cache = {}
         for m in quote.service_team:
             role_name = m.get('role_name') or _role_map.get(m.get('role',''), '')
             name = m.get('name', '')
             phone = m.get('phone', '')
-            # 如果缺少姓名，尝试从数据库查询
             if not name and m.get('employee_id'):
                 eid = m['employee_id']
                 if eid not in _emp_cache:
                     try:
-                        from app.models.employee import Employee
+                        from app.models.hr import Employee
                         emp = Employee.query.get(eid)
                         _emp_cache[eid] = {'name': emp.name, 'phone': getattr(emp,'phone','') or ''} if emp else {}
                     except Exception:
                         _emp_cache[eid] = {}
                 name = _emp_cache[eid].get('name', '')
                 phone = _emp_cache[eid].get('phone', '')
-            team_data.append([role_name, name, phone])
-        tt = Table(team_data, colWidths=[38*mm, 50*mm, 52*mm])
-        tt.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
-            ('FONTSIZE',(0,0),(-1,0), 9),
-            ('FONTSIZE',(0,1),(-1,-1), 9),
-            ('BACKGROUND',(0,0),(-1,0), BRAND_BROWN),
-            ('TEXTCOLOR',(0,0),(-1,0), white),
-            ('GRID',(0,0),(-1,-1), 0.5, MID_GRAY),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 4),
-            ('TOPPADDING',(0,0),(-1,-1), 4),
-        ]))
-        story.append(tt)
+            team_rows.append([_fl(role_name), _fv(name + ('  ' + phone if phone else ''))])
 
+    if len(team_rows) == 1:
+        team_rows.append([_fl('暂无'), _fv('')])
+
+    team_table = Table(team_rows, colWidths=[32*mm, 68*mm])
+    team_table.setStyle(TableStyle([
+        ('BACKGROUND',  (0,0),(-1,0), CARD_HEADER_BG),
+        ('TEXTCOLOR',   (0,0),(0,0), white),
+        ('FONTNAME',    (0,0),(0,0), CN_FONT),
+        ('FONTSIZE',   (0,0),(0,0), 11),
+        ('ALIGN',       (0,0),(0,0), 'CENTER'),
+        ('SPAN',        (0,0),(1,0)),
+        ('BACKGROUND',  (0,1),(-1,-1), CARD_BG),
+        ('FONTNAME',    (0,1),(-1,-1), CN_FONT_BODY),
+        ('FONTSIZE',    (0,1),(-1,-1), 9),
+        ('TEXTCOLOR',   (0,1),(0,1), BRAND_BROWN),
+        ('TEXTCOLOR',   (1,1),(1,-1), DARK_TEXT),
+        ('GRID',        (0,1),(-1,-1), 0.5, CARD_BORDER),
+        ('BOTTOMPADDING',(0,0),(-1,-1), 5),
+        ('TOPPADDING',  (0,0),(-1,-1), 5),
+        ('LEFTPADDING', (0,0),(-1,-1), 6),
+        ('RIGHTPADDING',(0,0),(-1,-1), 6),
+        ('VALIGN',      (0,0),(-1,-1), 'MIDDLE'),
+    ]))
+
+    # ── 卡片容器 ──
+    card_container = Table([[cust_table, team_table]], colWidths=[110*mm, 110*mm])
+    card_container.setStyle(TableStyle([
+        ('BACKGROUND',  (0,0),(0,0), white),
+        ('BACKGROUND',  (1,0),(1,0), white),
+        ('LEFTPADDING', (0,0),(0,0), 10),
+        ('RIGHTPADDING',(0,0),(0,0), 10),
+        ('TOPPADDING',  (0,0),(0,0), 5),
+        ('BOTTOMPADDING',(0,0),(0,0), 5),
+        ('VALIGN',      (0,0),(-1,-1), 'TOP'),
+    ]))
+
+    story.append(KeepTogether([card_container]))
     story.append(PageBreak())
 
 
-# ─── Category grouping helpers ───────────────────────────────────────────────
+
+
+# ─── Cover page helper functions ─────────────────────────────────────────────
+
+def _ch(text):
+    """Card header cell (spanned title)."""
+    from reportlab.platypus import Paragraph as RP
+    s = ParagraphStyle('CHdr', fontName=CN_FONT, fontSize=11, leading=16,
+                       textColor=white, alignment=TA_CENTER)
+    return RP(text, s)
+
+
+def _fl(text):
+    """Field label cell for cover page cards."""
+    from reportlab.platypus import Paragraph as RP
+    s = ParagraphStyle('FLbl', fontName=CN_FONT, fontSize=9, leading=14,
+                       textColor=BRAND_BROWN)
+    return RP(text, s)
+
+
+def _fv(text):
+    """Field value cell for cover page cards."""
+    from reportlab.platypus import Paragraph as RP
+    s = ParagraphStyle('FVal', fontName=CN_FONT_BODY, fontSize=9, leading=14,
+                       textColor=DARK_TEXT)
+    return RP(str(text) if text else '', s)
+
+
+
 
 def _group_by_category(items):
     """Return {cat_key: [items]} grouped by category_level1."""
@@ -298,114 +436,143 @@ def _group_by_room(items):
 # ─── Customer item row ───────────────────────────────────────────────────────
 
 def _item_row(it, is_visitor, show_ref=True):
-    """Return one data row for an item. show_ref=False hides empty ref columns."""
-    # Custom dimensions — only show if user entered values
-    dims = []
-    has_dim = False
-    for f, lbl in [('width','W'), ('depth','D'), ('height','H')]:
-        v = getattr(it, f, None)
-        if v and float(v or 0) > 0:
-            dims.append('{}{}'.format(lbl, float(v)))
-            has_dim = True
+    """
+    v3.5 — 物料详单行（自动换行）
+    客户版11列：名称 | 物料 | 定制参数 | 计量值×数量 | 单位 | 工艺与系数 | 工艺数量 | 工艺金额 | 金额 | 备注
+    参考版12列：+ 单价（单位后）
+    """
+    from reportlab.platypus import Paragraph as RP
+    from reportlab.lib.styles import ParagraphStyle as RPS
+    from reportlab.lib.enums import TA_LEFT
 
-    # Only show dimension string if there are actual values, or if show_ref=True
-    if dims:
-        dim_str = '×'.join(dims)
-    elif show_ref:
-        dim_str = it.spec or ''
+    def _cell(text, fontsize=7, align=TA_LEFT):
+        style = RPS('cell', fontName=CN_FONT_BODY, fontSize=fontsize,
+                    leading=fontsize + 2, alignment=align)
+        return RP(str(text) if text else '', style)
+
+    # ── 名称（custom_name 优先）──
+    custom_nm = getattr(it, 'custom_name', None) or ''
+    name_cell = _cell(custom_nm) if custom_nm else _cell(it.name or '')
+
+    # ── 物料（material_name → fallback name）──
+    mat_nm = getattr(it, 'material_name', None)
+    mat_cell = _cell(mat_nm) if mat_nm else _cell(it.name or '')
+
+    # ── 定制参数（宽×深×高）──
+    cw = getattr(it, 'custom_width', None)
+    cd = getattr(it, 'custom_depth', None)
+    ch = getattr(it, 'custom_height', None)
+    w = getattr(it, 'width', None)
+    d = getattr(it, 'depth', None)
+    h = getattr(it, 'height', None)
+    size_parts = []
+    for val, label in [(cw,w),(cd,d),(ch,h)]:
+        fv = float(val or 0)
+        if fv > 0:
+            size_parts.append(str(int(fv)))
+    custom_size_str = '\u00d7'.join(size_parts) if size_parts else (it.spec or '')
+
+    # ── 计量值\u00d7数量 ──
+    mval = getattr(it, 'measurement_value', None)
+    qty = it.quantity or 0
+    if mval and float(mval or 0) > 0 and float(mval or 0) != 1:
+        qty_str = '{}\u00d7{}'.format(float(mval), qty)
     else:
-        dim_str = ''
+        qty_str = str(qty)
 
-    # Craft annotation
-    craft = ''
-    cq = getattr(it, 'craft_quantity', None)
+    # ── 单位 ──
+    unit_val = str(getattr(it, 'unit', None) or '').strip()
+
+    # ── 工艺与系数（默认显示1.0）──
+    pname = getattr(it, 'process_name', None) or ''
+    pcoef = getattr(it, 'process_coefficient', None)
     cc = getattr(it, 'craft_coefficient', None)
-    if cq or cc:
-        parts = []
-        if cq and float(cq or 0) > 0:
-            parts.append('数量{}'.format(float(cq)))
-        if cc and float(cc or 0) != 1.0:
-            parts.append('系数{}'.format(float(cc)))
-        craft = '×'.join(parts)
+    craft_parts = []
+    if pname:
+        craft_parts.append(pname)
+    if pcoef and float(pcoef or 0) != 1.0:
+        craft_parts.append('\u00d7{}'.format(float(pcoef)))
+    if cc and float(cc or 0) != 1.0:
+        craft_parts.append('\u00d7{}'.format(float(cc)))
+    craft_info_str = ' '.join(craft_parts) if craft_parts else '1.0'
 
-    # Build row based on show_ref
-    if show_ref:
-        # Full row: 名称 | 定制尺寸/规格 | 品牌 | 单位 | 数量 | [单价] | 合计 | 工艺/备注
-        brand_val = it.brand or ''
-        if not brand_val:
-            brand_val = ''
-        row = [
-            it.name or '',
-            dim_str,
-            brand_val,
-            it.unit or '',
-            str(it.quantity or 0),
-        ]
-        if is_visitor:
-            row += [_ymoney(it.total_price)]
-        else:
-            row += [_ymoney(it.unit_price), _ymoney(it.total_price)]
-        if craft:
-            row.append(craft)
-        else:
-            row.append(it.remark or '')
-    else:
-        # Compact row: 名称 | 规格/尺寸 | 单位 | 数量 | [单价] | 合计 | 工艺/备注
-        row = [
-            it.name or '',
-            dim_str,
-            it.unit or '',
-            str(it.quantity or 0),
-        ]
-        if is_visitor:
-            row += [_ymoney(it.total_price)]
-        else:
-            row += [_ymoney(it.unit_price), _ymoney(it.total_price)]
-        if craft:
-            row.append(craft)
-        else:
-            row.append(it.remark or '')
+    # ── 工艺数量（默认0）──
+    pqty = getattr(it, 'process_quantity', None)
+    cq = getattr(it, 'craft_quantity', None)
+    craft_qty_val = '0'
+    if pqty and float(pqty or 0) > 0:
+        craft_qty_val = str(float(pqty))
+    elif cq and float(cq or 0) > 0:
+        craft_qty_val = str(float(cq))
+
+    # ── 工艺金额 ──
+    pamount = getattr(it, 'process_amount', None)
+    craft_amt = Decimal('0')
+    if pamount and float(pamount or 0) > 0:
+        craft_amt = Decimal(str(pamount))
+    elif cc and float(cc or 0) > 1:
+        base = Decimal(str(qty)) * Decimal(str(mval or 1)) * Decimal(str(it.unit_price or 0))
+        craft_amt = base * (Decimal(str(cc)) - 1)
+
+    # ── Build row ──
+    row = [
+        name_cell,
+        mat_cell,
+        _cell(custom_size_str),
+        _cell(qty_str),
+        _cell(unit_val),
+    ]
+    if not is_visitor:
+        row.append(_cell(_ymoney(it.unit_price)))
+    row += [
+        _cell(craft_info_str),
+        _cell(craft_qty_val),
+        _cell(_ymoney(craft_amt)),
+        _cell(_ymoney(it.total_price)),
+        _cell(it.remark or '', 6.5),
+    ]
     return row
 
 
-# ─── Category summary section ────────────────────────────────────────────────
-
 def _cat_headers(is_visitor, show_ref=True):
-    if show_ref:
-        if is_visitor:
-            return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '合计', '工艺/备注']
-        return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
-    else:
-        if is_visitor:
-            return ['名称', '规格/尺寸', '单位', '数量', '合计', '工艺/备注']
-        return ['名称', '规格/尺寸', '单位', '数量', '单价', '合计', '工艺/备注']
+    """v3.2 — same as _room_headers for consistency"""
+    return _room_headers(is_visitor, show_ref)
 
 
 def _cat_col_widths(is_visitor, show_ref=True):
-    if show_ref:
-        if is_visitor:
-            return [36*mm, 26*mm, 20*mm, 14*mm, 14*mm, 22*mm, 28*mm]
-        return [34*mm, 24*mm, 18*mm, 12*mm, 12*mm, 18*mm, 22*mm, 18*mm]
+    """v3.2 — same as ROOM_CW for consistency"""
+    if is_visitor:
+        return ROOM_CW_V
     else:
-        if is_visitor:
-            return [40*mm, 32*mm, 16*mm, 14*mm, 22*mm, 36*mm]
-        return [38*mm, 28*mm, 14*mm, 14*mm, 18*mm, 22*mm, 24*mm]
+        return ROOM_CW_C
 
 
 def _cat_table(items, is_visitor, styles, show_ref=True):
     """Build one category section (header + item rows + subtotal)."""
     data = [_cat_headers(is_visitor)]
     total = Decimal('0')
+    craft_subtotal = Decimal('0')
     for it in items:
         data.append(_item_row(it, is_visitor, show_ref))
         total += Decimal(str(it.total_price or 0))
+        # Accumulate craft amount from last column
+        pa = getattr(it, 'process_amount', None)
+        if pa and float(pa or 0) > 0:
+            craft_subtotal += Decimal(str(pa))
+        else:
+            cc = getattr(it, 'craft_coefficient', None) or 1
+            if float(cc) > 1:
+                base = Decimal(str(it.quantity or 0)) * Decimal(str(getattr(it, 'measurement_value', 1) or 1)) * Decimal(str(it.unit_price or 0))
+                craft_subtotal += base * (Decimal(str(cc)) - 1)
 
-    # Subtotal row — span all but last 2 columns
+    # Subtotal row — span col 0 to -5, last 5 cols: [工艺数量|工艺金额|金额|备注] (visitor) or [单价|...]
     n_cols = len(_cat_col_widths(is_visitor, show_ref))
     if is_visitor:
-        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 3) + [_ymoney(total), '']
+        # visitor 11 cols: span 0~(-6), leave [工艺数量, 工艺金额, 金额, 备注]
+        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 4) + ['', _ymoney(craft_subtotal), _ymoney(total), '']
     else:
-        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 3) + [_ymoney(total), '']
+        # customer 12 cols: span 0~(-6), leave [单价, 工艺数量, 工艺金额, 金额, 备注]
+        subtotal_row = ['-- 小计 --'] + [''] * (n_cols - 5) + ['', '', _ymoney(craft_subtotal), _ymoney(total), '']
     data.append(subtotal_row)
 
     cw = _cat_col_widths(is_visitor)
@@ -414,7 +581,7 @@ def _cat_table(items, is_visitor, styles, show_ref=True):
     cmds = [
         ('FONTNAME', (0,0),(-1,0), CN_FONT),
         ('FONTNAME', (0,1),(-1,-1), CN_FONT_BODY),
-        ('FONTSIZE', (0,0),(-1,-1), 7.5),
+        ('FONTSIZE', (0,0),(-1,-1), 7),
         ('BACKGROUND',(0,0),(-1,0), BRAND_BROWN),
         ('TEXTCOLOR',(0,0),(-1,0), white),
         ('GRID',(0,0),(-1,-1), 0.5, MID_GRAY),
@@ -423,7 +590,7 @@ def _cat_table(items, is_visitor, styles, show_ref=True):
         # Subtotal row
         ('FONTNAME',(0,-1),(-1,-1), CN_FONT),
         ('BACKGROUND',(0,-1),(-1,-1), LIGHT_GRAY),
-        ('SPAN',(0,-1),(-3, -1)),
+        ('SPAN',(0,-1),(-5, -1)),
         ('ALIGN',(-2,-1),(-1,-1),'RIGHT'),
         ('TEXTCOLOR',(0,-1),(-1,-1), BRAND_BROWN),
     ]
@@ -474,27 +641,24 @@ def _money_to_chinese(n):
     return r
 
 
-def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
+def _category_summary_page(story, quote, items, is_visitor, styles, show_ref=True):
     """
-    分类汇总页 — 重构版：
-      费用汇总区：一级分类合计 + 缩进显示各二级分类明细（仅物料金额）
-      其他费用区：仅含工艺费用、管理费、税额、优惠（纯费用项目）
-      最后总价大写。
+    v4.0 — 分类汇总页：与HTML模板一致的左右卡片布局
+    布局：标题 → 左右双栏(左:分类卡片带二级子项,右:费用明细) → 底部总栏(整数+大写)
     """
     from app.models.material_sku import MaterialCategory as MC
     from sqlalchemy import or_ as sql_or
     from collections import OrderedDict
+    from reportlab.lib.colors import Color
 
     grouped = _group_by_category(items)
 
-    # 构建有序一级分类列表
+    # ── 一级/二级分类（系统顺序）──
     cats = MC.query.filter(
         MC.parent_id.is_(None),
         sql_or(MC.is_deleted == False, MC.is_deleted.is_(None)),
         MC.is_enabled == True
     ).order_by(MC.sort_order).all()
-
-    # 构建有序二级分类列表（全部启用）
     all_l2 = MC.query.filter(
         MC.parent_id.isnot(None),
         sql_or(MC.is_deleted == False, MC.is_deleted.is_(None)),
@@ -503,7 +667,7 @@ def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
     l2_order = [c.name for c in all_l2]
 
     grand_total = Decimal('0')
-    cat_rows = []       # [(一级分类名, 金额, [(二级名, 金额), ...])]
+    cat_rows = []
 
     for cat in cats:
         cat_key = cat.name
@@ -518,7 +682,6 @@ def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
         ct = sum(Decimal(str(it.total_price or 0)) for it in cat_items)
         grand_total += ct
 
-        # 二级分类明细（按系统顺序排列）
         l2_grouped = OrderedDict()
         for it in cat_items:
             l2 = it.category_level2 or '其他'
@@ -528,7 +691,6 @@ def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
             if l2_name in l2_grouped:
                 l2_amt = sum(Decimal(str(it.total_price or 0)) for it in l2_grouped[l2_name])
                 l2_detail.append((l2_name, l2_amt))
-        # 未在系统中的二级分类
         for l2_name, l2_items in l2_grouped.items():
             if l2_name not in l2_order:
                 l2_amt = sum(Decimal(str(it.total_price or 0)) for it in l2_items)
@@ -536,7 +698,7 @@ def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
 
         cat_rows.append((cat_key, ct, l2_detail))
 
-    # 未归类的一级分类
+    # 未归类
     for gk, gitems in grouped.items():
         if not any(gk == cr[0] or CAT_MAP.get(gk) == cr[0] for cr in cat_rows):
             ct = sum(Decimal(str(it.total_price or 0)) for it in gitems)
@@ -544,153 +706,239 @@ def _category_summary_page(story, items, is_visitor, styles, show_ref=True):
             display_name = CAT_MAP.get(gk, gk)
             cat_rows.append((display_name, ct, []))
 
-    # ════════════════════════════════════════════
-    #  第一部分：费用汇总（一级分类 + 二级缩进）
-    # ════════════════════════════════════════════
+    # ══════════════════════════════════════
+    #  页面标题
+    # ══════════════════════════════════════
     story.append(Spacer(1, 4*mm))
-    story.append(Paragraph('<b>费用汇总</b>', styles['CNSec']))
-    story.append(Spacer(1, 2*mm))
 
-    summary_data = []
-    s_style_L = ParagraphStyle('SumL', fontName=CN_FONT_BODY, fontSize=10, leading=14)
-    s_style_R = ParagraphStyle('SumR', fontName=CN_FONT_BODY, fontSize=10, leading=14, alignment=TA_RIGHT)
-    s_style_L2 = ParagraphStyle('SumL2', fontName=CN_FONT_BODY, fontSize=9, leading=12,
-                                leftIndent=8, textColor=MID_GRAY)
-    s_style_R2 = ParagraphStyle('SumR2', fontName=CN_FONT_BODY, fontSize=9, leading=12,
-                                alignment=TA_RIGHT, textColor=MID_GRAY)
+    title_style = ParagraphStyle('SumTitle', fontName=CN_FONT, fontSize=16, leading=24,
+                                 textColor=BRAND_BROWN, alignment=TA_CENTER,
+                                 spaceAfter=1*mm)
+    story.append(Paragraph('报 价 汇 总', title_style))
 
-    for cname, amt, l2_detail in cat_rows:
-        summary_data.append([Paragraph(cname, s_style_L), Paragraph(_ymoney(amt), s_style_R)])
-        # 二级分类缩进显示
-        for l2_name, l2_amt in l2_detail:
-            summary_data.append([Paragraph(f'  ├ {l2_name}', s_style_L2), Paragraph(_ymoney(l2_amt), s_style_R2)])
+    subtitle_style = ParagraphStyle('SumSub', fontName=CN_FONT_BODY, fontSize=9, leading=13,
+                                    textColor=MID_GRAY, alignment=TA_CENTER, spaceAfter=6*mm)
+    story.append(Paragraph('分类费用明细与总计', subtitle_style))
 
-    if summary_data:
-        stbl = Table(summary_data, colWidths=[80*mm, 50*mm])
-        stbl.setStyle(TableStyle([
-            ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
-            ('FONTSIZE',(0,0),(-1,-1), 10),
-            ('ALIGN',(0,0),(0,-1),'LEFT'),
-            ('ALIGN',(1,0),(1,-1),'RIGHT'),
-            ('BOTTOMPADDING',(0,0),(-1,-1), 3),
-            ('TOPPADDING',(0,0),(-1,-1), 3),
-            ('LINEBELOW',(0,0),(-1,-1), 0.3, LIGHT_GRAY),
+    # ══════════════════════════════════════
+    #  读取费用字段
+    # ══════════════════════════════════════
+    material_amt = Decimal(str(getattr(quote, 'material_amount', 0) or 0))
+    craft_amt = Decimal(str(getattr(quote, 'craft_amount', 0) or 0))
+    design_amt = Decimal(str(getattr(quote, 'design_amount', 0) or 0))
+    install_amt = Decimal(str(getattr(quote, 'install_amount', 0) or 0))
+    mgmt_rate = float(getattr(quote, 'manage_rate', 0) or getattr(quote, 'management_fee_rate', 0) or 0)
+    mgmt_fee = Decimal(str(getattr(quote, 'manage_amount', 0) or getattr(quote, 'management_fee', 0) or 0))
+    tax_rate_val = float(getattr(quote, 'tax_rate', 0) or 0)
+    tax_amt = Decimal(str(getattr(quote, 'tax_amount', 0) or getattr(quote, 'tax', 0) or 0))
+    disc_rate = float(getattr(quote, 'discount_rate', 0) or 0)
+    disc_amt = Decimal(str(getattr(quote, 'discount_amount', 0) or 0))
+    if mgmt_fee > 0 and mgmt_rate == 0 and grand_total > 0:
+        mgmt_rate = round(float(mgmt_fee / grand_total * 100), 1)
+    subtotal_val = material_amt + craft_amt + design_amt + install_amt
+    final_total = subtotal_val + mgmt_fee + tax_amt - disc_amt
+
+    # ══════════════════════════════════════
+    #  左侧：分类卡片（带二级子项）
+    # ══════════════════════════════════════
+    CAT_COLORS_PY = [
+        HexColor('#8B5A2B'), HexColor('#C4A35A'), HexColor('#6B7F5E'),
+        HexColor('#5B7A9D'), HexColor('#9B6B8D'), HexColor('#B8865A'),
+        HexColor('#5A8B8B'), HexColor('#8B6B5A'),
+    ]
+
+    cat_hdr = ParagraphStyle('CatHdr', fontName=CN_FONT, fontSize=11, leading=16,
+                              textColor=BRAND_BROWN, spaceAfter=6)
+    cat_name_p = ParagraphStyle('CatNm', fontName=CN_FONT, fontSize=10, leading=14)
+    cat_sub_p = ParagraphStyle('CatSub', fontName=CN_FONT_BODY, fontSize=8, leading=12,
+                               textColor=HexColor('#777'))
+
+    left_content = [[Paragraph('\u25aa 分类汇总', cat_hdr)]]
+    for ci, (cname, amt, l2_detail) in enumerate(cat_rows):
+        color = CAT_COLORS_PY[ci % len(CAT_COLORS_PY)]
+        pct = round(float(amt / grand_total * 100), 1) if grand_total > 0 else 0
+
+        # 一级名称 + 金额
+        name_cell = Paragraph(f'<b>{cname}</b>', cat_name_p)
+        amt_cell = Paragraph(f'<b>¥{amt:,.2f}</b>  <font color="#999" size="8">{pct}%</font>',
+                            ParagraphStyle('CAtR', fontName=CN_FONT, fontSize=10, leading=14,
+                                          alignment=TA_RIGHT))
+        header_row = Table([[name_cell, amt_cell]], colWidths=[65*mm, 35*mm])
+        header_row.setStyle(TableStyle([
+            ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+            ('LEFTPADDING', (0,0), (0,0), 8),
+            ('RIGHTPADDING', (1,0), (1,0), 6),
+            ('TOPPADDING', (0,0), (-1,-1), 5),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
         ]))
-        story.append(stbl)
 
-    # ════════════════════════════════════════════
-    #  第二部分：其他费用（纯费用项，不含物料分类）
-    # ════════════════════════════════════════════
-    if not is_visitor:
-        story.append(Spacer(1, 6*mm))
-        story.append(Paragraph('<b>其他费用</b>', styles['CNSec']))
-        story.append(Spacer(1, 2*mm))
+        card_rows = [[header_row]]
+        if l2_detail:
+            for ln, la in l2_detail:
+                lp = Paragraph(f'&nbsp;&nbsp;&nbsp;&nbsp;· {ln}', cat_sub_p)
+                rp = Paragraph(f'{la:,.2f}', cat_sub_p)
+                lr = Table([[lp, rp]], colWidths=[65*mm, 35*mm])
+                lr.setStyle(TableStyle([
+                    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+                    ('LEFTPADDING', (0,0), (0,0), 10),
+                    ('RIGHTPADDING', (1,0), (1,0), 6),
+                    ('TOPPADDING', (0,0), (-1,-1), 1),
+                    ('BOTTOMPADDING', (0,0), (-1,-1), 1),
+                ]))
+                card_rows.append([lr])
 
-        quote = globals().get('quote_obj')
+        card_tbl = Table(card_rows, colWidths=[102*mm])
+        card_tbl.setStyle(TableStyle([
+            ('BACKGROUND', (0,0), (0,0), HexColor('#FAF8F5')),
+            ('BACKGROUND', (0,1), (0,-1), HexColor('#FAF8F5')),
+            ('LINEBELOW', (0,0), (0,0), 2.5, color),
+            ('BOX', (0,0), (-1,-1), 0.5, HexColor('#E8E0D4')),
+            ('TOPPADDING', (0,0), (-1,-1), 3),
+            ('BOTTOMPADDING', (0,0), (-1,-1), 3),
+            ('LEFTPADDING', (0,0), (-1,-1), 0),
+            ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ]))
+        left_content.append([card_tbl])
 
-        # 计算工艺费用
-        craft_total = Decimal('0')
-        for it in items:
-            if getattr(it, 'item_type', '') in ('craft', 'process'):
-                craft_total += Decimal(str(it.total_price or 0))
-                continue
-            p_coef = float(getattr(it, 'process_coefficient', None) or 1)
-            p_qty = float(getattr(it, 'process_quantity', None) or 0)
-            p_uprice = float(getattr(it, 'process_unit_price', None) or 0)
-            tp = Decimal(str(it.total_price or 0))
-            if p_coef > 1 or p_qty > 0:
-                base_amt = tp / Decimal(str(p_coef)) if p_coef > 1 else tp
-                craft_total += (tp - base_amt) + Decimal(str(p_qty * p_uprice))
-
-        extra_data = []
-        e_style_L = ParagraphStyle('ExtL', fontName=CN_FONT_BODY, fontSize=9, leading=13)
-        e_style_R = ParagraphStyle('ExtR', fontName=CN_FONT_BODY, fontSize=9, leading=13, alignment=TA_RIGHT)
-
-        # 工艺费用
-        if craft_total > 0:
-            extra_data.append([
-                Paragraph('工艺费用', e_style_L),
-                Paragraph(_ymoney(craft_total), e_style_R),
-            ])
-
-        # 管理费
-        mgmt_rate = float(getattr(quote, 'manage_rate', 0) or getattr(quote, 'management_fee_rate', 0) or 0) if quote else 0
-        mgmt_fee = Decimal(str(getattr(quote, 'manage_amount', 0) or getattr(quote, 'management_fee', 0) or 0)) if quote else Decimal('0')
-        if mgmt_rate and not mgmt_fee:
-            mgmt_fee = (grand_total * Decimal(str(mgmt_rate))) / Decimal('100')
-        if mgmt_fee > 0:
-            extra_data.append([
-                Paragraph(f'管理费 ({mgmt_rate}%)', e_style_L),
-                Paragraph(_ymoney(mgmt_fee), e_style_R),
-            ])
-
-        # 税额
-        tax_val = Decimal(str(getattr(quote, 'tax_amount', 0) or getattr(quote, 'tax', 0) or 0)) if quote else Decimal('0')
-        tax_rate = float(getattr(quote, 'tax_rate', 0) or 0) if quote else 0
-        if tax_rate and not tax_val:
-            tax_val = ((grand_total + mgmt_fee) * Decimal(str(tax_rate))) / Decimal('100')
-        if tax_val > 0:
-            extra_data.append([
-                Paragraph(f'税额 ({tax_rate}%)', e_style_L),
-                Paragraph(_ymoney(tax_val), e_style_R),
-            ])
-
-        # 优惠
-        discount_rate = float(getattr(quote, 'discount_rate', 0) or 0) if quote else 0
-        discount = Decimal('0')
-        if quote and discount_rate > 0:
-            discount = round((grand_total + mgmt_fee) * Decimal(str(discount_rate)) / Decimal('100'), 2)
-        if discount > 0:
-            extra_data.append([
-                Paragraph(f'优惠 ({discount_rate}%)', e_style_L),
-                Paragraph('-' + _ymoney(discount), ParagraphStyle('ExtRd', fontName=CN_FONT_BODY, fontSize=9, leading=13, alignment=TA_RIGHT, textColor=colors_red)),
-            ])
-
-        if extra_data:
-            etbl = Table(extra_data, colWidths=[80*mm, 50*mm])
-            etbl.setStyle(TableStyle([
-                ('FONTNAME',(0,0),(-1,-1), CN_FONT_BODY),
-                ('FONTSIZE',(0,0),(-1,-1), 9),
-                ('ALIGN',(0,0),(0,-1),'LEFT'),
-                ('ALIGN',(1,0),(1,-1),'RIGHT'),
-                ('BOTTOMPADDING',(0,0),(-1,-1), 4),
-                ('TOPPADDING',(0,0),(-1,-1), 4),
-                ('LINEBELOW',(0,0),(-1,-1), 0.2, LIGHT_GRAY),
-            ]))
-            story.append(etbl)
-
-    # ════════════════════════════════════════════
-    #  第三部分：总价
-    # ════════════════════════════════════════════
-    final_total = grand_total
-    if not is_visitor:
-        final_total = round(final_total + mgmt_fee + tax_val - discount)
-
-    story.append(Spacer(1, 8*mm))
-    # 总价框
-    total_label = '参考总价' if is_visitor else '本报价表合计'
-    total_box_data = [[
-    Paragraph(
-        f'<b>{total_label}：<font color="red">{_ymoney(final_total)}</font></b>',
-        ParagraphStyle('GrandTotal', fontName=CN_FONT, fontSize=16, leading=24, alignment=TA_CENTER)
-    )]]
-    tbox = Table(total_box_data, colWidths=[140*mm])
-    tbox.setStyle(TableStyle([
-        ('BOX',(0,0),(-1,-1), 1.5, BRAND_BROWN),
-        ('BACKGROUND',(0,0),(-1,-1), HexColor('#FFF8F0')),
-        ('TOPPADDING',(0,0),(-1,-1), 8),
-        ('BOTTOMPADDING',(0,0),(-1,-1), 8),
+    left_tbl = Table(left_content, colWidths=[106*mm])
+    left_tbl.setStyle(TableStyle([
+        ('TOPPADDING', (0,0), (-1,-1), 2),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 0),
+        ('RIGHTPADDING', (0,0), (-1,-1), 0),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
     ]))
-    story.append(tbox)
 
-    # 大写
-    story.append(Spacer(1, 3*mm))
-    story.append(Paragraph(
-        f'合计人民币大写：<b>{_money_to_chinese(final_total)}</b>',
-        styles['CNBody']
-    ))
+    # ══════════════════════════════════════
+    #  右侧：费用明细表
+    # ══════════════════════════════════════
+    fee_label = ParagraphStyle('FeeL', fontName=CN_FONT_BODY, fontSize=9.5, leading=15)
+    fee_val_s = ParagraphStyle('FeeVS', fontName=CN_FONT_BODY, fontSize=9.5, leading=15, alignment=TA_RIGHT)
+    fee_bold_L = ParagraphStyle('FeeBL2', fontName=CN_FONT, fontSize=10, leading=16)
+    fee_bold_R = ParagraphStyle('FeeBR2', fontName=CN_FONT, fontSize=10, leading=16, alignment=TA_RIGHT)
+    fee_red = ParagraphStyle('FeeRed2', fontName=CN_FONT_BODY, fontSize=9.5, leading=15, alignment=TA_RIGHT,
+                             textColor=HexColor('#CC0000'))
+
+    fee_rows = []
+    fee_rows.append([Paragraph('<b>物料总额</b>', fee_label),
+                     Paragraph(f'¥{material_amt:,.2f}', fee_val_s)])
+    if craft_amt > 0:
+        fee_rows.append([Paragraph('工艺费用', fee_label),
+                         Paragraph(f'¥{craft_amt:,.2f}', fee_val_s)])
+    if design_amt > 0:
+        fee_rows.append([Paragraph('设计费', fee_label),
+                         Paragraph(f'¥{design_amt:,.2f}', fee_val_s)])
+    if install_amt > 0:
+        fee_rows.append([Paragraph('安装费', fee_label),
+                         Paragraph(f'¥{install_amt:,.2f}', fee_val_s)])
+    fee_rows.append([Spacer(1, 2), Spacer(1, 2)])
+    fee_rows.append([Paragraph('<b>小计（材料+工艺）</b>', fee_bold_L),
+                     Paragraph(f'<b>¥{subtotal_val:,.2f}</b>', fee_bold_R)])
+    if mgmt_fee > 0:
+        rate_str = f'{mgmt_rate}%' if mgmt_rate > 0 else ''
+        fee_rows.append([Paragraph(f'管理费{rate_str}', fee_label),
+                         Paragraph(f'¥{mgmt_fee:,.2f}', fee_val_s)])
+    if tax_amt > 0:
+        tr_str = f'{tax_rate_val}%' if tax_rate_val > 0 else ''
+        fee_rows.append([Paragraph(f'税费{tr_str}', fee_label),
+                         Paragraph(f'¥{tax_amt:,.2f}', fee_val_s)])
+    if disc_amt > 0:
+        dr_str = f'{disc_rate}%' if disc_rate > 0 else ''
+        fee_rows.append([Paragraph(f'优惠折扣{dr_str}', fee_label),
+                         Paragraph(f'-¥{disc_amt:,.2f}', fee_red)])
+
+    fee_tbl = Table(fee_rows, colWidths=[72*mm, 32*mm])
+    fee_tbl.setStyle(TableStyle([
+        ('FONTNAME', (0,0), (-1,-1), CN_FONT_BODY),
+        ('FONTSIZE', (0,0), (-1,-1), 9),
+        ('ALIGN', (0,0), (0,-1), 'LEFT'),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (0,-1), 12),
+        ('RIGHTPADDING', (1,0), (1,-1), 8),
+        ('LINEBELOW', (0,0), (-1,-3), 0.3, HexColor('#EEE8DD')),
+        ('BACKGROUND', (0,0), (-1,-1), white),
+    ]))
+
+    right_hdr = ParagraphStyle('FeeHdr2', fontName=CN_FONT, fontSize=11, leading=16,
+                                textColor=BRAND_BROWN, spaceAfter=6)
+    right_content = [[Paragraph('\u25aa 费用明细', right_hdr)], [fee_tbl]]
+    right_tbl = Table(right_content, colWidths=[106*mm])
+    right_tbl.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (0,0), HexColor('#F8F5F0')),
+        ('BOX', (0,0), (-1,-1), 0.5, HexColor('#D4C4A8')),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+    ]))
+
+    # ══════════════════════════════════════
+    #  左右双栏容器
+    # ══════════════════════════════════════
+    cols_tbl = Table([[left_tbl, right_tbl]], colWidths=[110*mm, 110*mm])
+    cols_tbl.setStyle(TableStyle([
+        ('VALIGN', (0,0), (-1,-1), 'TOP'),
+        ('LEFTPADDING', (0,0), (0,0), 0),
+        ('RIGHTPADDING', (0,0), (0,0), 8),
+        ('LEFTPADDING', (1,0), (1,0), 8),
+        ('RIGHTPADDING', (1,0), (1,0), 0),
+        ('TOPPADDING', (0,0), (-1,-1), 0),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 0),
+    ]))
+    story.append(cols_tbl)
+
+    # ══════════════════════════════════════
+    #  底部总栏（与HTML一致，单金额整数+大写）
+    # ══════════════════════════════════════
+    story.append(Spacer(1, 8*mm))
+
+    total_bar_inner = [[
+        Paragraph('<b>总计：</b>', ParagraphStyle('TLbl', fontName=CN_FONT, fontSize=16, leading=22,
+                                                  textColor=BRAND_BROWN)),
+        Paragraph(f'<font color="#CC0000"><b>¥{int(final_total)}</b></font>',
+                 ParagraphStyle('TAmt', fontName=CN_FONT, fontSize=26, leading=30, alignment=TA_RIGHT)),
+    ]]
+    total_bar = Table(total_bar_inner, colWidths=[90*mm, 60*mm])
+    total_bar.setStyle(TableStyle([
+        ('BOX', (0,0), (-1,-1), 2, BRAND_BROWN),
+        ('BACKGROUND', (0,0), (-1,-1), HexColor('#FFFDF8')),
+        ('ALIGN', (0,0), (0,-1), 'LEFT'),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (0,-1), 24),
+        ('RIGHTPADDING', (1,0), (1,-1), 24),
+        ('TOPPADDING', (0,0), (-1,-1), 14),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 14),
+    ]))
+    story.append(total_bar)
+
+    # 大写金额行
+    chinese = _money_to_chinese(final_total)
+    cap_row = Table([[
+        Paragraph('合计人民币（大写）：', ParagraphStyle('CapL', fontName=CN_FONT_BODY, fontSize=10,
+                                                         leading=14, textColor=HexColor('#666'))),
+        Paragraph(f'<b>{chinese}</b>', ParagraphStyle('CapR', fontName=CN_FONT, fontSize=11,
+                                                       leading=16, textColor=BRAND_BROWN, alignment=TA_RIGHT)),
+    ]], colWidths=[90*mm, 60*mm])
+    cap_row.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), HexColor('#FFFDF8')),
+        ('LINEABOVE', (0,0), (-1,-1), 0.5, HexColor('#E8DCC8')),
+        ('ALIGN', (0,0), (0,-1), 'LEFT'),
+        ('ALIGN', (1,0), (1,-1), 'RIGHT'),
+        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
+        ('LEFTPADDING', (0,0), (0,-1), 24),
+        ('RIGHTPADDING', (1,0), (1,-1), 24),
+        ('TOPPADDING', (0,0), (-1,-1), 8),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 10),
+    ]))
+    story.append(cap_row)
 
     return final_total
+
+
 
 
 def _quote_grand_total(quote, items):
@@ -701,21 +949,22 @@ def _quote_grand_total(quote, items):
 # ─── Room detail section ─────────────────────────────────────────────────────
 
 def _room_headers(is_visitor, show_ref=True):
-    if show_ref:
-        if is_visitor:
-            return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '合计', '工艺/备注']
-        return ['名称', '定制尺寸/规格', '品牌', '单位', '数量', '单价', '合计', '工艺/备注']
+    """
+    v3.4 — 名称 | 物料 | 定制参数 | 计量值×数量 | 单位 | [单价] | 工艺与系数 | 工艺数量 | 工艺金额 | 金额 | 备注
+    参考版额外插入单价列（单位后）。
+    """
+    base = ['名称', '物料', '定制参数', '计量值×数量', '单位']
+    if is_visitor:
+        return base + ['工艺与系数', '工艺数量', '工艺金额', '金额', '备注']
     else:
-        if is_visitor:
-            return ['名称', '规格/尺寸', '单位', '数量', '合计', '工艺/备注']
-        return ['名称', '规格/尺寸', '单位', '数量', '单价', '合计', '工艺/备注']
+        return base + ['单价', '工艺与系数', '工艺数量', '工艺金额', '金额', '备注']
 
 
-ROOM_CW_V = [38*mm, 24*mm, 22*mm, 14*mm, 14*mm, 22*mm, 20*mm]   # visitor, show_ref=True (7 cols)
-ROOM_CW_C = [36*mm, 22*mm, 20*mm, 12*mm, 12*mm, 18*mm, 22*mm, 18*mm]   # customer, show_ref=True (8 cols)
-# Non-ref (compact) versions
-ROOM_CW_V_COMPACT = [42*mm, 28*mm, 16*mm, 14*mm, 22*mm, 38*mm]   # visitor, show_ref=False (6 cols)
-ROOM_CW_C_COMPACT = [40*mm, 26*mm, 14*mm, 14*mm, 18*mm, 22*mm, 24*mm]   # customer, show_ref=False (7 cols)
+# v3.4 — 横版A4 273mm，表格占260mm（95%）
+# 客户版 11列: 22+30+38+20+12+28+16+22+26+24+22 = 260mm
+# 参考版 12列: 22+30+38+20+12+18+28+16+22+26+24+22 = 278mm → 紧凑到 258mm
+ROOM_CW_V = [22*mm, 30*mm, 38*mm, 20*mm, 12*mm, 28*mm, 16*mm, 22*mm, 26*mm, 24*mm, 22*mm]   # visitor 11 cols (260mm)
+ROOM_CW_C = [20*mm, 28*mm, 36*mm, 18*mm, 12*mm, 16*mm, 26*mm, 14*mm, 20*mm, 24*mm, 22*mm, 22*mm]   # customer 12 cols (258mm)
 
 
 def _room_section(story, room_name, items, is_visitor, styles, show_ref=True):
@@ -732,7 +981,7 @@ def _room_section(story, room_name, items, is_visitor, styles, show_ref=True):
     hdr_data = [[header_text, '', '', '', '', '']]
     if not is_visitor:
         hdr_data[0].append('')
-    hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V_COMPACT if is_visitor else ROOM_CW_C_COMPACT)
+    hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V if is_visitor else ROOM_CW_C)
 
     hdr_tbl = Table(hdr_data, colWidths=hdr_cw)
     hdr_tbl.setStyle(TableStyle([
@@ -756,7 +1005,7 @@ def _room_section(story, room_name, items, is_visitor, styles, show_ref=True):
     cmds = [
         ('FONTNAME', (0,0),(-1,0), CN_FONT),
         ('FONTNAME', (0,1),(-1,-1), CN_FONT_BODY),
-        ('FONTSIZE', (0,0),(-1,-1), 7.5),
+        ('FONTSIZE', (0,0),(-1,-1), 7),
         ('BACKGROUND',(0,0),(-1,0), BRAND_BROWN),
         ('TEXTCOLOR',(0,0),(-1,0), white),
         ('GRID',(0,0),(-1,-1), 0.5, MID_GRAY),
@@ -789,7 +1038,7 @@ def _room_details_page(story, items, is_visitor, styles, show_ref=True):
 
         # ── 空间标题行（绿色表头）──
         header_text = '{}  —  {}件  小计：{}'.format(rn, len(room_items), _ymoney(room_total))
-        hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V_COMPACT if is_visitor else ROOM_CW_C_COMPACT)
+        hdr_cw = (ROOM_CW_V if is_visitor else ROOM_CW_C) if show_ref else (ROOM_CW_V if is_visitor else ROOM_CW_C)
         cols = len(hdr_cw)
         hdr_data = [[header_text] + [''] * (cols - 1)]
         hdr_tbl = Table(hdr_data, colWidths=hdr_cw)
@@ -819,8 +1068,18 @@ def _room_details_page(story, items, is_visitor, styles, show_ref=True):
             cat_items = cat_groups[cat_name]
             cat_total = sum(Decimal(str(it.total_price or 0)) for it in cat_items)
 
-            # ── 分类子标题（棕色小标签）──
-            cat_hdr_text = '{}  —  {}件  ¥{}'.format(cat_name, len(cat_items), _ymoney(cat_total))
+            # ── 分类子标题（棕色小标签）+ 工艺金额汇总 ──
+            cat_craft_total = sum(
+                Decimal(str(getattr(it, 'process_amount', 0) or 0)) + (
+                    (Decimal(str(it.quantity or 0)) * Decimal(str(getattr(it, 'measurement_value', 1) or 1)) * Decimal(str(it.unit_price or 0)) * (Decimal(str(getattr(it, 'craft_coefficient', 1) or 1)) - 1))
+                    if float(getattr(it, 'craft_coefficient', 1) or 1) > 1 else Decimal('0')
+                )
+                for it in cat_items
+            )
+            craft_label = ''
+            if cat_craft_total > 0:
+                craft_label = '  工艺¥{}'.format(_ymoney(cat_craft_total))
+            cat_hdr_text = '{}  —  {}件  ¥{}{}'.format(cat_name, len(cat_items), _ymoney(cat_total), craft_label)
             cat_hdr_data = [[cat_hdr_text] + [''] * (cols - 1)]
             cat_hdr_tbl = Table(cat_hdr_data, colWidths=hdr_cw)
             cat_hdr_tbl.setStyle(TableStyle([
@@ -842,16 +1101,24 @@ def _room_details_page(story, items, is_visitor, styles, show_ref=True):
                 rows.append(_item_row(it, is_visitor, show_ref))
 
             tbl = Table(rows, colWidths=hdr_cw, repeatRows=1)
+            # visitor cols: 0=名称 1=物料名 2=qty 3=单位 4=工艺 5=工艺额 6=金额 7=备注
+            # customer cols: 0=名称 1=物料名 2=qty 3=单位 4=单价 5=工艺 6=工艺额 7=金额 8=备注
+            n = len(hdr_cw)
             cmds = [
                 ('FONTNAME', (0,0),(-1,0), CN_FONT),
                 ('FONTNAME', (0,1),(-1,-1), CN_FONT_BODY),
-                ('FONTSIZE', (0,0),(-1,-1), 7.5),
+                ('FONTSIZE', (0,0),(-1,-1), 7),
                 ('BACKGROUND',(0,0),(-1,0), BRAND_BROWN),
                 ('TEXTCOLOR',(0,0),(-1,0), white),
                 ('GRID',(0,0),(-1,-1), 0.3, MID_GRAY),
                 ('BOTTOMPADDING',(0,0),(-1,-1), 3),
                 ('TOPPADDING',(0,0),(-1,-1), 3),
+                # Right-align numeric columns (工艺金额=工艺额后第1列, 金额=最后第2列)
+                ('ALIGN', (-3,-1), (-3,-1), 'RIGHT'),
+                ('ALIGN', (-2,-1), (-2,-1), 'RIGHT'),
             ]
+            if not is_visitor:
+                cmds.append(('ALIGN', (-4,-1), (-4,-1), 'RIGHT'))  # 单价
             tbl.setStyle(TableStyle(cmds))
             story.append(tbl)
             story.append(Spacer(1, 2*mm))
@@ -923,8 +1190,8 @@ def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
     fpath = os.path.join(pdf_dir, fname)
 
     doc = SimpleDocTemplate(
-        fpath, pagesize=landscape(A4),
-        topMargin=12*mm, bottomMargin=12*mm,
+        fpath, pagesize=PAGE_SIZE,
+        topMargin=8*mm, bottomMargin=8*mm,
         leftMargin=12*mm, rightMargin=12*mm,
     )
 
@@ -937,29 +1204,25 @@ def generate_quote_pdf(quote, items, is_visitor=False, show_ref=True):
     # Inject page header on each new page after cover
     def _page_header_footer(canvas, doc):
         canvas.saveState()
-        # Header line
-        canvas.setFillColor(BRAND_BROWN)
-        canvas.setFont(CN_FONT, 8)
-        canvas.drawString(12*mm, landscape(A4)[1] - 8*mm,
-                          '\u5c1a\u6807\u00b7\u8bbe\u8bb0\u5bb6  \u62a5\u4ef7\u5355')
-        canvas.drawRightString(landscape(A4)[0] - 12*mm, landscape(A4)[1] - 8*mm,
-                               (quote.quote_no or '') + '  ' + ('\u5ba2\u6237\u7248' if not is_visitor else '\u53c2\u8003\u7248'))
-        # Footer line
-        canvas.setFillColor(MID_GRAY)
-        canvas.setFont(CN_FONT_BODY, 7)
-        canvas.drawString(12*mm, 8*mm, '\u2014\u2014  \u4fdd\u5bc6\u6587\u4ef6  \u2014\u2014')
-        canvas.drawRightString(landscape(A4)[0] - 12*mm, 8*mm, 'p{}\u9875'.format(doc.page))
+        # Draw background image on every page
+        if os.path.exists(BG_IMAGE_PATH):
+            try:
+                canvas.drawImage(BG_IMAGE_PATH, 0, 0, width=PAGE_W, height=PAGE_H,
+                                 preserveAspectRatio=False, mask='auto')
+            except Exception:
+                pass
         canvas.restoreState()
 
     # Page 1 = cover (already built), Pages 2+ = category summary
-    # Add page header to subsequent pages
     def _cat_page_header(canvas, doc):
         if doc.page == 1:
+            # Cover page also gets background
+            _page_header_footer(canvas, doc)
             return
         _page_header_footer(canvas, doc)
 
     # ── Page 2+: Category summary (简洁汇总) ──────
-    final_total = _category_summary_page(story, items, is_visitor, styles, show_ref)
+    final_total = _category_summary_page(story, quote_obj, items, is_visitor, styles, show_ref)
 
     # ── Room details pages (按空间→分类分组物料详单) ─────────────────────
     story.append(PageBreak())

@@ -37,7 +37,9 @@ def generate_token(user_id, username):
 def verify_token(token):
     """验证 JWT Token"""
     try:
-        payload = jwt.decode(token, Config.JWT_SECRET_KEY, algorithms=['HS256'])
+        from flask import current_app
+        secret = current_app.config.get('SECRET_KEY') or Config.JWT_SECRET_KEY
+        payload = jwt.decode(token, secret, algorithms=['HS256'])
         return payload
     except jwt.ExpiredSignatureError:
         return None
