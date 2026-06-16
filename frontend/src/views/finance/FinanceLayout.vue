@@ -72,10 +72,9 @@ const isFinanceAdmin = ref(false)
 onMounted(async () => {
   // 获取当前用户的财务权限
   try {
-    const res = await financeAPI.getMyPermissions()
-    if (res.code === 200) {
-      const permissions = res.data.permissions || []
-      isFinanceAdmin.value = permissions.includes('settings')
+    const permData = await financeAPI.getMyPermissions()
+    if (permData && permData.permissions) {
+      isFinanceAdmin.value = permData.permissions.includes('settings')
     }
   } catch (error) {
     console.error('获取权限失败:', error)

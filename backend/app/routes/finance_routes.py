@@ -519,43 +519,125 @@ def reject_delete_request(request_id):
 @finance_bp.route('/overview', methods=['GET'])
 @jwt_required()
 def get_overview():
-    """获取财务总览数据"""
+    """获取财务总览数据（增强版：含年度统计、月度趋势、分类占比、最近流水）"""
     try:
         user_id, tenant_id = get_current_user()
         
         if not check_permission(user_id, 'view'):
             return jsonify({'code': 403, 'message': '没有权限', 'data': None}), 403
         
-        # 获取本月数据
-        from datetime import datetime
+        from datetime import datetime, timedelta
+        import calendar
         today = datetime.now()
         month_start = datetime(today.year, today.month, 1)
+        year_start = datetime(today.year, 1, 1)
         
-        # 今日收入/支出
+        # === 基础查询条件 ===
+        base_filter = FinanceTransaction.deleted_at.is_(None)
+        
+        # === 今日统计 ===
         today_income = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
             FinanceTransaction.trans_type == 'income',
             FinanceTransaction.trans_date == today.date(),
-            FinanceTransaction.deleted_at.is_(None)
+            base_filter
         ).scalar() or 0
-        
         today_expense = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
             FinanceTransaction.trans_type == 'expense',
             FinanceTransaction.trans_date == today.date(),
-            FinanceTransaction.deleted_at.is_(None)
+            base_filter
         ).scalar() or 0
         
-        # 本月收入/支出
+        # === 本月统计 ===
         month_income = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
             FinanceTransaction.trans_type == 'income',
             FinanceTransaction.trans_date >= month_start.date(),
-            FinanceTransaction.deleted_at.is_(None)
+            base_filter
         ).scalar() or 0
-        
         month_expense = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
             FinanceTransaction.trans_type == 'expense',
             FinanceTransaction.trans_date >= month_start.date(),
-            FinanceTransaction.deleted_at.is_(None)
+            base_filter
         ).scalar() or 0
+        
+        # === 本年统计 ===
+        year_income = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'income',
+            FinanceTransaction.trans_date >= year_start.date(),
+            base_filter
+        ).scalar() or 0
+        year_expense = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'expense',
+            FinanceTransaction.trans_date >= year_start.date(),
+            base_filter
+        ).scalar() or 0
+        
+        # === 月度趋势（近12个月） ===
+        monthly_trend = []
+        for i in range(11, -1, -1):
+            m = today.month - i
+            y = today.year
+            while m < 1:
+                m += 12
+                y -= 1
+            while m > 12:
+                m -= 12
+                y += 1
+            m_start = datetime(y, m, 1).date()
+            _, last_day = calendar.monthrange(y, m)
+            m_end = datetime(y, m, last_day).date()
+            
+            inc = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+                FinanceTransaction.trans_type == 'income',
+                FinanceTransaction.trans_date >= m_start,
+                FinanceTransaction.trans_date <= m_end,
+                base_filter
+            ).scalar() or 0
+            exp_ = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+                FinanceTransaction.trans_type == 'expense',
+                FinanceTransaction.trans_date >= m_start,
+                FinanceTransaction.trans_date <= m_end,
+                base_filter
+            ).scalar() or 0
+            
+            monthly_trend.append({
+                'month': f'{y}-{m:02d}',
+                'income': float(inc),
+                'expense': float(exp_),
+                'balance': float(inc - exp_)
+            })
+        
+        # === 本月分类占比 ===
+        categories = db.session.query(
+            FinanceTransaction.category_id,
+            FinanceTransaction.trans_type,
+            db.func.sum(FinanceTransaction.amount).label('total')
+        ).filter(
+            FinanceTransaction.trans_date >= month_start.date(),
+            FinanceTransaction.trans_date <= today.date(),
+            base_filter,
+            FinanceTransaction.category_id.isnot(None)
+        ).group_by(
+            FinanceTransaction.category_id,
+            FinanceTransaction.trans_type
+        ).all()
+        
+        category_breakdown = []
+        for cat_id, ctype, total in categories:
+            cat = FinanceCategory.query.get(cat_id)
+            cat_name = cat.name if cat else f'分类{cat_id}'
+            category_breakdown.append({
+                'category_id': cat_id,
+                'category_name': cat_name,
+                'type': ctype,
+                'total': float(total) if total else 0
+            })
+        category_breakdown.sort(key=lambda x: x['total'], reverse=True)
+        
+        # === 最近流水 ===
+        recent = FinanceTransaction.query.filter(base_filter).order_by(
+            FinanceTransaction.trans_date.desc(),
+            FinanceTransaction.id.desc()
+        ).limit(5).all()
         
         return jsonify({
             'code': 200,
@@ -566,7 +648,13 @@ def get_overview():
                 'today_balance': float(today_income - today_expense),
                 'month_income': float(month_income),
                 'month_expense': float(month_expense),
-                'month_balance': float(month_income - month_expense)
+                'month_balance': float(month_income - month_expense),
+                'year_income': float(year_income),
+                'year_expense': float(year_expense),
+                'year_balance': float(year_income - year_expense),
+                'monthly_trend': monthly_trend,
+                'category_breakdown': category_breakdown,
+                'recent_transactions': [t.to_dict() for t in recent]
             }
         })
     except Exception as e:
