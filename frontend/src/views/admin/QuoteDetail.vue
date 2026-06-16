@@ -2361,11 +2361,11 @@ onMounted(() => {
 }
 
 .space-tab.active {
-  background: #67c23a !important;
-  border-color: #67c23a !important;
+  background: #409eff !important;
+  border-color: #409eff !important;
   color: #fff !important;
   font-weight: 700;
-  box-shadow: 0 2px 8px rgba(103, 194, 58, 0.4);
+  box-shadow: 0 2px 8px rgba(64, 158, 255, 0.4);
   transform: scale(1.02);
 }
 

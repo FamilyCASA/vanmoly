@@ -1,0 +1,5 @@
+#!/bin/bash
+# .app 入口：通过 Terminal 打开内部脚本，确保获得完整用户环境
+SCRIPT="/Users/mac/VANMOLY-SYS/VANMOLY-SYS.app/Contents/Resources/start.sh"
+osascript -e "tell application \"Terminal\" to do script \"$SCRIPT\"" 2>/dev/null || \
+open -a Terminal "$SCRIPT"

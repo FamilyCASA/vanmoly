@@ -56,6 +56,12 @@ from app.models.space_config import (
     CaseSpaceConfig, CaseSpaceConfigItem, QuoteSpaceInstance, MaterialExclusiveRule
 )
 from app.models.craft_process import CraftProcess
+# 财务管理模块（新增）
+from app.models.finance import (
+    FinanceRole, FinanceMember, FinanceApprovalFlow, FinanceDeleteRequest,
+    FinanceTransaction, FinanceCategory, FinanceReimbursement,
+    FinanceShareholder, FinanceCharter, FinanceAuditLog,
+)
 
 __all__ = [
     # 案例管理
@@ -103,4 +109,8 @@ __all__ = [
     'CraftProcess',
     # 报价空间模板
     'QuoteSpaceTemplate',
+    # 财务管理模块（新增）
+    'FinanceRole', 'FinanceMember', 'FinanceApprovalFlow', 'FinanceDeleteRequest',
+    'FinanceTransaction', 'FinanceCategory', 'FinanceReimbursement',
+    'FinanceShareholder', 'FinanceCharter', 'FinanceAuditLog',
 ]

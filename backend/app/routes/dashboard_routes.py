@@ -259,8 +259,15 @@ def get_recent_activities():
                 'timestamp': q.created_at
             })
         
-        # 按时间排序
-        activities.sort(key=lambda x: x['timestamp'], reverse=True)
+        # 按时间排序（统一为字符串处理）
+        def _sort_key(a):
+            v = a['timestamp']
+            if v is None:
+                return '0000-00-00'
+            if hasattr(v, 'strftime'):
+                return v.strftime('%Y-%m-%d %H:%M:%S')
+            return str(v)
+        activities.sort(key=_sort_key, reverse=True)
         activities = activities[:limit]
         
         # 移除 timestamp 字段

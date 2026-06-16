@@ -239,6 +239,56 @@ const routes = [
     ]
   },
   {
+    path: '/finance',
+    name: 'Finance',
+    component: () => import('@/views/finance/FinanceLayout.vue'),
+    meta: { title: '财务管理', requiresAuth: true },
+    children: [
+      {
+        path: 'overview',
+        name: 'FinanceOverview',
+        component: () => import('@/views/finance/FinanceOverview.vue'),
+        meta: { title: '财务总览' }
+      },
+      {
+        path: 'transactions',
+        name: 'FinanceTransactions',
+        component: () => import('@/views/finance/TransactionList.vue'),
+        meta: { title: '流水管理' }
+      },
+      {
+        path: 'reimbursements',
+        name: 'FinanceReimbursements',
+        component: () => import('@/views/finance/ReimbursementList.vue'),
+        meta: { title: '报销管理' }
+      },
+      {
+        path: 'shareholders',
+        name: 'FinanceShareholders',
+        component: () => import('@/views/finance/ShareholderList.vue'),
+        meta: { title: '股东信息' }
+      },
+      {
+        path: 'charter',
+        name: 'FinanceCharter',
+        component: () => import('@/views/finance/CharterManage.vue'),
+        meta: { title: '企业章程' }
+      },
+      {
+        path: 'audit-logs',
+        name: 'FinanceAuditLogs',
+        component: () => import('@/views/finance/AuditLogList.vue'),
+        meta: { title: '操作日志' }
+      },
+      {
+        path: 'members',
+        name: 'FinanceMembers',
+        component: () => import('@/views/finance/MemberManage.vue'),
+        meta: { title: '团队管理' }
+      }
+    ]
+  },
+  {
     path: '/slides/:id',
     name: 'CaseSlidePreview',
     component: () => import('@/views/cases/CaseSlidePreview.vue'),
