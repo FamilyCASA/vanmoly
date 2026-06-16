@@ -1387,9 +1387,12 @@ def create_shareholder():
             name=data['name'],
             id_card=data.get('id_card'),
             phone=data.get('phone'),
-            address=data.get('address'),
-            investment_ratio=Decimal(str(data.get('investment_ratio', 0))),
-            investment_amount=Decimal(str(data.get('investment_amount', 0)))
+            share_ratio=Decimal(str(data.get('share_ratio', 0))),
+            investment_amount=Decimal(str(data.get('investment_amount', 0))),
+            investment_date=datetime.strptime(data['investment_date'], '%Y-%m-%d').date() if data.get('investment_date') else None,
+            role=data.get('role', 'silent_investor'),
+            status=data.get('status', 'active'),
+            notes=data.get('notes', '')
         )
         
         db.session.add(shareholder)
@@ -1424,11 +1427,15 @@ def update_shareholder(sh_id):
         shareholder.name = data.get('name', shareholder.name)
         shareholder.id_card = data.get('id_card', shareholder.id_card)
         shareholder.phone = data.get('phone', shareholder.phone)
-        shareholder.address = data.get('address', shareholder.address)
-        if 'investment_ratio' in data:
-            shareholder.investment_ratio = Decimal(str(data['investment_ratio']))
+        if 'share_ratio' in data:
+            shareholder.share_ratio = Decimal(str(data['share_ratio']))
         if 'investment_amount' in data:
             shareholder.investment_amount = Decimal(str(data['investment_amount']))
+        if 'investment_date' in data:
+            shareholder.investment_date = datetime.strptime(data['investment_date'], '%Y-%m-%d').date() if data['investment_date'] else None
+        shareholder.role = data.get('role', shareholder.role)
+        shareholder.status = data.get('status', shareholder.status)
+        shareholder.notes = data.get('notes', shareholder.notes)
         
         db.session.commit()
         
@@ -1512,19 +1519,20 @@ def save_charter():
         charter = FinanceCharter.query.filter_by(tenant_id=tenant_id).first()
         
         if charter:
-            # 更新
             before = charter.to_dict()
+            charter.title = data.get('title', charter.title)
             charter.content = data.get('content', charter.content)
             charter.version = data.get('version', charter.version)
-            charter.updated_by = user_id
+            charter.effective_date = datetime.strptime(data['effective_date'], '%Y-%m-%d').date() if data.get('effective_date') else charter.effective_date
             charter.updated_at = datetime.utcnow()
             action = 'update'
         else:
-            # 创建
             charter = FinanceCharter(
                 tenant_id=tenant_id,
-                content=data['content'],
+                title=data.get('title', '企业章程'),
+                content=data.get('content', ''),
                 version=data.get('version', '1.0'),
+                effective_date=datetime.strptime(data['effective_date'], '%Y-%m-%d').date() if data.get('effective_date') else None,
                 created_by=user_id
             )
             db.session.add(charter)
