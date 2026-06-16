@@ -699,6 +699,18 @@ def get_transactions():
             query = query.filter_by(status=status)
         
         total = query.count()
+        
+        # 汇总统计（基于当前筛选条件）
+        filtered_ids = query.with_entities(FinanceTransaction.id).subquery()
+        summary_income = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.id.in_(filtered_ids),
+            FinanceTransaction.trans_type == 'income'
+        ).scalar() or 0
+        summary_expense = db.session.query(db.func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.id.in_(filtered_ids),
+            FinanceTransaction.trans_type == 'expense'
+        ).scalar() or 0
+        
         transactions = query.order_by(FinanceTransaction.trans_date.desc()) \
             .offset((page - 1) * page_size).limit(page_size).all()
         
@@ -709,6 +721,8 @@ def get_transactions():
                 'total': total,
                 'page': page,
                 'page_size': page_size,
+                'summary_income': float(summary_income),
+                'summary_expense': float(summary_expense),
                 'items': [t.to_dict() for t in transactions]
             }
         })
