@@ -30,7 +30,9 @@ class Config:
     SQLALCHEMY_ECHO = os.environ.get('SQLALCHEMY_ECHO', 'False').lower() == 'true'
     
     # JWT配置
-    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'vanmoly-jwt-secret-key'
+    # JWT_SECRET_KEY 与 SECRET_KEY 保持一致，确保 auth_v2 原生 PyJWT 签发
+    # 与 flask_jwt_extended 验证使用同一密钥
+    JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or os.environ.get('SECRET_KEY') or 'vanmoly-v3.0-secret-key-dev'
     JWT_ACCESS_TOKEN_EXPIRES = timedelta(hours=24)
     JWT_REFRESH_TOKEN_EXPIRES = timedelta(days=30)
     

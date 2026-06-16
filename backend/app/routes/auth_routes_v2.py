@@ -26,6 +26,7 @@ def generate_token(user_id, role):
     payload = {
         'user_id': user_id,
         'role': role,
+        'sub': str(user_id),  # flask_jwt_extended 需要 sub 声明（string），数据库查询时转 int
         'exp': datetime.utcnow() + timedelta(days=7),
         'iat': datetime.utcnow()
     }
