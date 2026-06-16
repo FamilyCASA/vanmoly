@@ -23,6 +23,11 @@
             <span>报销管理</span>
           </el-menu-item>
           
+          <el-menu-item index="/finance/my-reimbursements">
+            <el-icon><Document /></el-icon>
+            <span>我的报销</span>
+          </el-menu-item>
+          
           <el-sub-menu index="investment">
             <template #title>
               <el-icon><TrendCharts /></el-icon>

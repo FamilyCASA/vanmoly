@@ -263,6 +263,12 @@ const routes = [
         meta: { title: '报销管理' }
       },
       {
+        path: 'my-reimbursements',
+        name: 'FinanceMyReimbursements',
+        component: () => import('@/views/finance/MyReimbursements.vue'),
+        meta: { title: '我的报销' }
+      },
+      {
         path: 'shareholders',
         name: 'FinanceShareholders',
         component: () => import('@/views/finance/ShareholderList.vue'),
