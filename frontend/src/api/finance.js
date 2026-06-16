@@ -23,11 +23,36 @@ const financeAPI = {
   },
   
   /** 添加财务团队成员 */
-  addMember(data) {
+  createMember(data) {
     return request({
       url: '/api/v3/finance/members',
       method: 'post',
       data
+    })
+  },
+  
+  /** 更新财务团队成员 */
+  updateMember(id, data) {
+    return request({
+      url: `/api/v3/finance/members/${id}`,
+      method: 'put',
+      data
+    })
+  },
+  
+  /** 删除财务团队成员 */
+  deleteMember(id) {
+    return request({
+      url: `/api/v3/finance/members/${id}`,
+      method: 'delete'
+    })
+  },
+  
+  /** 获取可添加的用户列表 */
+  getAvailableUsers() {
+    return request({
+      url: '/api/v3/finance/members/available',
+      method: 'get'
     })
   },
   
