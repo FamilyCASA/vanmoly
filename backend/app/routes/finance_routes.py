@@ -1187,22 +1187,18 @@ def create_reimbursement():
         
         data = request.get_json()
         
-        # 验证凭证
-        voucher_files = data.get('voucher_files', [])
-        if not voucher_files:
-            return jsonify({'code': 400, 'message': '请上传报销凭证', 'data': None}), 400
-        
         reimb_no = generate_reimb_no()
         
         reimbursement = FinanceReimbursement(
             tenant_id=tenant_id,
             reimb_no=reimb_no,
             applicant_id=user_id,
-            amount=Decimal(str(data['amount'])),
-            category=data.get('category', '办公'),
-            description=data.get('description', ''),
-            voucher_files=json.dumps(voucher_files),
-            status='pending'
+            total_amount=Decimal(str(data['total_amount'])),
+            expense_date=datetime.strptime(data['expense_date'], '%Y-%m-%d').date() if data.get('expense_date') else None,
+            category_id=data.get('category_id'),
+            summary=data.get('summary', ''),
+            detail_items=json.dumps(data.get('detail_items', [])),
+            status='submitted'
         )
         
         db.session.add(reimbursement)
@@ -1210,8 +1206,6 @@ def create_reimbursement():
         
         # 记录日志
         log_action(user_id, 'create', 'reimbursement', reimbursement.id, None, reimbursement.to_dict())
-        
-        # TODO: 发送通知给财务主管和超级管理员
         
         return jsonify({
             'code': 200,
@@ -1235,13 +1229,14 @@ def review_reimbursement(reimb_id):
         
         reimbursement = FinanceReimbursement.query.get_or_404(reimb_id)
         
-        if reimbursement.status != 'pending':
-            return jsonify({'code': 400, 'message': '该报销申请已审核', 'data': None}), 400
+        if reimbursement.status != 'submitted':
+            return jsonify({'code': 400, 'message': '该报销申请已审核或状态不允许操作', 'data': None}), 400
         
         before = reimbursement.to_dict()
         data = request.get_json()
         
-        reimbursement.status = data.get('status', 'approved')
+        new_status = data.get('status', 'approved')
+        reimbursement.status = new_status
         reimbursement.reviewed_by = user_id
         reimbursement.reviewed_at = datetime.utcnow()
         reimbursement.review_note = data.get('note', '')
@@ -1294,12 +1289,12 @@ def pay_reimbursement(reimb_id):
             trans_no=trans_no,
             trans_type='expense',
             trans_date=datetime.utcnow().date(),
-            amount=reimbursement.amount,
-            category_id=None,  # 需要关联分类
-            sub_category=f'报销-{reimbursement.category}',
-            summary=f'报销付款：{reimbursement.reimb_no} - {reimbursement.description}',
-            payment_method=reimbursement.payment_method,
-            voucher_files=reimbursement.voucher_files,
+            amount=reimbursement.total_amount,
+            category_id=reimbursement.category_id,
+            sub_category=reimbursement.summary[:50] if reimbursement.summary else '',
+            summary=f'报销付款：{reimbursement.reimb_no} - {reimbursement.summary}',
+            payment_method=reimbursement.payment_method or data.get('payment_method', ''),
+            voucher_files=json.dumps([reimbursement.payment_voucher]) if reimbursement.payment_voucher else '[]',
             source_type='reimbursement',
             source_id=reimbursement.id,
             operator_id=user_id,
