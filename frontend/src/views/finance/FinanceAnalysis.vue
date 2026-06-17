@@ -191,7 +191,7 @@ const loadMonthlyTrend = async () => {
 
 const loadCategoryStats = async () => {
   try {
-    const d = await financeAPI.getCategoryStats({ period: categoryPeriod.value, tx_type: 'expense' })
+    const d = await financeAPI.getCategoryStats({ period: categoryPeriod.value, trans_type: 'expense' })
     categoryStats.value = d
     await nextTick()
     renderPieChart()
