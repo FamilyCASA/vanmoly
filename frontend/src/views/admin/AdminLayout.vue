@@ -79,6 +79,12 @@
           <span>财务管理</span>
         </el-menu-item>
 
+        <!-- 组织架构 -->
+        <el-menu-item index="/admin/org-structure">
+          <el-icon><Connection /></el-icon>
+          <span>组织架构</span>
+        </el-menu-item>
+
         <!-- 系统设置（集成员工/分店/物料/文件/前端配置/流程模板/分类管理） -->
         <el-menu-item index="/admin/settings">
           <el-icon><Tools /></el-icon>

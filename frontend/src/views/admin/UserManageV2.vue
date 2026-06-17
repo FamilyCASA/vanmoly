@@ -7,6 +7,10 @@
         <p class="subtitle">账号生命周期 · 权限分级 · 资产管控</p>
       </div>
       <div class="header-actions">
+        <el-button @click="$router.push('/admin/org-structure')">
+          <el-icon><Connection /></el-icon>
+          组织架构
+        </el-button>
         <el-button type="primary" :icon="Plus" @click="showCreateDialog = true">
           新建用户
         </el-button>
@@ -385,7 +389,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Search, RefreshRight, User, Lock, CircleCheck, CircleClose,
-  Key, ChatDotRound, ChatSquare, UserFilled, Document, Files
+  Key, ChatDotRound, ChatSquare, UserFilled, Document, Files, Connection
 } from '@element-plus/icons-vue'
 import request from '@/api/request'
 

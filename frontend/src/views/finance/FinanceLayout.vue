@@ -9,8 +9,6 @@
         <el-tab-pane label="我的报销" name="my-reimbursements" />
         <el-tab-pane label="投资管理" name="shareholders" />
         <el-tab-pane label="操作日志" name="audit-logs" />
-        <el-tab-pane label="财务分析" name="analysis" />
-        <el-tab-pane v-if="isFinanceAdmin" label="团队管理" name="members" />
       </el-tabs>
     </div>
 
@@ -22,15 +20,12 @@
       <MyReimbursements v-if="activeTab === 'my-reimbursements'" />
       <ShareholderList v-if="activeTab === 'shareholders'" />
       <AuditLogList v-if="activeTab === 'audit-logs'" />
-      <FinanceAnalysis v-if="activeTab === 'analysis'" />
-      <MemberManage v-if="activeTab === 'members' && isFinanceAdmin" />
     </div>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { Wallet } from '@element-plus/icons-vue'
 import financeAPI from '@/api/finance'
 
 import FinanceOverview from './FinanceOverview.vue'
@@ -39,21 +34,11 @@ import ReimbursementList from './ReimbursementList.vue'
 import MyReimbursements from './MyReimbursements.vue'
 import ShareholderList from './ShareholderList.vue'
 import AuditLogList from './AuditLogList.vue'
-import FinanceAnalysis from './FinanceAnalysis.vue'
-import MemberManage from './MemberManage.vue'
 
 const activeTab = ref('overview')
-const isFinanceAdmin = ref(false)
 
 onMounted(async () => {
-  try {
-    const permData = await financeAPI.getMyPermissions()
-    if (permData && permData.permissions) {
-      isFinanceAdmin.value = permData.permissions.includes('settings')
-    }
-  } catch (error) {
-    console.error('获取权限失败:', error)
-  }
+  // 可以在这里添加权限检查或其他初始化逻辑
 })
 </script>
 

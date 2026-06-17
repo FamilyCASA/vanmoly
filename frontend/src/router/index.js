@@ -236,6 +236,13 @@ const routes = [
         component: () => import('@/views/admin/UserManageV2.vue'),
         meta: { title: '用户权限' }
       },
+      // 组织架构管理
+      {
+        path: 'org-structure',
+        name: 'AdminOrgStructure',
+        component: () => import('@/views/admin/OrgStructureManage.vue'),
+        meta: { title: '组织架构' }
+      },
       // 财务管理（嵌入 AdminLayout，Tab 切换子模块）
       {
         path: 'finance',

@@ -1,6 +1,6 @@
 <template>
   <div class="finance-overview">
-    <!-- 标题 -->
+    <!-- 标题栏 -->
     <div class="overview-header">
       <h2>财务总览</h2>
       <div class="header-actions">
@@ -8,15 +8,15 @@
           <el-radio-button value="monthly">月视图</el-radio-button>
           <el-radio-button value="yearly">年视图</el-radio-button>
         </el-radio-group>
-        <el-button type="primary" @click="$router.push('/finance/transactions')">
+        <el-button type="primary" @click="$router.push('/admin/finance?tab=transactions')">
           <el-icon><Plus /></el-icon> 录入流水
         </el-button>
       </div>
     </div>
 
-    <!-- 统计卡片行 -->
+    <!-- 1. 收支统计卡片 -->
     <el-row :gutter="16" class="stats-row">
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-inner today-card">
             <div class="stat-label">今日收支</div>
@@ -32,7 +32,7 @@
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-inner month-card">
             <div class="stat-label">本月收支</div>
@@ -45,10 +45,13 @@
                 ¥{{ formatNum(monthStats.balance) }}
               </span>
             </div>
+            <div class="stat-compare" :class="incomeCompareClass">
+              {{ incomeCompareText }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
+      <el-col :span="6">
         <el-card class="stat-card" shadow="hover">
           <div class="stat-inner year-card">
             <div class="stat-label">本年收支</div>
@@ -64,48 +67,72 @@
           </div>
         </el-card>
       </el-col>
+      <el-col :span="6">
+        <el-card class="stat-card" shadow="hover">
+          <div class="stat-inner total-card">
+            <div class="stat-label">累计收支</div>
+            <div class="stat-main">
+              <div class="stat-number income">¥{{ formatNum(totalStats.income) }}</div>
+              <div class="stat-number expense">¥{{ formatNum(totalStats.expense) }}</div>
+            </div>
+            <div class="stat-balance">
+              结余 <span :class="totalStats.balance >= 0 ? 'income' : 'expense'">
+                ¥{{ formatNum(totalStats.balance) }}
+              </span>
+            </div>
+          </div>
+        </el-card>
+      </el-col>
     </el-row>
 
-    <!-- 图表行 -->
+    <!-- 2. 现金流水趋势 + 分类占比 -->
     <el-row :gutter="16" class="chart-row">
       <el-col :span="14">
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>收支趋势</span>
+              <span>现金流水趋势</span>
               <div class="chart-legend">
                 <span class="legend-item"><span class="dot income-dot"></span>收入</span>
                 <span class="legend-item"><span class="dot expense-dot"></span>支出</span>
+                <span class="legend-item"><span class="dot balance-dot"></span>结余</span>
               </div>
             </div>
           </template>
-          <div ref="trendChartRef" class="chart-container" style="height: 300px;"></div>
+          <div ref="trendChartRef" class="chart-container" style="height: 320px;"></div>
         </el-card>
       </el-col>
       <el-col :span="10">
         <el-card class="chart-card" shadow="hover">
           <template #header>
             <div class="card-header">
-              <span>本月分类占比</span>
-              <el-radio-group v-model="pieType" size="small" @change="refreshPieChart">
-                <el-radio-button value="expense">支出</el-radio-button>
-                <el-radio-button value="income">收入</el-radio-button>
-              </el-radio-group>
+              <span>分类占比</span>
+              <div class="pie-controls">
+                <el-radio-group v-model="pieType" size="small" @change="refreshPieChart">
+                  <el-radio-button value="expense">支出</el-radio-button>
+                  <el-radio-button value="income">收入</el-radio-button>
+                </el-radio-group>
+                <el-select v-model="piePeriod" size="small" @change="loadCategoryStats" style="width: 90px; margin-left: 8px;">
+                  <el-option label="本月" value="this_month" />
+                  <el-option label="本年" value="this_year" />
+                  <el-option label="全部" value="all" />
+                </el-select>
+              </div>
             </div>
           </template>
-          <div ref="pieChartRef" class="chart-container" style="height: 300px;"></div>
+          <div ref="pieChartRef" class="chart-container" style="height: 320px;"></div>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 最近流水 -->
-    <el-row :gutter="16">
+    <!-- 3. 流水列表 -->
+    <el-row :gutter="16" class="table-row">
       <el-col :span="24">
         <el-card class="recent-card" shadow="hover">
           <template #header>
             <div class="card-header">
               <span>最近流水</span>
-              <el-button text type="primary" @click="$router.push('/finance/transactions')">
+              <el-button text type="primary" @click="$router.push('/admin/finance?tab=transactions')">
                 查看全部 →
               </el-button>
             </div>
@@ -138,27 +165,80 @@
         </el-card>
       </el-col>
     </el-row>
+
+    <!-- 4. 应收、应付、付款计划（占位区域） -->
+    <el-row :gutter="16" class="placeholder-row">
+      <el-col :span="8">
+        <el-card shadow="hover" class="placeholder-card">
+          <template #header>
+            <div class="card-header">
+              <span>应收款项</span>
+              <el-button text type="primary" disabled>管理 →</el-button>
+            </div>
+          </template>
+          <div class="placeholder-content">
+            <el-icon :size="48" color="#909399"><Document /></el-icon>
+            <p>功能开发中...</p>
+            <p class="placeholder-hint">用于管理客户应收款</p>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="hover" class="placeholder-card">
+          <template #header>
+            <div class="card-header">
+              <span>应付款项</span>
+              <el-button text type="primary" disabled>管理 →</el-button>
+            </div>
+          </template>
+          <div class="placeholder-content">
+            <el-icon :size="48" color="#909399"><Document /></el-icon>
+            <p>功能开发中...</p>
+            <p class="placeholder-hint">用于管理供应商应付款</p>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="hover" class="placeholder-card">
+          <template #header>
+            <div class="card-header">
+              <span>付款计划</span>
+              <el-button text type="primary" disabled>管理 →</el-button>
+            </div>
+          </template>
+          <div class="placeholder-content">
+            <el-icon :size="48" color="#909399"><Calendar /></el-icon>
+            <p>功能开发中...</p>
+            <p class="placeholder-hint">用于管理周期性付款</p>
+          </div>
+        </el-card>
+      </el-col>
+    </el-row>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick, onUnmounted } from 'vue'
+import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
+import { Plus, Document, Calendar } from '@element-plus/icons-vue'
 import * as echarts from 'echarts/core'
-import { LineChart, PieChart } from 'echarts/charts'
-import { GridComponent, TooltipComponent, LegendComponent } from 'echarts/components'
+import { LineChart, BarChart, PieChart } from 'echarts/charts'
+import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import financeAPI from '@/api/finance'
 
-echarts.use([LineChart, PieChart, GridComponent, TooltipComponent, LegendComponent, CanvasRenderer])
+echarts.use([LineChart, BarChart, PieChart, GridComponent, TooltipComponent, LegendComponent, TitleComponent, CanvasRenderer])
 
 const viewMode = ref('monthly')
 const pieType = ref('expense')
+const piePeriod = ref('this_month')
 
 const todayStats = ref({ income: 0, expense: 0, balance: 0 })
 const monthStats = ref({ income: 0, expense: 0, balance: 0 })
+const lastMonthStats = ref({ income: 0, expense: 0, balance: 0 })
 const yearStats = ref({ income: 0, expense: 0, balance: 0 })
+const totalStats = ref({ income: 0, expense: 0, balance: 0 })
+
 const monthlyTrend = ref([])
 const categoryBreakdown = ref([])
 const recentTransactions = ref([])
@@ -167,6 +247,24 @@ const trendChartRef = ref(null)
 const pieChartRef = ref(null)
 let trendChart = null
 let pieChart = null
+
+// 同比计算
+const incomeCompare = computed(() => {
+  const thisM = monthStats.value.income || 0
+  const lastM = lastMonthStats.value.income || 0
+  if (lastM === 0) return null
+  return ((thisM - lastM) / lastM * 100).toFixed(1)
+})
+const expenseCompare = computed(() => {
+  const thisM = monthStats.value.expense || 0
+  const lastM = lastMonthStats.value.expense || 0
+  if (lastM === 0) return null
+  return ((thisM - lastM) / lastM * 100).toFixed(1)
+})
+const incomeCompareText = computed(() => incomeCompare.value ? `同比${incomeCompare.value > 0 ? '↑' : '↓'}${Math.abs(incomeCompare.value)}%` : '')
+const expenseCompareText = computed(() => expenseCompare.value ? `同比${expenseCompare.value > 0 ? '↑' : '↓'}${Math.abs(expenseCompare.value)}%` : '')
+const incomeCompareClass = computed(() => incomeCompare.value > 0 ? 'up' : 'down')
+const expenseCompareClass = computed(() => expenseCompare.value > 0 ? 'up' : 'down')
 
 const formatNum = (v) => {
   if (v === undefined || v === null) return '0.00'
@@ -183,7 +281,7 @@ const statusLabel = (s) => {
 }
 
 onMounted(async () => {
-  await loadData()
+  await loadAllData()
   nextTick(() => {
     initCharts()
   })
@@ -192,32 +290,59 @@ onMounted(async () => {
 onUnmounted(() => {
   trendChart?.dispose()
   pieChart?.dispose()
+  window.removeEventListener('resize', handleResize)
 })
 
-const loadData = async () => {
+const loadAllData = async () => {
   try {
-    const d = await financeAPI.getOverview()
+    // 加载总览数据
+    const overviewData = await financeAPI.getOverview()
     todayStats.value = {
-      income: d.today_income || 0,
-      expense: d.today_expense || 0,
-      balance: d.today_balance || 0
+      income: overviewData.today_income || 0,
+      expense: overviewData.today_expense || 0,
+      balance: overviewData.today_balance || 0
     }
     monthStats.value = {
-      income: d.month_income || 0,
-      expense: d.month_expense || 0,
-      balance: d.month_balance || 0
+      income: overviewData.month_income || 0,
+      expense: overviewData.month_expense || 0,
+      balance: overviewData.month_balance || 0
     }
     yearStats.value = {
-      income: d.year_income || 0,
-      expense: d.year_expense || 0,
-      balance: d.year_balance || 0
+      income: overviewData.year_income || 0,
+      expense: overviewData.year_expense || 0,
+      balance: overviewData.year_balance || 0
     }
-    monthlyTrend.value = d.monthly_trend || []
-    categoryBreakdown.value = d.category_breakdown || []
-    recentTransactions.value = d.recent_transactions || []
+    totalStats.value = {
+      income: overviewData.total_income || 0,
+      expense: overviewData.total_expense || 0,
+      balance: overviewData.total_balance || 0
+    }
+    monthlyTrend.value = overviewData.monthly_trend || []
+    categoryBreakdown.value = overviewData.category_breakdown || []
+    recentTransactions.value = overviewData.recent_transactions || []
+
+    // 加载分析数据（获取上月对比）
+    const analysisData = await financeAPI.getAnalysisOverview()
+    lastMonthStats.value = {
+      income: analysisData.last_month?.income || 0,
+      expense: analysisData.last_month?.expense || 0,
+      balance: analysisData.last_month?.balance || 0
+    }
   } catch (e) {
     console.error(e)
     ElMessage.error('加载财务总览数据失败')
+  }
+}
+
+const loadCategoryStats = async () => {
+  try {
+    const d = await financeAPI.getCategoryStats({ period: piePeriod.value, trans_type: pieType.value })
+    categoryBreakdown.value = d.items || []
+    nextTick(() => {
+      refreshPieChart()
+    })
+  } catch (e) {
+    console.error('加载分类统计失败', e)
   }
 }
 
@@ -242,6 +367,11 @@ const initCharts = () => {
   initPieChart()
 }
 
+const handleResize = () => {
+  trendChart?.resize()
+  pieChart?.resize()
+}
+
 const initTrendChart = () => {
   if (!trendChartRef.value) return
   trendChart = echarts.init(trendChartRef.value)
@@ -249,6 +379,7 @@ const initTrendChart = () => {
   const months = monthlyTrend.value.map(m => m.month)
   const incomes = monthlyTrend.value.map(m => m.income)
   const expenses = monthlyTrend.value.map(m => m.expense)
+  const balances = monthlyTrend.value.map(m => m.balance)
 
   const option = {
     tooltip: {
@@ -261,11 +392,15 @@ const initTrendChart = () => {
         return s
       }
     },
-    grid: { left: '3%', right: '4%', bottom: '8%', top: '8%', containLabel: true },
+    legend: {
+      data: ['收入', '支出', '结余'],
+      bottom: 0
+    },
+    grid: { left: '3%', right: '4%', bottom: '12%', top: '8%', containLabel: true },
     xAxis: {
       type: 'category',
       data: months,
-      axisLabel: { fontSize: 11, color: '#909399' }
+      axisLabel: { fontSize: 11, color: '#909399', rotate: months.length > 8 ? 45 : 0 }
     },
     yAxis: {
       type: 'value',
@@ -308,12 +443,21 @@ const initTrendChart = () => {
             { offset: 1, color: 'rgba(245, 108, 108, 0.02)' }
           ])
         }
+      },
+      {
+        name: '结余',
+        type: 'bar',
+        data: balances,
+        itemStyle: {
+          color: (params) => params.value >= 0 ? '#409eff' : '#f56c6c',
+          borderRadius: [2, 2, 0, 0]
+        }
       }
     ]
   }
 
   trendChart.setOption(option)
-  window.addEventListener('resize', () => trendChart?.resize())
+  window.addEventListener('resize', handleResize)
 }
 
 const initPieChart = () => {
@@ -363,7 +507,7 @@ const initPieChart = () => {
   }
 
   pieChart.setOption(option)
-  window.addEventListener('resize', () => pieChart?.resize())
+  window.addEventListener('resize', handleResize)
 }
 </script>
 
@@ -416,6 +560,7 @@ const initPieChart = () => {
 .today-card::before { background: linear-gradient(90deg, #409eff, #79bbff); }
 .month-card::before { background: linear-gradient(90deg, #67c23a, #95d475); }
 .year-card::before { background: linear-gradient(90deg, #e6a23c, #f4d19b); }
+.total-card::before { background: linear-gradient(90deg, #909399, #c0c4cc); }
 
 .stat-label {
   font-size: 13px;
@@ -446,6 +591,13 @@ const initPieChart = () => {
 .stat-balance .income { color: #67c23a; font-weight: 600; font-size: 16px; }
 .stat-balance .expense { color: #f56c6c; font-weight: 600; font-size: 16px; }
 
+.stat-compare {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.stat-compare.up { color: #f56c6c; }
+.stat-compare.down { color: #67c23a; }
+
 /* 图表行 */
 .chart-row { margin-bottom: 16px; }
 
@@ -465,8 +617,16 @@ const initPieChart = () => {
 .dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; }
 .income-dot { background: #67c23a; }
 .expense-dot { background: #f56c6c; }
+.balance-dot { background: #409eff; }
+
+.pie-controls {
+  display: flex;
+  align-items: center;
+}
 
 /* 表格 */
+.table-row { margin-bottom: 16px; }
+
 .recent-card { margin-bottom: 16px; }
 
 .amount-text {
@@ -476,4 +636,30 @@ const initPieChart = () => {
 }
 .amount-text.income { color: #67c23a; }
 .amount-text.expense { color: #f56c6c; }
+
+/* 占位卡片 */
+.placeholder-row { margin-top: 16px; }
+
+.placeholder-card {
+  border: 1px dashed #dcdfe6;
+}
+
+.placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px 20px;
+  color: #909399;
+}
+
+.placeholder-content p {
+  margin: 8px 0 0 0;
+  font-size: 14px;
+}
+
+.placeholder-hint {
+  font-size: 12px !important;
+  color: #c0c4cc !important;
+}
 </style>
