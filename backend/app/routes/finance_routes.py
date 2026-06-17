@@ -23,7 +23,8 @@ from app import db
 from app.models.finance import (
     FinanceRole, FinanceMember, FinanceApprovalFlow, FinanceDeleteRequest,
     FinanceTransaction, FinanceCategory, FinanceReimbursement,
-    FinanceShareholder, FinanceCharter, FinanceAuditLog
+    FinanceShareholder, FinanceCharter, FinanceAuditLog,
+    FinanceReceivable, FinancePayable, FinancePaymentPlan
 )
 
 finance_bp = Blueprint('finance', __name__, url_prefix='/api/v3/finance')
@@ -1769,4 +1770,486 @@ def analysis_recent_transactions():
             'data': [t.to_dict() for t in transactions]
         })
     except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+# ============================================================
+# 应收应付管理
+# ============================================================
+
+@finance_bp.route('/receivables', methods=['GET'])
+@jwt_required()
+def list_receivables():
+    """获取应收款项列表"""
+    try:
+        user_id, tenant_id = get_current_user()
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        status = request.args.get('status')
+        keyword = request.args.get('keyword', '')
+
+        query = FinanceReceivable.query.filter_by(tenant_id=tenant_id)
+        if status:
+            query = query.filter_by(status=status)
+        if keyword:
+            query = query.filter(FinanceReceivable.title.like(f'%{keyword}%'))
+
+        total = query.count()
+        items = query.order_by(FinanceReceivable.due_date.asc().nulls_last()).offset((page - 1) * page_size).limit(page_size).all()
+
+        # 统计汇总
+        all_items = FinanceReceivable.query.filter_by(tenant_id=tenant_id).all()
+        summary = {
+            'total_amount': sum(float(r.amount or 0) for r in all_items),
+            'received_amount': sum(float(r.received_amount or 0) for r in all_items),
+            'remaining_amount': sum(float(r.remaining_amount or 0) for r in all_items),
+            'overdue_count': sum(1 for r in all_items if r.status == 'overdue'),
+        }
+
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': {
+                'items': [r.to_dict() for r in items],
+                'total': total,
+                'summary': summary
+            }
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/receivables', methods=['POST'])
+@jwt_required()
+def create_receivable():
+    """创建应收款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        data = request.get_json()
+
+        # 生成编号
+        now = datetime.utcnow()
+        prefix = f'AR{now.strftime("%Y%m")}'
+        last = FinanceReceivable.query.filter(
+            FinanceReceivable.receivable_no.like(f'{prefix}%')
+        ).order_by(FinanceReceivable.id.desc()).first()
+        seq = 1
+        if last and last.receivable_no:
+            seq = int(last.receivable_no[-4:]) + 1
+        receivable_no = f'{prefix}{seq:04d}'
+
+        amount = Decimal(str(data.get('amount', 0)))
+        remaining = amount - Decimal(str(data.get('received_amount', 0)))
+
+        item = FinanceReceivable(
+            tenant_id=tenant_id,
+            receivable_no=receivable_no,
+            receivable_type=data.get('receivable_type', 'contract'),
+            amount=amount,
+            received_amount=Decimal(str(data.get('received_amount', 0))),
+            remaining_amount=remaining,
+            customer_id=data.get('customer_id'),
+            contract_id=data.get('contract_id'),
+            quote_id=data.get('quote_id'),
+            building_id=data.get('building_id'),
+            title=data.get('title', ''),
+            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') else None,
+            status=data.get('status', 'pending'),
+            remark=data.get('remark', ''),
+            operator_id=user_id,
+        )
+        db.session.add(item)
+        db.session.commit()
+
+        log_action(user_id, 'create', 'receivable', item.id, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '创建成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/receivables/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_receivable(item_id):
+    """更新应收款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinanceReceivable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        before = item.to_dict()
+        data = request.get_json()
+
+        for field in ['receivable_type', 'title', 'remark', 'status', 'customer_id',
+                      'contract_id', 'quote_id', 'building_id']:
+            if field in data:
+                setattr(item, field, data[field])
+
+        if 'amount' in data:
+            item.amount = Decimal(str(data['amount']))
+            item.remaining_amount = item.amount - item.received_amount
+        if 'received_amount' in data:
+            item.received_amount = Decimal(str(data['received_amount']))
+            item.remaining_amount = item.amount - item.received_amount
+        if 'due_date' in data and data['due_date']:
+            item.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+
+        # 自动更新状态
+        if item.remaining_amount <= 0:
+            item.status = 'received'
+        elif item.received_amount > 0:
+            item.status = 'partial'
+
+        db.session.commit()
+        log_action(user_id, 'update', 'receivable', item.id, detail_before=before, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '更新成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/receivables/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_receivable(item_id):
+    """删除应收款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinanceReceivable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        before = item.to_dict()
+        db.session.delete(item)
+        db.session.commit()
+        log_action(user_id, 'delete', 'receivable', item_id, detail_before=before)
+        return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payables', methods=['GET'])
+@jwt_required()
+def list_payables():
+    """获取应付款项列表"""
+    try:
+        user_id, tenant_id = get_current_user()
+        page = int(request.args.get('page', 1))
+        page_size = int(request.args.get('page_size', 20))
+        status = request.args.get('status')
+        keyword = request.args.get('keyword', '')
+
+        query = FinancePayable.query.filter_by(tenant_id=tenant_id)
+        if status:
+            query = query.filter_by(status=status)
+        if keyword:
+            query = query.filter(FinancePayable.title.like(f'%{keyword}%'))
+
+        total = query.count()
+        items = query.order_by(FinancePayable.due_date.asc().nulls_last()).offset((page - 1) * page_size).limit(page_size).all()
+
+        all_items = FinancePayable.query.filter_by(tenant_id=tenant_id).all()
+        summary = {
+            'total_amount': sum(float(p.amount or 0) for p in all_items),
+            'paid_amount': sum(float(p.paid_amount or 0) for p in all_items),
+            'remaining_amount': sum(float(p.remaining_amount or 0) for p in all_items),
+            'overdue_count': sum(1 for p in all_items if p.status == 'overdue'),
+        }
+
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': {
+                'items': [p.to_dict() for p in items],
+                'total': total,
+                'summary': summary
+            }
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payables', methods=['POST'])
+@jwt_required()
+def create_payable():
+    """创建应付款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        data = request.get_json()
+
+        now = datetime.utcnow()
+        prefix = f'AP{now.strftime("%Y%m")}'
+        last = FinancePayable.query.filter(
+            FinancePayable.payable_no.like(f'{prefix}%')
+        ).order_by(FinancePayable.id.desc()).first()
+        seq = 1
+        if last and last.payable_no:
+            seq = int(last.payable_no[-4:]) + 1
+        payable_no = f'{prefix}{seq:04d}'
+
+        amount = Decimal(str(data.get('amount', 0)))
+        remaining = amount - Decimal(str(data.get('paid_amount', 0)))
+
+        item = FinancePayable(
+            tenant_id=tenant_id,
+            payable_no=payable_no,
+            payable_type=data.get('payable_type', 'supplier'),
+            amount=amount,
+            paid_amount=Decimal(str(data.get('paid_amount', 0))),
+            remaining_amount=remaining,
+            supplier_name=data.get('supplier_name', ''),
+            contract_id=data.get('contract_id'),
+            quote_id=data.get('quote_id'),
+            building_id=data.get('building_id'),
+            title=data.get('title', ''),
+            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') else None,
+            status=data.get('status', 'pending'),
+            remark=data.get('remark', ''),
+            operator_id=user_id,
+        )
+        db.session.add(item)
+        db.session.commit()
+
+        log_action(user_id, 'create', 'payable', item.id, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '创建成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payables/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_payable(item_id):
+    """更新应付款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinancePayable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        before = item.to_dict()
+        data = request.get_json()
+
+        for field in ['payable_type', 'title', 'remark', 'status', 'supplier_name',
+                      'contract_id', 'quote_id', 'building_id']:
+            if field in data:
+                setattr(item, field, data[field])
+
+        if 'amount' in data:
+            item.amount = Decimal(str(data['amount']))
+            item.remaining_amount = item.amount - item.paid_amount
+        if 'paid_amount' in data:
+            item.paid_amount = Decimal(str(data['paid_amount']))
+            item.remaining_amount = item.amount - item.paid_amount
+        if 'due_date' in data and data['due_date']:
+            item.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+
+        if item.remaining_amount <= 0:
+            item.status = 'paid'
+        elif item.paid_amount > 0:
+            item.status = 'partial'
+
+        db.session.commit()
+        log_action(user_id, 'update', 'payable', item.id, detail_before=before, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '更新成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payables/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_payable(item_id):
+    """删除应付款项"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinancePayable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        before = item.to_dict()
+        db.session.delete(item)
+        db.session.commit()
+        log_action(user_id, 'delete', 'payable', item_id, detail_before=before)
+        return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+# ============================================================
+# 付款计划
+# ============================================================
+
+@finance_bp.route('/payment-plans', methods=['GET'])
+@jwt_required()
+def list_payment_plans():
+    """获取付款计划列表"""
+    try:
+        user_id, tenant_id = get_current_user()
+        plan_type = request.args.get('plan_type')  # receivable / payable
+        parent_id = request.args.get('parent_id', type=int)
+        status = request.args.get('status')
+
+        query = FinancePaymentPlan.query.filter_by(tenant_id=tenant_id)
+        if plan_type:
+            query = query.filter_by(plan_type=plan_type)
+        if parent_id:
+            query = query.filter_by(parent_id=parent_id)
+        if status:
+            query = query.filter_by(status=status)
+
+        items = query.order_by(FinancePaymentPlan.due_date.asc().nulls_last()).all()
+
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': [p.to_dict() for p in items]
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payment-plans', methods=['POST'])
+@jwt_required()
+def create_payment_plan():
+    """创建付款计划（支持批量创建分期）"""
+    try:
+        user_id, tenant_id = get_current_user()
+        data = request.get_json()
+
+        # 支持批量创建：installments = [{amount, due_date}, ...]
+        installments = data.get('installments', [])
+        plan_type = data.get('plan_type', 'receivable')
+        parent_id = data.get('parent_id')
+
+        if not installments:
+            # 单条创建
+            installments = [{
+                'amount': data.get('amount', 0),
+                'due_date': data.get('due_date'),
+                'remark': data.get('remark', '')
+            }]
+
+        created = []
+        for idx, inst in enumerate(installments, 1):
+            now = datetime.utcnow()
+            prefix = f'PP{now.strftime("%Y%m")}'
+            last = FinancePaymentPlan.query.filter(
+                FinancePaymentPlan.plan_no.like(f'{prefix}%')
+            ).order_by(FinancePaymentPlan.id.desc()).first()
+            seq = 1
+            if last and last.plan_no:
+                seq = int(last.plan_no[-4:]) + 1
+            plan_no = f'{prefix}{seq:04d}'
+
+            plan = FinancePaymentPlan(
+                tenant_id=tenant_id,
+                plan_no=plan_no,
+                plan_type=plan_type,
+                parent_id=parent_id,
+                installment_no=idx,
+                amount=Decimal(str(inst.get('amount', 0))),
+                paid_amount=Decimal('0'),
+                due_date=datetime.strptime(inst['due_date'], '%Y-%m-%d').date() if inst.get('due_date') else None,
+                status='pending',
+                remark=inst.get('remark', ''),
+            )
+            db.session.add(plan)
+            created.append(plan)
+
+        db.session.commit()
+
+        result = [p.to_dict() for p in created]
+        log_action(user_id, 'create', 'payment_plan', created[0].id if created else 0,
+                   detail_after=result)
+        return jsonify({'code': 200, 'message': '创建成功', 'data': result})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payment-plans/<int:plan_id>', methods=['PUT'])
+@jwt_required()
+def update_payment_plan(plan_id):
+    """更新付款计划（确认收款/付款）"""
+    try:
+        user_id, tenant_id = get_current_user()
+        plan = FinancePaymentPlan.query.filter_by(id=plan_id, tenant_id=tenant_id).first()
+        if not plan:
+            return jsonify({'code': 404, 'message': '计划不存在', 'data': None}), 404
+
+        before = plan.to_dict()
+        data = request.get_json()
+
+        if 'paid_amount' in data:
+            plan.paid_amount = Decimal(str(data['paid_amount']))
+        if 'actual_date' in data and data['actual_date']:
+            plan.actual_date = datetime.strptime(data['actual_date'], '%Y-%m-%d').date()
+        if 'status' in data:
+            plan.status = data['status']
+        if 'remark' in data:
+            plan.remark = data['remark']
+        if 'transaction_id' in data:
+            plan.transaction_id = data['transaction_id']
+
+        # 自动更新状态
+        if plan.paid_amount >= plan.amount:
+            plan.status = 'paid'
+        elif plan.paid_amount > 0:
+            plan.status = 'partial'
+
+        # 同步更新父记录（应收/应付）
+        if plan.plan_type == 'receivable':
+            parent = FinanceReceivable.query.get(plan.parent_id)
+            if parent:
+                total_paid = db.session.query(
+                    db.func.sum(FinancePaymentPlan.paid_amount)
+                ).filter_by(plan_type='receivable', parent_id=parent.id).scalar() or 0
+                parent.received_amount = total_paid
+                parent.remaining_amount = parent.amount - total_paid
+                if parent.remaining_amount <= 0:
+                    parent.status = 'received'
+                elif parent.received_amount > 0:
+                    parent.status = 'partial'
+        elif plan.plan_type == 'payable':
+            parent = FinancePayable.query.get(plan.parent_id)
+            if parent:
+                total_paid = db.session.query(
+                    db.func.sum(FinancePaymentPlan.paid_amount)
+                ).filter_by(plan_type='payable', parent_id=parent.id).scalar() or 0
+                parent.paid_amount = total_paid
+                parent.remaining_amount = parent.amount - total_paid
+                if parent.remaining_amount <= 0:
+                    parent.status = 'paid'
+                elif parent.paid_amount > 0:
+                    parent.status = 'partial'
+
+        db.session.commit()
+        log_action(user_id, 'update', 'payment_plan', plan.id,
+                   detail_before=before, detail_after=plan.to_dict())
+        return jsonify({'code': 200, 'message': '更新成功', 'data': plan.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payment-plans/<int:plan_id>', methods=['DELETE'])
+@jwt_required()
+def delete_payment_plan(plan_id):
+    """删除付款计划"""
+    try:
+        user_id, tenant_id = get_current_user()
+        plan = FinancePaymentPlan.query.filter_by(id=plan_id, tenant_id=tenant_id).first()
+        if not plan:
+            return jsonify({'code': 404, 'message': '计划不存在', 'data': None}), 404
+
+        before = plan.to_dict()
+        db.session.delete(plan)
+        db.session.commit()
+        log_action(user_id, 'delete', 'payment_plan', plan_id, detail_before=before)
+        return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500

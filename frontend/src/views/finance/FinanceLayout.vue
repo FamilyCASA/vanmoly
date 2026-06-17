@@ -4,6 +4,8 @@
     <div class="finance-tabs-wrap">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="财务总览" name="overview" />
+        <el-tab-pane label="应收管理" name="receivables" />
+        <el-tab-pane label="应付管理" name="payables" />
         <el-tab-pane label="流水管理" name="transactions" />
         <el-tab-pane label="报销管理" name="reimbursements" />
         <el-tab-pane label="我的报销" name="my-reimbursements" />
@@ -15,6 +17,8 @@
     <!-- 子模块内容区 -->
     <div class="finance-content">
       <FinanceOverview v-if="activeTab === 'overview'" />
+      <ReceivableList v-if="activeTab === 'receivables'" />
+      <PayableList v-if="activeTab === 'payables'" />
       <TransactionList v-if="activeTab === 'transactions'" />
       <ReimbursementList v-if="activeTab === 'reimbursements'" />
       <MyReimbursements v-if="activeTab === 'my-reimbursements'" />
@@ -25,17 +29,25 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, watch } from 'vue'
+import { useRoute } from 'vue-router'
 import financeAPI from '@/api/finance'
 
 import FinanceOverview from './FinanceOverview.vue'
+import ReceivableList from './ReceivableList.vue'
+import PayableList from './PayableList.vue'
 import TransactionList from './TransactionList.vue'
 import ReimbursementList from './ReimbursementList.vue'
 import MyReimbursements from './MyReimbursements.vue'
 import ShareholderList from './ShareholderList.vue'
 import AuditLogList from './AuditLogList.vue'
 
-const activeTab = ref('overview')
+const route = useRoute()
+const activeTab = ref(route.query.tab || 'overview')
+
+watch(() => route.query.tab, (tab) => {
+  if (tab) activeTab.value = tab
+})
 
 onMounted(async () => {
   // 可以在这里添加权限检查或其他初始化逻辑

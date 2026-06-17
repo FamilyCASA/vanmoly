@@ -412,3 +412,143 @@ class FinanceAuditLog(db.Model):
             'user_agent': self.user_agent,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class FinanceReceivable(db.Model):
+    """应收款项 - 客户欠我们的钱"""
+    __tablename__ = 'finance_receivable'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), comment='租户ID')
+    receivable_no = db.Column(db.String(50), unique=True, nullable=False, comment='应收编号')
+    receivable_type = db.Column(db.String(30), nullable=False, comment='contract/installment/other')
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='应收金额')
+    received_amount = db.Column(db.Numeric(12, 2), default=0, comment='已收金额')
+    remaining_amount = db.Column(db.Numeric(12, 2), comment='剩余应收')
+
+    # 关联（无外键约束，跨库）
+    customer_id = db.Column(db.Integer, comment='客户ID')
+    contract_id = db.Column(db.Integer, comment='合同ID')
+    quote_id = db.Column(db.Integer, comment='报价单ID')
+    building_id = db.Column(db.Integer, comment='楼盘ID')
+
+    title = db.Column(db.String(200), comment='应收事由')
+    due_date = db.Column(db.Date, comment='预计收款日期')
+    status = db.Column(db.String(20), default='pending', comment='pending/partial/received/overdue/cancelled')
+    remark = db.Column(db.Text, comment='备注')
+
+    operator_id = db.Column(db.Integer, comment='登记人ID')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'receivable_no': self.receivable_no,
+            'receivable_type': self.receivable_type,
+            'amount': float(self.amount) if self.amount else 0,
+            'received_amount': float(self.received_amount) if self.received_amount else 0,
+            'remaining_amount': float(self.remaining_amount) if self.remaining_amount else 0,
+            'customer_id': self.customer_id,
+            'contract_id': self.contract_id,
+            'quote_id': self.quote_id,
+            'building_id': self.building_id,
+            'title': self.title,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'status': self.status,
+            'remark': self.remark,
+            'operator_id': self.operator_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class FinancePayable(db.Model):
+    """应付款项 - 我们欠供应商的钱"""
+    __tablename__ = 'finance_payable'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), comment='租户ID')
+    payable_no = db.Column(db.String(50), unique=True, nullable=False, comment='应付编号')
+    payable_type = db.Column(db.String(30), nullable=False, comment='supplier/subcontract/material/other')
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='应付金额')
+    paid_amount = db.Column(db.Numeric(12, 2), default=0, comment='已付金额')
+    remaining_amount = db.Column(db.Numeric(12, 2), comment='剩余应付')
+
+    # 关联（无外键约束，跨库）
+    supplier_name = db.Column(db.String(100), comment='供应商/收款方名称')
+    contract_id = db.Column(db.Integer, comment='合同ID')
+    quote_id = db.Column(db.Integer, comment='报价单ID')
+    building_id = db.Column(db.Integer, comment='楼盘ID')
+
+    title = db.Column(db.String(200), comment='应付事由')
+    due_date = db.Column(db.Date, comment='预计付款日期')
+    status = db.Column(db.String(20), default='pending', comment='pending/partial/paid/overdue/cancelled')
+    remark = db.Column(db.Text, comment='备注')
+
+    operator_id = db.Column(db.Integer, comment='登记人ID')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'payable_no': self.payable_no,
+            'payable_type': self.payable_type,
+            'amount': float(self.amount) if self.amount else 0,
+            'paid_amount': float(self.paid_amount) if self.paid_amount else 0,
+            'remaining_amount': float(self.remaining_amount) if self.remaining_amount else 0,
+            'supplier_name': self.supplier_name,
+            'contract_id': self.contract_id,
+            'quote_id': self.quote_id,
+            'building_id': self.building_id,
+            'title': self.title,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'status': self.status,
+            'remark': self.remark,
+            'operator_id': self.operator_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class FinancePaymentPlan(db.Model):
+    """付款计划 - 分期收款/付款的日程表"""
+    __tablename__ = 'finance_payment_plan'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), comment='租户ID')
+    plan_no = db.Column(db.String(50), unique=True, nullable=False, comment='计划编号')
+    plan_type = db.Column(db.String(20), nullable=False, comment='receivable/payable')
+    parent_id = db.Column(db.Integer, nullable=False, comment='关联的 receivable_id 或 payable_id')
+    installment_no = db.Column(db.Integer, nullable=False, comment='期数')
+    amount = db.Column(db.Numeric(12, 2), nullable=False, comment='本期金额')
+    paid_amount = db.Column(db.Numeric(12, 2), default=0, comment='已付/已收金额')
+    due_date = db.Column(db.Date, comment='预计收/付款日期')
+    actual_date = db.Column(db.Date, comment='实际收/付款日期')
+    status = db.Column(db.String(20), default='pending', comment='pending/paid/partial/overdue/cancelled')
+    remark = db.Column(db.Text, comment='备注')
+    transaction_id = db.Column(db.Integer, comment='关联流水ID')
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'plan_no': self.plan_no,
+            'plan_type': self.plan_type,
+            'parent_id': self.parent_id,
+            'installment_no': self.installment_no,
+            'amount': float(self.amount) if self.amount else 0,
+            'paid_amount': float(self.paid_amount) if self.paid_amount else 0,
+            'due_date': self.due_date.isoformat() if self.due_date else None,
+            'actual_date': self.actual_date.isoformat() if self.actual_date else None,
+            'status': self.status,
+            'remark': self.remark,
+            'transaction_id': self.transaction_id,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+        }

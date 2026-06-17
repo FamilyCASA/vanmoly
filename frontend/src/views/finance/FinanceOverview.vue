@@ -166,50 +166,71 @@
       </el-col>
     </el-row>
 
-    <!-- 4. 应收、应付、付款计划（占位区域） -->
+    <!-- 4. 应收应付统计卡片 -->
     <el-row :gutter="16" class="placeholder-row">
-      <el-col :span="8">
-        <el-card shadow="hover" class="placeholder-card">
+      <el-col :span="12">
+        <el-card shadow="hover" class="rp-card">
           <template #header>
             <div class="card-header">
               <span>应收款项</span>
-              <el-button text type="primary" disabled>管理 →</el-button>
+              <el-button text type="primary" @click="goTab('receivables')">管理 →</el-button>
             </div>
           </template>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="#909399"><Document /></el-icon>
-            <p>功能开发中...</p>
-            <p class="placeholder-hint">用于管理客户应收款</p>
+          <el-row :gutter="12">
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">应收总额</div>
+                <div class="rp-stat-value primary">¥{{ formatNum(receivableSummary.total_amount) }}</div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">已收金额</div>
+                <div class="rp-stat-value success">¥{{ formatNum(receivableSummary.received_amount) }}</div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">剩余应收</div>
+                <div class="rp-stat-value warning">¥{{ formatNum(receivableSummary.remaining_amount) }}</div>
+              </div>
+            </el-col>
+          </el-row>
+          <div v-if="receivableSummary.overdue_count > 0" class="rp-alert">
+            <el-tag type="danger" size="small">{{ receivableSummary.overdue_count }}笔逾期</el-tag>
           </div>
         </el-card>
       </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover" class="placeholder-card">
+      <el-col :span="12">
+        <el-card shadow="hover" class="rp-card">
           <template #header>
             <div class="card-header">
               <span>应付款项</span>
-              <el-button text type="primary" disabled>管理 →</el-button>
+              <el-button text type="primary" @click="goTab('payables')">管理 →</el-button>
             </div>
           </template>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="#909399"><Document /></el-icon>
-            <p>功能开发中...</p>
-            <p class="placeholder-hint">用于管理供应商应付款</p>
-          </div>
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="hover" class="placeholder-card">
-          <template #header>
-            <div class="card-header">
-              <span>付款计划</span>
-              <el-button text type="primary" disabled>管理 →</el-button>
-            </div>
-          </template>
-          <div class="placeholder-content">
-            <el-icon :size="48" color="#909399"><Calendar /></el-icon>
-            <p>功能开发中...</p>
-            <p class="placeholder-hint">用于管理周期性付款</p>
+          <el-row :gutter="12">
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">应付总额</div>
+                <div class="rp-stat-value primary">¥{{ formatNum(payableSummary.total_amount) }}</div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">已付金额</div>
+                <div class="rp-stat-value success">¥{{ formatNum(payableSummary.paid_amount) }}</div>
+              </div>
+            </el-col>
+            <el-col :span="8">
+              <div class="rp-stat">
+                <div class="rp-stat-label">剩余应付</div>
+                <div class="rp-stat-value warning">¥{{ formatNum(payableSummary.remaining_amount) }}</div>
+              </div>
+            </el-col>
+          </el-row>
+          <div v-if="payableSummary.overdue_count > 0" class="rp-alert">
+            <el-tag type="danger" size="small">{{ payableSummary.overdue_count }}笔逾期</el-tag>
           </div>
         </el-card>
       </el-col>
@@ -220,7 +241,7 @@
 <script setup>
 import { ref, computed, onMounted, nextTick, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Plus, Document, Calendar } from '@element-plus/icons-vue'
+import { Plus } from '@element-plus/icons-vue'
 import * as echarts from 'echarts/core'
 import { LineChart, BarChart, PieChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, LegendComponent, TitleComponent } from 'echarts/components'
@@ -242,6 +263,15 @@ const totalStats = ref({ income: 0, expense: 0, balance: 0 })
 const monthlyTrend = ref([])
 const categoryBreakdown = ref([])
 const recentTransactions = ref([])
+
+// 应收应付汇总
+const receivableSummary = ref({ total_amount: 0, received_amount: 0, remaining_amount: 0, overdue_count: 0 })
+const payableSummary = ref({ total_amount: 0, paid_amount: 0, remaining_amount: 0, overdue_count: 0 })
+
+const goTab = (tab) => {
+  // Navigate to finance page with specific tab
+  window.location.hash = `/admin/finance?tab=${tab}`
+}
 
 const trendChartRef = ref(null)
 const pieChartRef = ref(null)
@@ -328,6 +358,15 @@ const loadAllData = async () => {
       expense: analysisData.last_month?.expense || 0,
       balance: analysisData.last_month?.balance || 0
     }
+    // 加载应收应付汇总
+    try {
+      const recvData = await financeAPI.getReceivables({ page: 1, page_size: 1 })
+      receivableSummary.value = recvData.summary || receivableSummary.value
+    } catch {}
+    try {
+      const payData = await financeAPI.getPayables({ page: 1, page_size: 1 })
+      payableSummary.value = payData.summary || payableSummary.value
+    } catch {}
   } catch (e) {
     console.error(e)
     ElMessage.error('加载财务总览数据失败')
@@ -637,7 +676,16 @@ const initPieChart = () => {
 .amount-text.income { color: #67c23a; }
 .amount-text.expense { color: #f56c6c; }
 
-/* 占位卡片 */
+/* 应收应付卡片 */
+.rp-card { height: 100%; }
+.rp-stat { text-align: center; padding: 8px 0; }
+.rp-stat-label { font-size: 12px; color: #909399; margin-bottom: 6px; }
+.rp-stat-value { font-size: 18px; font-weight: bold; font-family: 'SF Mono', monospace; }
+.rp-stat-value.primary { color: #409eff; }
+.rp-stat-value.success { color: #67c23a; }
+.rp-stat-value.warning { color: #e6a23c; }
+.rp-alert { margin-top: 10px; text-align: center; }
+
 .placeholder-row { margin-top: 16px; }
 
 .placeholder-card {

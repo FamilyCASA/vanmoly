@@ -275,6 +275,70 @@ const financeAPI = {
       method: 'get',
       params
     })
+  },
+
+  // ========== 应收应付管理 ==========
+
+  /** 获取应收款项列表 */
+  getReceivables(params) {
+    return request({ url: '/finance/receivables', method: 'get', params })
+  },
+
+  /** 创建应收款项 */
+  createReceivable(data) {
+    return request({ url: '/finance/receivables', method: 'post', data })
+  },
+
+  /** 更新应收款项 */
+  updateReceivable(id, data) {
+    return request({ url: `/finance/receivables/${id}`, method: 'put', data })
+  },
+
+  /** 删除应收款项 */
+  deleteReceivable(id) {
+    return request({ url: `/finance/receivables/${id}`, method: 'delete' })
+  },
+
+  /** 获取应付款项列表 */
+  getPayables(params) {
+    return request({ url: '/finance/payables', method: 'get', params })
+  },
+
+  /** 创建应付款项 */
+  createPayable(data) {
+    return request({ url: '/finance/payables', method: 'post', data })
+  },
+
+  /** 更新应付款项 */
+  updatePayable(id, data) {
+    return request({ url: `/finance/payables/${id}`, method: 'put', data })
+  },
+
+  /** 删除应付款项 */
+  deletePayable(id) {
+    return request({ url: `/finance/payables/${id}`, method: 'delete' })
+  },
+
+  // ========== 付款计划 ==========
+
+  /** 获取付款计划 */
+  getPaymentPlans(params) {
+    return request({ url: '/finance/payment-plans', method: 'get', params })
+  },
+
+  /** 创建付款计划（支持批量分期） */
+  createPaymentPlan(data) {
+    return request({ url: '/finance/payment-plans', method: 'post', data })
+  },
+
+  /** 更新付款计划（确认收付款） */
+  updatePaymentPlan(id, data) {
+    return request({ url: `/finance/payment-plans/${id}`, method: 'put', data })
+  },
+
+  /** 删除付款计划 */
+  deletePaymentPlan(id) {
+    return request({ url: `/finance/payment-plans/${id}`, method: 'delete' })
   }
 }
 
