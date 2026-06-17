@@ -191,7 +191,7 @@ import {
   User, DocumentChecked, Money, Box, OfficeBuilding, UserFilled,
   Bell, Document, ShoppingCart, Phone, Plus, TrendCharts,
   Calendar, Setting, Files, Picture,
-  Upload, Collection, List
+  Upload, Collection, List, Wallet
 } from '@element-plus/icons-vue'
 import {
   getDashboardStats,
@@ -244,7 +244,9 @@ const quickLinks = ref([
   { name: '员工管理', path: '/admin/employees', icon: 'User', bgColor: '#409EFF' },
   { name: '文件管理', path: '/admin/files', icon: 'Files', bgColor: '#67C23A' },
   { name: '数据报表', path: '/admin/dashboard', icon: 'TrendCharts', bgColor: '#E6A23C' },
-  { name: '系统设置', path: '/admin/frontend', icon: 'Setting', bgColor: '#909399' }
+  { name: '系统设置', path: '/admin/frontend', icon: 'Setting', bgColor: '#909399' },
+  // 第四排：财务管理
+  { name: '收支登记', path: '/finance/transactions', icon: 'Wallet', bgColor: '#722ED1' }
 ])
 
 // 最近动态

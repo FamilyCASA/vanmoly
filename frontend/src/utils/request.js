@@ -72,12 +72,16 @@ request.interceptors.response.use(
     const { response } = error
     
     if (response) {
-      // 401 统一处理：清除 token 并跳转登录页
-      if (response.status === 401) {
+      // 401/422 统一处理：清除 token 并跳转登录页
+      // 422 = JWT 认证失败（签名验证失败、token 过期、格式错误等）
+      const isAuthError = response.status === 401 ||
+        (response.status === 422 && response.data?.msg)
+      if (isAuthError) {
         ElMessage.error('登录已过期，请重新登录')
         localStorage.removeItem('token')
         localStorage.removeItem('user')
         window.location.href = '/login'
+        return Promise.reject(error)
       } else if (response.status === 403) {
         ElMessage.error('没有权限执行此操作')
       } else if (response.status === 404) {

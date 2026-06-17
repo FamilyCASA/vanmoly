@@ -73,6 +73,12 @@
           <span>预约管理</span>
         </el-menu-item>
 
+        <!-- 财务管理 -->
+        <el-menu-item index="/finance/overview">
+          <el-icon><Wallet /></el-icon>
+          <span>财务管理</span>
+        </el-menu-item>
+
         <!-- 系统设置（集成员工/分店/物料/文件/前端配置/流程模板/分类管理） -->
         <el-menu-item index="/admin/settings">
           <el-icon><Tools /></el-icon>
@@ -224,7 +230,7 @@ import {
   DataLine, Picture, User, Calendar, Folder, Setting, Fold, Expand,
   UserFilled, Box, Connection, Document, OfficeBuilding,
   Money, Shop, Tools, Briefcase, Share, Finished, Promotion,
-  Lock, ArrowRight, Monitor
+  Lock, ArrowRight, Monitor, Wallet
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 

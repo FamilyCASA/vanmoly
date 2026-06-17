@@ -223,25 +223,93 @@
         <div v-show="showRelation">
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="客户ID">
-                <el-input v-model="form.customer_id" placeholder="可选" type="number" />
+              <el-form-item label="客户">
+                <el-select
+                  v-model="form.customer_id"
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索客户"
+                  :remote-method="searchCustomers"
+                  :loading="loadingCustomers"
+                  clearable
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="item in customerOptions"
+                    :key="item.id"
+                    :label="`${item.name}${item.phone ? ' (' + item.phone + ')' : ''}`"
+                    :value="item.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="员工ID">
-                <el-input v-model="form.employee_id" placeholder="可选" type="number" />
+              <el-form-item label="员工">
+                <el-select
+                  v-model="form.employee_id"
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索员工"
+                  :remote-method="searchEmployees"
+                  :loading="loadingEmployees"
+                  clearable
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="item in employeeOptions"
+                    :key="item.id"
+                    :label="`${item.name}${item.employee_no ? ' (' + item.employee_no + ')' : ''}`"
+                    :value="item.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
           <el-row :gutter="16">
             <el-col :span="12">
-              <el-form-item label="楼盘ID">
-                <el-input v-model="form.building_id" placeholder="可选" type="number" />
+              <el-form-item label="楼盘">
+                <el-select
+                  v-model="form.building_id"
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索楼盘"
+                  :remote-method="searchBuildings"
+                  :loading="loadingBuildings"
+                  clearable
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="item in buildingOptions"
+                    :key="item.id"
+                    :label="item.name"
+                    :value="item.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
             <el-col :span="12">
-              <el-form-item label="报价单ID">
-                <el-input v-model="form.quote_id" placeholder="可选" type="number" />
+              <el-form-item label="报价单">
+                <el-select
+                  v-model="form.quote_id"
+                  filterable
+                  remote
+                  reserve-keyword
+                  placeholder="搜索报价单"
+                  :remote-method="searchQuotes"
+                  :loading="loadingQuotes"
+                  clearable
+                  style="width: 100%"
+                >
+                  <el-option
+                    v-for="item in quoteOptions"
+                    :key="item.id"
+                    :label="item.quote_no || ('报价 #' + item.id)"
+                    :value="item.id"
+                  />
+                </el-select>
               </el-form-item>
             </el-col>
           </el-row>
@@ -299,6 +367,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Download, ArrowDown, ArrowUp } from '@element-plus/icons-vue'
 import financeAPI from '@/api/finance'
+import request from '@/utils/request'
 
 // ===== 权限 =====
 const myPermissions = ref([])
@@ -335,6 +404,16 @@ const editingId = ref(null)
 const submitting = ref(false)
 const showRelation = ref(false)
 const fileList = ref([])
+
+// ===== 关联信息搜索下拉框 =====
+const customerOptions = ref([])
+const employeeOptions = ref([])
+const buildingOptions = ref([])
+const quoteOptions = ref([])
+const loadingCustomers = ref(false)
+const loadingEmployees = ref(false)
+const loadingBuildings = ref(false)
+const loadingQuotes = ref(false)
 
 const form = ref({
   trans_type: 'expense',
@@ -430,6 +509,59 @@ const loadPermissions = async () => {
   }
 }
 
+// ===== 关联信息搜索方法 =====
+const searchCustomers = async (query) => {
+  if (!query || query.length < 1) { customerOptions.value = []; return }
+  loadingCustomers.value = true
+  try {
+    const res = await request({ url: '/customers/search', method: 'get', params: { keyword: query, page_size: 20 } })
+    customerOptions.value = res.data?.items || []
+  } catch (e) {
+    console.error('搜索客户失败:', e)
+  } finally {
+    loadingCustomers.value = false
+  }
+}
+
+const searchEmployees = async (query) => {
+  if (!query || query.length < 1) { employeeOptions.value = []; return }
+  loadingEmployees.value = true
+  try {
+    const res = await request({ url: '/employees', method: 'get', params: { keyword: query, page_size: 20 } })
+    employeeOptions.value = res.data?.items || []
+  } catch (e) {
+    console.error('搜索员工失败:', e)
+  } finally {
+    loadingEmployees.value = false
+  }
+}
+
+const searchBuildings = async (query) => {
+  if (!query || query.length < 1) { buildingOptions.value = []; return }
+  loadingBuildings.value = true
+  try {
+    const res = await request({ url: '/buildings', method: 'get', params: { keyword: query, page_size: 20 } })
+    buildingOptions.value = res.data?.items || []
+  } catch (e) {
+    console.error('搜索楼盘失败:', e)
+  } finally {
+    loadingBuildings.value = false
+  }
+}
+
+const searchQuotes = async (query) => {
+  if (!query || query.length < 1) { quoteOptions.value = []; return }
+  loadingQuotes.value = true
+  try {
+    const res = await request({ url: '/quotes', method: 'get', params: { keyword: query, page_size: 20 } })
+    quoteOptions.value = res.data?.items || []
+  } catch (e) {
+    console.error('搜索报价单失败:', e)
+  } finally {
+    loadingQuotes.value = false
+  }
+}
+
 // ===== 筛选 =====
 const handleDateChange = () => {
   page.value = 1
@@ -477,6 +609,10 @@ const openCreateDialog = () => {
     quote_id: null
   }
   fileList.value = []
+  customerOptions.value = []
+  employeeOptions.value = []
+  buildingOptions.value = []
+  quoteOptions.value = []
   dialogVisible.value = true
 }
 
@@ -496,6 +632,15 @@ const openEditDialog = (row) => {
     building_id: row.building_id,
     quote_id: row.quote_id
   }
+  // 预加载已选关联项（让下拉框能显示名称）
+  if (row.customer_id) customerOptions.value = [{ id: row.customer_id, name: row.customer_name || `客户#${row.customer_id}`, phone: '' }]
+  else customerOptions.value = []
+  if (row.employee_id) employeeOptions.value = [{ id: row.employee_id, name: row.employee_name || `员工#${row.employee_id}`, employee_no: '' }]
+  else employeeOptions.value = []
+  if (row.building_id) buildingOptions.value = [{ id: row.building_id, name: row.building_name || `楼盘#${row.building_id}` }]
+  else buildingOptions.value = []
+  if (row.quote_id) quoteOptions.value = [{ id: row.quote_id, quote_no: row.quote_no || `报价#${row.quote_id}` }]
+  else quoteOptions.value = []
   // 凭证文件回显
   fileList.value = (row.voucher_files || []).map((url, i) => ({
     name: `凭证${i + 1}`,
