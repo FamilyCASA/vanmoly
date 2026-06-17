@@ -67,7 +67,10 @@
     <el-card shadow="never">
       <el-table :data="list" stripe v-loading="loading" empty-text="暂无应收记录">
         <el-table-column prop="receivable_no" label="编号" width="150" />
-        <el-table-column prop="title" label="应收事由" min-width="200" show-overflow-tooltip />
+        <el-table-column prop="title" label="应收事由" min-width="180" show-overflow-tooltip />
+        <el-table-column label="客户" width="100" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.customer_name || '-' }}</template>
+        </el-table-column>
         <el-table-column label="类型" width="100">
           <template #default="{ row }">
             <el-tag size="small">{{ typeLabel(row.receivable_type) }}</el-tag>

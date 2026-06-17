@@ -1794,6 +1794,7 @@ def list_receivables():
             query = query.filter_by(status=status)
         if keyword:
             query = query.filter(FinanceReceivable.title.like(f'%{keyword}%'))
+            # TODO: 如需按客户名搜索，需 JOIN customer 表
 
         total = query.count()
         items = query.order_by(FinanceReceivable.due_date.asc().nulls_last()).offset((page - 1) * page_size).limit(page_size).all()
@@ -1881,7 +1882,7 @@ def create_receivable():
             quote_id=data.get('quote_id'),
             building_id=data.get('building_id'),
             title=data.get('title', ''),
-            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') else None,
+            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') and data['due_date'].strip() else None,
             status=data.get('status', 'pending'),
             remark=data.get('remark', ''),
             operator_id=user_id,
@@ -1916,15 +1917,17 @@ def update_receivable(item_id):
 
         if 'amount' in data:
             item.amount = Decimal(str(data['amount']))
-            item.remaining_amount = item.amount - item.received_amount
         if 'received_amount' in data:
             item.received_amount = Decimal(str(data['received_amount']))
-            item.remaining_amount = item.amount - item.received_amount
-        if 'due_date' in data and data['due_date']:
+        # 统一重算 remaining
+        item.remaining_amount = item.amount - item.received_amount
+        if 'due_date' in data and data['due_date'] and data['due_date'].strip():
             item.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+        elif 'due_date' in data and not data.get('due_date'):
+            item.due_date = None
 
         # 自动更新状态
-        if item.remaining_amount <= 0:
+        if item.remaining_amount <= 0 and item.received_amount > 0:
             item.status = 'received'
         elif item.received_amount > 0:
             item.status = 'partial'
@@ -1972,7 +1975,12 @@ def list_payables():
         if status:
             query = query.filter_by(status=status)
         if keyword:
-            query = query.filter(FinancePayable.title.like(f'%{keyword}%'))
+            query = query.filter(
+                db.or_(
+                    FinancePayable.title.like(f'%{keyword}%'),
+                    FinancePayable.supplier_name.like(f'%{keyword}%')
+                )
+            )
 
         total = query.count()
         items = query.order_by(FinancePayable.due_date.asc().nulls_last()).offset((page - 1) * page_size).limit(page_size).all()
@@ -2052,7 +2060,7 @@ def create_payable():
             quote_id=data.get('quote_id'),
             building_id=data.get('building_id'),
             title=data.get('title', ''),
-            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') else None,
+            due_date=datetime.strptime(data['due_date'], '%Y-%m-%d').date() if data.get('due_date') and data['due_date'].strip() else None,
             status=data.get('status', 'pending'),
             remark=data.get('remark', ''),
             operator_id=user_id,
@@ -2087,14 +2095,16 @@ def update_payable(item_id):
 
         if 'amount' in data:
             item.amount = Decimal(str(data['amount']))
-            item.remaining_amount = item.amount - item.paid_amount
         if 'paid_amount' in data:
             item.paid_amount = Decimal(str(data['paid_amount']))
-            item.remaining_amount = item.amount - item.paid_amount
-        if 'due_date' in data and data['due_date']:
+        # 统一重算 remaining
+        item.remaining_amount = item.amount - item.paid_amount
+        if 'due_date' in data and data['due_date'] and data['due_date'].strip():
             item.due_date = datetime.strptime(data['due_date'], '%Y-%m-%d').date()
+        elif 'due_date' in data and not data.get('due_date'):
+            item.due_date = None
 
-        if item.remaining_amount <= 0:
+        if item.remaining_amount <= 0 and item.paid_amount > 0:
             item.status = 'paid'
         elif item.paid_amount > 0:
             item.status = 'partial'
@@ -2280,7 +2290,8 @@ def update_payment_plan(plan_id):
             # 检查是否已有对应流水（避免重复）
             existing_tx = FinanceTransaction.query.filter_by(
                 tenant_id=tenant_id,
-                remark=f'[自动] {plan.plan_no} 确认收付款'
+                source_type='payment_plan',
+                source_id=plan.id
             ).first()
             if not existing_tx:
                 # 确定流水类型和分类
@@ -2292,12 +2303,12 @@ def update_payment_plan(plan_id):
                     cat_name = '应付付款'
                 # 查找或创建分类
                 cat = FinanceCategory.query.filter_by(
-                    tenant_id=tenant_id, name=cat_name, trans_type=trans_type
+                    tenant_id=tenant_id, name=cat_name, type=trans_type
                 ).first()
                 if not cat:
                     cat = FinanceCategory(
-                        tenant_id=tenant_id, name=cat_name, trans_type=trans_type,
-                        is_system=True
+                        tenant_id=tenant_id, name=cat_name, type=trans_type,
+                        is_active=True
                     )
                     db.session.add(cat)
                     db.session.flush()
@@ -2318,11 +2329,12 @@ def update_payment_plan(plan_id):
                     trans_type=trans_type,
                     category_id=cat.id,
                     amount=float(plan.paid_amount or 0),
-                    summary=f'{plan.plan_no} 确认{"收款" if plan.plan_type == "receivable" else "付款"}',
+                    summary=f'[自动] {plan.plan_no} 确认{"收款" if plan.plan_type == "receivable" else "付款"}',
                     trans_date=plan.actual_date or datetime.utcnow().date(),
                     status='approved',
                     operator_id=user_id,
-                    remark=f'[自动] {plan.plan_no} 确认收付款'
+                    source_type='payment_plan',
+                    source_id=plan.id
                 )
                 db.session.add(tx)
                 db.session.flush()
