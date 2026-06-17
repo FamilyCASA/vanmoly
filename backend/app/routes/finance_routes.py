@@ -1551,3 +1551,221 @@ def save_charter():
     except Exception as e:
         db.session.rollback()
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+# ============================================================
+# 财务分析
+# ============================================================
+
+@finance_bp.route('/analysis/overview', methods=['GET'])
+@jwt_required()
+def analysis_overview():
+    """总览统计"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        now = datetime.now()
+        this_month_start = datetime(now.year, now.month, 1).date()
+        last_month_start = (this_month_start - timedelta(days=1)).replace(day=1)
+        last_month_end = this_month_start - timedelta(days=1)
+        
+        # 本月收支
+        this_month_income = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'income',
+                    FinanceTransaction.trans_date >= this_month_start) \
+            .scalar() or Decimal('0')
+        
+        this_month_expense = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'expense',
+                    FinanceTransaction.trans_date >= this_month_start) \
+            .scalar() or Decimal('0')
+        
+        # 上月收支
+        last_month_income = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'income',
+                    FinanceTransaction.trans_date >= last_month_start,
+                    FinanceTransaction.trans_date <= last_month_end) \
+            .scalar() or Decimal('0')
+        
+        last_month_expense = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'expense',
+                    FinanceTransaction.trans_date >= last_month_start,
+                    FinanceTransaction.trans_date <= last_month_end) \
+            .scalar() or Decimal('0')
+        
+        # 总收入/总支出
+        total_income = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'income') \
+            .scalar() or Decimal('0')
+        
+        total_expense = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == 'expense') \
+            .scalar() or Decimal('0')
+        
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': {
+                'this_month': {
+                    'income': float(this_month_income),
+                    'expense': float(this_month_expense),
+                    'balance': float(this_month_income - this_month_expense)
+                },
+                'last_month': {
+                    'income': float(last_month_income),
+                    'expense': float(last_month_expense),
+                    'balance': float(last_month_income - last_month_expense)
+                },
+                'total': {
+                    'income': float(total_income),
+                    'expense': float(total_expense),
+                    'balance': float(total_income - total_expense)
+                }
+            }
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/analysis/monthly-trend', methods=['GET'])
+@jwt_required()
+def analysis_monthly_trend():
+    """月度收支趋势（最近12个月）"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        months = []
+        now = datetime.now()
+        for i in range(11, -1, -1):
+            y = now.year
+            m = now.month - i
+            while m <= 0:
+                m += 12
+                y -= 1
+            months.append((y, m))
+        
+        result = []
+        for y, m in months:
+            month_start = datetime(y, m, 1).date()
+            if m == 12:
+                next_month = datetime(y + 1, 1, 1).date()
+            else:
+                next_month = datetime(y, m + 1, 1).date()
+            
+            income = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+                .filter(FinanceTransaction.tenant_id == tenant_id,
+                        FinanceTransaction.trans_type == 'income',
+                        FinanceTransaction.trans_date >= month_start,
+                        FinanceTransaction.trans_date < next_month) \
+                .scalar() or Decimal('0')
+            
+            expense = db.session.query(db.func.sum(FinanceTransaction.amount)) \
+                .filter(FinanceTransaction.tenant_id == tenant_id,
+                        FinanceTransaction.trans_type == 'expense',
+                        FinanceTransaction.trans_date >= month_start,
+                        FinanceTransaction.trans_date < next_month) \
+                .scalar() or Decimal('0')
+            
+            result.append({
+                'month': f'{y}-{m:02d}',
+                'income': float(income),
+                'expense': float(expense),
+                'balance': float(income - expense)
+            })
+        
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': result
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/analysis/category-stats', methods=['GET'])
+@jwt_required()
+def analysis_category_stats():
+    """分类统计"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        period = request.args.get('period', 'this_month')
+        trans_type = request.args.get('trans_type', 'expense')
+        
+        now = datetime.now()
+        if period == 'this_month':
+            date_start = datetime(now.year, now.month, 1).date()
+        elif period == 'last_month':
+            this_month_start = datetime(now.year, now.month, 1).date()
+            date_start = (this_month_start - timedelta(days=1)).replace(day=1)
+        elif period == 'this_year':
+            date_start = datetime(now.year, 1, 1).date()
+        else:
+            date_start = None
+        
+        query = db.session.query(
+            FinanceCategory.name,
+            db.func.sum(FinanceTransaction.amount).label('total')
+        ).join(FinanceTransaction, FinanceTransaction.category_id == FinanceCategory.id) \
+            .filter(FinanceTransaction.tenant_id == tenant_id,
+                    FinanceTransaction.trans_type == trans_type)
+        
+        if date_start:
+            query = query.filter(FinanceTransaction.trans_date >= date_start)
+        
+        stats = query.group_by(FinanceCategory.id).order_by(db.desc('total')).all()
+        
+        total = sum(float(s[1] or 0) for s in stats)
+        
+        # 预设颜色列表
+        colors = ['#f56c6c', '#e6a23c', '#67c23a', '#409eff', '#909399', '#c456e8', '#ff9249', '#95d475']
+        
+        data = []
+        for idx, (name, total_amount) in enumerate(stats):
+            amount = float(total_amount or 0)
+            data.append({
+                'name': name,
+                'color': colors[idx % len(colors)],
+                'amount': amount,
+                'percentage': round(amount / total * 100, 2) if total > 0 else 0
+            })
+        
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': {
+                'items': data,
+                'total': total
+            }
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/analysis/recent-transactions', methods=['GET'])
+@jwt_required()
+def analysis_recent_transactions():
+    """最近交易记录"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        limit = int(request.args.get('limit', 10))
+        
+        transactions = FinanceTransaction.query \
+            .filter_by(tenant_id=tenant_id) \
+            .order_by(FinanceTransaction.trans_date.desc()) \
+            .limit(limit).all()
+        
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': [t.to_dict() for t in transactions]
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500

@@ -239,6 +239,42 @@ const financeAPI = {
       method: 'get',
       params
     })
+  },
+  
+  // ========== 财务分析 ==========
+  
+  /** 总览统计 */
+  getAnalysisOverview() {
+    return request({
+      url: '/api/v3/finance/analysis/overview',
+      method: 'get'
+    })
+  },
+  
+  /** 月度收支趋势 */
+  getMonthlyTrend() {
+    return request({
+      url: '/api/v3/finance/analysis/monthly-trend',
+      method: 'get'
+    })
+  },
+  
+  /** 分类统计 */
+  getCategoryStats(params) {
+    return request({
+      url: '/api/v3/finance/analysis/category-stats',
+      method: 'get',
+      params
+    })
+  },
+  
+  /** 最近交易 */
+  getRecentTransactions(params) {
+    return request({
+      url: '/api/v3/finance/analysis/recent-transactions',
+      method: 'get',
+      params
+    })
   }
 }
 
