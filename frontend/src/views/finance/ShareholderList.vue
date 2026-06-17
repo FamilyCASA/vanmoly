@@ -66,8 +66,25 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="姓名" prop="name">
-              <el-input v-model="form.name" placeholder="股东姓名" />
+            <el-form-item label="股东" prop="name">
+              <el-select
+                v-model="form.name"
+                filterable
+                remote
+                reserve-keyword
+                placeholder="搜索员工作为股东"
+                :remote-method="searchEmployees"
+                :loading="loadingEmployees"
+                style="width: 100%"
+                @change="handleEmployeeSelected"
+              >
+                <el-option
+                  v-for="item in employeeOptions"
+                  :key="item.id"
+                  :label="`${item.name}（${item.employee_no || '无工号'} / ${item.phone || '无电话'}）`"
+                  :value="item.name"
+                />
+              </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -137,6 +154,7 @@ import { ref, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import financeAPI from '@/api/finance'
+import request from '@/utils/request'
 
 const loading = ref(false)
 const shareholders = ref([])
@@ -147,10 +165,39 @@ const formRef = ref(null)
 
 const form = ref({
   name: '', phone: '', id_card: '',
+  employee_id: null,
   share_ratio: 0, investment_amount: 0,
   investment_date: '', role: 'silent_investor',
   status: 'active', notes: ''
 })
+
+// 员工搜索下拉框
+const employeeOptions = ref([])
+const loadingEmployees = ref(false)
+
+const searchEmployees = async (query) => {
+  if (!query || query.length < 1) { employeeOptions.value = []; return }
+  loadingEmployees.value = true
+  try {
+    const res = await request({ url: '/employees', method: 'get', params: { keyword: query, page_size: 20 } })
+    employeeOptions.value = res.data?.items || []
+  } catch (e) {
+    console.error('搜索员工失败:', e)
+  } finally {
+    loadingEmployees.value = false
+  }
+}
+
+// 选中员工后自动填入电话
+const handleEmployeeSelected = (name) => {
+  const emp = employeeOptions.value.find(e => e.name === name)
+  if (emp) {
+    form.value.employee_id = emp.id
+    if (emp.phone) form.value.phone = emp.phone
+  } else {
+    form.value.employee_id = null
+  }
+}
 
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
@@ -186,17 +233,24 @@ const loadData = async () => {
 
 const openCreateDialog = () => {
   editingId.value = null
-  form.value = { name: '', phone: '', id_card: '', share_ratio: 0, investment_amount: 0, investment_date: '', role: 'silent_investor', status: 'active', notes: '' }
+  form.value = { name: '', phone: '', id_card: '', employee_id: null, share_ratio: 0, investment_amount: 0, investment_date: '', role: 'silent_investor', status: 'active', notes: '' }
+  employeeOptions.value = []
   dialogVisible.value = true
 }
 
 const openEditDialog = (row) => {
   editingId.value = row.id
-  form.value = { ...row }
+  form.value = { ...row, employee_id: row.employee_id || null }
+  // 预加载已选员工名称到下拉框
+  if (row.name) {
+    employeeOptions.value = [{ id: row.employee_id, name: row.name, phone: row.phone, employee_no: '' }]
+  } else {
+    employeeOptions.value = []
+  }
   dialogVisible.value = true
 }
 
-const resetForm = () => { formRef.value?.resetFields() }
+const resetForm = () => { formRef.value?.resetFields(); employeeOptions.value = [] }
 
 const submitForm = async () => {
   try { await formRef.value.validate() } catch { return }
