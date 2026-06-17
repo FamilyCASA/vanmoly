@@ -24,7 +24,8 @@ from app.models.finance import (
     FinanceRole, FinanceMember, FinanceApprovalFlow, FinanceDeleteRequest,
     FinanceTransaction, FinanceCategory, FinanceReimbursement,
     FinanceShareholder, FinanceCharter, FinanceAuditLog,
-    FinanceReceivable, FinancePayable, FinancePaymentPlan
+    FinanceReceivable, FinancePayable, FinancePaymentPlan,
+    FinanceDepartment, FinancePosition
 )
 
 finance_bp = Blueprint('finance', __name__, url_prefix='/api/v3/finance')
@@ -1806,11 +1807,38 @@ def list_receivables():
             'overdue_count': sum(1 for r in all_items if r.status == 'overdue'),
         }
 
+        # 为每个 item 附加关联名称
+        item_dicts = []
+        for r in items:
+            d = r.to_dict()
+            # 补充关联名称
+            if r.customer_id:
+                try:
+                    cust = db.session.execute(db.text('SELECT name FROM customer WHERE id = :id'), {'id': r.customer_id}).fetchone()
+                    d['customer_name'] = cust[0] if cust else None
+                except: d['customer_name'] = None
+            if r.building_id:
+                try:
+                    bldg = db.session.execute(db.text('SELECT name FROM building WHERE id = :id'), {'id': r.building_id}).fetchone()
+                    d['building_name'] = bldg[0] if bldg else None
+                except: d['building_name'] = None
+            if r.contract_id:
+                try:
+                    cont = db.session.execute(db.text('SELECT contract_no FROM contract WHERE id = :id'), {'id': r.contract_id}).fetchone()
+                    d['contract_no'] = cont[0] if cont else None
+                except: d['contract_no'] = None
+            if r.quote_id:
+                try:
+                    qt = db.session.execute(db.text('SELECT quote_no FROM quotes WHERE id = :id'), {'id': r.quote_id}).fetchone()
+                    d['quote_no'] = qt[0] if qt else None
+                except: d['quote_no'] = None
+            item_dicts.append(d)
+
         return jsonify({
             'code': 200,
             'message': '获取成功',
             'data': {
-                'items': [r.to_dict() for r in items],
+                'items': item_dicts,
                 'total': total,
                 'summary': summary
             }
@@ -1957,11 +1985,32 @@ def list_payables():
             'overdue_count': sum(1 for p in all_items if p.status == 'overdue'),
         }
 
+        # 为每个 item 附加关联名称
+        item_dicts = []
+        for p in items:
+            d = p.to_dict()
+            if p.building_id:
+                try:
+                    bldg = db.session.execute(db.text('SELECT name FROM building WHERE id = :id'), {'id': p.building_id}).fetchone()
+                    d['building_name'] = bldg[0] if bldg else None
+                except: d['building_name'] = None
+            if p.contract_id:
+                try:
+                    cont = db.session.execute(db.text('SELECT contract_no FROM contract WHERE id = :id'), {'id': p.contract_id}).fetchone()
+                    d['contract_no'] = cont[0] if cont else None
+                except: d['contract_no'] = None
+            if p.quote_id:
+                try:
+                    qt = db.session.execute(db.text('SELECT quote_no FROM quotes WHERE id = :id'), {'id': p.quote_id}).fetchone()
+                    d['quote_no'] = qt[0] if qt else None
+                except: d['quote_no'] = None
+            item_dicts.append(d)
+
         return jsonify({
             'code': 200,
             'message': '获取成功',
             'data': {
-                'items': [p.to_dict() for p in items],
+                'items': item_dicts,
                 'total': total,
                 'summary': summary
             }
@@ -2226,6 +2275,59 @@ def update_payment_plan(plan_id):
                 elif parent.paid_amount > 0:
                     parent.status = 'partial'
 
+        # 确认收付款时自动创建流水记录
+        if data.get('status') in ('paid',) or (plan.status == 'paid' and 'paid_amount' in data):
+            # 检查是否已有对应流水（避免重复）
+            existing_tx = FinanceTransaction.query.filter_by(
+                tenant_id=tenant_id,
+                remark=f'[自动] {plan.plan_no} 确认收付款'
+            ).first()
+            if not existing_tx:
+                # 确定流水类型和分类
+                if plan.plan_type == 'receivable':
+                    trans_type = 'income'
+                    cat_name = '应收回款'
+                else:
+                    trans_type = 'expense'
+                    cat_name = '应付付款'
+                # 查找或创建分类
+                cat = FinanceCategory.query.filter_by(
+                    tenant_id=tenant_id, name=cat_name, trans_type=trans_type
+                ).first()
+                if not cat:
+                    cat = FinanceCategory(
+                        tenant_id=tenant_id, name=cat_name, trans_type=trans_type,
+                        is_system=True
+                    )
+                    db.session.add(cat)
+                    db.session.flush()
+                # 生成流水编号
+                today_str = datetime.utcnow().strftime('%Y%m')
+                prefix = f'TX{today_str}'
+                last_tx = FinanceTransaction.query.filter(
+                    FinanceTransaction.trans_no.like(f'{prefix}%')
+                ).order_by(FinanceTransaction.id.desc()).first()
+                seq = 1
+                if last_tx and last_tx.trans_no:
+                    seq = int(last_tx.trans_no[-4:]) + 1
+                trans_no = f'{prefix}{seq:04d}'
+                # 创建流水
+                tx = FinanceTransaction(
+                    tenant_id=tenant_id,
+                    trans_no=trans_no,
+                    trans_type=trans_type,
+                    category_id=cat.id,
+                    amount=float(plan.paid_amount or 0),
+                    summary=f'{plan.plan_no} 确认{"收款" if plan.plan_type == "receivable" else "付款"}',
+                    trans_date=plan.actual_date or datetime.utcnow().date(),
+                    status='approved',
+                    operator_id=user_id,
+                    remark=f'[自动] {plan.plan_no} 确认收付款'
+                )
+                db.session.add(tx)
+                db.session.flush()
+                plan.transaction_id = tx.id
+
         db.session.commit()
         log_action(user_id, 'update', 'payment_plan', plan.id,
                    detail_before=before, detail_after=plan.to_dict())
@@ -2249,6 +2351,192 @@ def delete_payment_plan(plan_id):
         db.session.delete(plan)
         db.session.commit()
         log_action(user_id, 'delete', 'payment_plan', plan_id, detail_before=before)
+        return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+# ============================================================
+# 部门管理
+# ============================================================
+
+@finance_bp.route('/departments', methods=['GET'])
+@jwt_required()
+def list_departments():
+    """获取部门列表"""
+    try:
+        user_id, tenant_id = get_current_user()
+        keyword = request.args.get('keyword', '')
+        query = FinanceDepartment.query.filter_by(tenant_id=tenant_id)
+        if keyword:
+            query = query.filter(FinanceDepartment.name.like(f'%{keyword}%'))
+        items = query.order_by(FinanceDepartment.sort_order, FinanceDepartment.id).all()
+        return jsonify({'code': 200, 'message': '获取成功', 'data': [i.to_dict() for i in items]})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/departments', methods=['POST'])
+@jwt_required()
+def create_department():
+    """创建部门"""
+    try:
+        user_id, tenant_id = get_current_user()
+        data = request.get_json()
+        item = FinanceDepartment(
+            tenant_id=tenant_id,
+            dept_code=data.get('dept_code', ''),
+            name=data.get('name'),
+            parent_id=data.get('parent_id'),
+            leader_id=data.get('leader_id'),
+            leader_name=data.get('leader_name', ''),
+            description=data.get('description', ''),
+            sort_order=data.get('sort_order', 0),
+            status=data.get('status', 'active'),
+        )
+        db.session.add(item)
+        db.session.commit()
+        log_action(user_id, 'create', 'department', item.id, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '创建成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/departments/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_department(item_id):
+    """更新部门"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinanceDepartment.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '部门不存在', 'data': None}), 404
+        before = item.to_dict()
+        data = request.get_json()
+        for field in ['dept_code', 'name', 'parent_id', 'leader_id', 'leader_name', 'description', 'sort_order', 'status']:
+            if field in data:
+                setattr(item, field, data[field])
+        db.session.commit()
+        log_action(user_id, 'update', 'department', item.id, detail_before=before, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '更新成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/departments/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_department(item_id):
+    """删除部门"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinanceDepartment.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '部门不存在', 'data': None}), 404
+        before = item.to_dict()
+        db.session.delete(item)
+        db.session.commit()
+        log_action(user_id, 'delete', 'department', item_id, detail_before=before)
+        return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+# ============================================================
+# 岗位管理
+# ============================================================
+
+@finance_bp.route('/positions', methods=['GET'])
+@jwt_required()
+def list_positions():
+    """获取岗位列表"""
+    try:
+        user_id, tenant_id = get_current_user()
+        keyword = request.args.get('keyword', '')
+        dept_id = request.args.get('dept_id')
+        query = FinancePosition.query.filter_by(tenant_id=tenant_id)
+        if keyword:
+            query = query.filter(FinancePosition.name.like(f'%{keyword}%'))
+        if dept_id:
+            query = query.filter_by(dept_id=int(dept_id))
+        items = query.order_by(FinancePosition.sort_order, FinancePosition.id).all()
+        # 附加部门名称
+        result = []
+        for p in items:
+            d = p.to_dict()
+            if p.dept_id:
+                dept = FinanceDepartment.query.get(p.dept_id)
+                d['dept_name'] = dept.name if dept else None
+            result.append(d)
+        return jsonify({'code': 200, 'message': '获取成功', 'data': result})
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/positions', methods=['POST'])
+@jwt_required()
+def create_position():
+    """创建岗位"""
+    try:
+        user_id, tenant_id = get_current_user()
+        data = request.get_json()
+        item = FinancePosition(
+            tenant_id=tenant_id,
+            position_code=data.get('position_code', ''),
+            name=data.get('name'),
+            dept_id=data.get('dept_id'),
+            level=data.get('level', ''),
+            responsibilities=data.get('responsibilities', ''),
+            sort_order=data.get('sort_order', 0),
+            status=data.get('status', 'active'),
+        )
+        db.session.add(item)
+        db.session.commit()
+        log_action(user_id, 'create', 'position', item.id, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '创建成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/positions/<int:item_id>', methods=['PUT'])
+@jwt_required()
+def update_position(item_id):
+    """更新岗位"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinancePosition.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '岗位不存在', 'data': None}), 404
+        before = item.to_dict()
+        data = request.get_json()
+        for field in ['position_code', 'name', 'dept_id', 'level', 'responsibilities', 'sort_order', 'status']:
+            if field in data:
+                setattr(item, field, data[field])
+        db.session.commit()
+        log_action(user_id, 'update', 'position', item.id, detail_before=before, detail_after=item.to_dict())
+        return jsonify({'code': 200, 'message': '更新成功', 'data': item.to_dict()})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/positions/<int:item_id>', methods=['DELETE'])
+@jwt_required()
+def delete_position(item_id):
+    """删除岗位"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinancePosition.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '岗位不存在', 'data': None}), 404
+        before = item.to_dict()
+        db.session.delete(item)
+        db.session.commit()
+        log_action(user_id, 'delete', 'position', item_id, detail_before=before)
         return jsonify({'code': 200, 'message': '删除成功', 'data': None})
     except Exception as e:
         db.session.rollback()

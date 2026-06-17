@@ -339,6 +339,33 @@ const financeAPI = {
   /** 删除付款计划 */
   deletePaymentPlan(id) {
     return request({ url: `/finance/payment-plans/${id}`, method: 'delete' })
+  },
+
+  // ========== 部门管理 ==========
+  getDepartments(params) {
+    return request({ url: '/finance/departments', params })
+  },
+  createDepartment(data) {
+    return request({ url: '/finance/departments', method: 'post', data })
+  },
+  updateDepartment(id, data) {
+    return request({ url: `/finance/departments/${id}`, method: 'put', data })
+  },
+  deleteDepartment(id) {
+    return request({ url: `/finance/departments/${id}`, method: 'delete' })
+  },
+  // ========== 岗位管理 ==========
+  getPositions(params) {
+    return request({ url: '/finance/positions', params })
+  },
+  createPosition(data) {
+    return request({ url: '/finance/positions', method: 'post', data })
+  },
+  updatePosition(id, data) {
+    return request({ url: `/finance/positions/${id}`, method: 'put', data })
+  },
+  deletePosition(id) {
+    return request({ url: `/finance/positions/${id}`, method: 'delete' })
   }
 }
 

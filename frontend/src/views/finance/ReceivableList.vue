@@ -391,9 +391,38 @@ const openCreateDialog = () => {
   showDialog.value = true
 }
 
-const openEditDialog = (row) => {
+const openEditDialog = async (row) => {
   form.value = { ...row }
   if (row.due_date) form.value.due_date = row.due_date
+  // 预加载关联下拉框的已选项
+  customerOptions.value = []
+  buildingOptions.value = []
+  contractOptions.value = []
+  quoteOptions.value = []
+  if (row.customer_id) {
+    try {
+      const res = await request({ url: `/customers/${row.customer_id}` })
+      if (res.data) customerOptions.value = [{ id: res.data.id, name: res.data.name, phone: res.data.phone }]
+    } catch { customerOptions.value = [{ id: row.customer_id, name: row.customer_name || `ID:${row.customer_id}`, phone: '' }] }
+  }
+  if (row.building_id) {
+    try {
+      const res = await request({ url: `/buildings`, params: { keyword: row.building_name || row.building_id } })
+      buildingOptions.value = res.items || []
+    } catch { buildingOptions.value = [{ id: row.building_id, name: row.building_name || `ID:${row.building_id}` }] }
+  }
+  if (row.contract_id) {
+    try {
+      const res = await request({ url: `/contracts`, params: { keyword: row.contract_no || row.contract_id } })
+      contractOptions.value = res.items || []
+    } catch { contractOptions.value = [{ id: row.contract_id, contract_no: row.contract_no || `ID:${row.contract_id}`, name: row.contract_no || `ID:${row.contract_id}` }] }
+  }
+  if (row.quote_id) {
+    try {
+      const res = await request({ url: `/quotes`, params: { keyword: row.quote_no || row.quote_id } })
+      quoteOptions.value = res.items || []
+    } catch { quoteOptions.value = [{ id: row.quote_id, quote_no: row.quote_no || `ID:${row.quote_id}` }] }
+  }
   showDialog.value = true
 }
 

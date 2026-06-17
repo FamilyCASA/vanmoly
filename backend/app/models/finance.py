@@ -552,3 +552,69 @@ class FinancePaymentPlan(db.Model):
             'transaction_id': self.transaction_id,
             'created_at': self.created_at.isoformat() if self.created_at else None,
         }
+
+
+class FinanceDepartment(db.Model):
+    """部门"""
+    __tablename__ = 'finance_department'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), default='default')
+    dept_code = db.Column(db.String(50), comment='部门编码')
+    name = db.Column(db.String(100), nullable=False, comment='部门名称')
+    parent_id = db.Column(db.Integer, comment='上级部门ID')
+    leader_id = db.Column(db.Integer, comment='负责人员工ID')
+    leader_name = db.Column(db.String(50), comment='负责人姓名')
+    description = db.Column(db.Text, comment='描述')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    status = db.Column(db.String(20), default='active', comment='active/disabled')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'dept_code': self.dept_code,
+            'name': self.name,
+            'parent_id': self.parent_id,
+            'leader_id': self.leader_id,
+            'leader_name': self.leader_name,
+            'description': self.description,
+            'sort_order': self.sort_order,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+class FinancePosition(db.Model):
+    """岗位"""
+    __tablename__ = 'finance_position'
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    tenant_id = db.Column(db.String(32), default='default')
+    position_code = db.Column(db.String(50), comment='岗位编码')
+    name = db.Column(db.String(100), nullable=False, comment='岗位名称')
+    dept_id = db.Column(db.Integer, comment='所属部门ID')
+    level = db.Column(db.String(30), comment='岗位等级')
+    responsibilities = db.Column(db.Text, comment='职责描述')
+    sort_order = db.Column(db.Integer, default=0, comment='排序')
+    status = db.Column(db.String(20), default='active', comment='active/disabled')
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'tenant_id': self.tenant_id,
+            'position_code': self.position_code,
+            'name': self.name,
+            'dept_id': self.dept_id,
+            'level': self.level,
+            'responsibilities': self.responsibilities,
+            'sort_order': self.sort_order,
+            'status': self.status,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'updated_at': self.updated_at.isoformat() if self.updated_at else None,
+        }
