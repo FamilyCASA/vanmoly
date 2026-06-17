@@ -9,7 +9,7 @@ const financeAPI = {
   /** 获取财务角色列表 */
   getRoles() {
     return request({
-      url: '/api/v3/finance/roles',
+      url: '/finance/roles',
       method: 'get'
     })
   },
@@ -17,7 +17,7 @@ const financeAPI = {
   /** 获取财务团队成员 */
   getMembers() {
     return request({
-      url: '/api/v3/finance/members',
+      url: '/finance/members',
       method: 'get'
     })
   },
@@ -25,7 +25,7 @@ const financeAPI = {
   /** 添加财务团队成员 */
   createMember(data) {
     return request({
-      url: '/api/v3/finance/members',
+      url: '/finance/members',
       method: 'post',
       data
     })
@@ -34,7 +34,7 @@ const financeAPI = {
   /** 更新财务团队成员 */
   updateMember(id, data) {
     return request({
-      url: `/api/v3/finance/members/${id}`,
+      url: `/finance/members/${id}`,
       method: 'put',
       data
     })
@@ -43,7 +43,7 @@ const financeAPI = {
   /** 删除财务团队成员 */
   deleteMember(id) {
     return request({
-      url: `/api/v3/finance/members/${id}`,
+      url: `/finance/members/${id}`,
       method: 'delete'
     })
   },
@@ -51,7 +51,7 @@ const financeAPI = {
   /** 获取可添加的用户列表 */
   getAvailableUsers() {
     return request({
-      url: '/api/v3/finance/members/available',
+      url: '/finance/members/available',
       method: 'get'
     })
   },
@@ -59,7 +59,7 @@ const financeAPI = {
   /** 获取当前用户的财务权限 */
   getMyPermissions() {
     return request({
-      url: '/api/v3/finance/my-permissions',
+      url: '/finance/my-permissions',
       method: 'get'
     })
   },
@@ -69,7 +69,7 @@ const financeAPI = {
   /** 获取财务总览 */
   getOverview() {
     return request({
-      url: '/api/v3/finance/overview',
+      url: '/finance/overview',
       method: 'get'
     })
   },
@@ -77,7 +77,7 @@ const financeAPI = {
   /** 获取流水列表 */
   getTransactions(params) {
     return request({
-      url: '/api/v3/finance/transactions',
+      url: '/finance/transactions',
       method: 'get',
       params
     })
@@ -86,7 +86,7 @@ const financeAPI = {
   /** 创建流水 */
   createTransaction(data) {
     return request({
-      url: '/api/v3/finance/transactions',
+      url: '/finance/transactions',
       method: 'post',
       data
     })
@@ -95,7 +95,7 @@ const financeAPI = {
   /** 更新流水 */
   updateTransaction(id, data) {
     return request({
-      url: `/api/v3/finance/transactions/${id}`,
+      url: `/finance/transactions/${id}`,
       method: 'put',
       data
     })
@@ -104,7 +104,7 @@ const financeAPI = {
   /** 删除流水 */
   deleteTransaction(id, reason) {
     return request({
-      url: `/api/v3/finance/transactions/${id}`,
+      url: `/finance/transactions/${id}`,
       method: 'delete',
       data: { reason }
     })
@@ -113,7 +113,7 @@ const financeAPI = {
   /** 审核流水 */
   reviewTransaction(id, status, note) {
     return request({
-      url: `/api/v3/finance/transactions/${id}/review`,
+      url: `/finance/transactions/${id}/review`,
       method: 'put',
       data: { status, note }
     })
@@ -124,7 +124,7 @@ const financeAPI = {
   /** 获取报销列表 */
   getReimbursements(params) {
     return request({
-      url: '/api/v3/finance/reimbursements',
+      url: '/finance/reimbursements',
       method: 'get',
       params
     })
@@ -133,7 +133,7 @@ const financeAPI = {
   /** 创建报销申请 */
   createReimbursement(data) {
     return request({
-      url: '/api/v3/finance/reimbursements',
+      url: '/finance/reimbursements',
       method: 'post',
       data
     })
@@ -142,7 +142,7 @@ const financeAPI = {
   /** 审核报销 */
   reviewReimbursement(id, status, note) {
     return request({
-      url: `/api/v3/finance/reimbursements/${id}/review`,
+      url: `/finance/reimbursements/${id}/review`,
       method: 'put',
       data: { status, note }
     })
@@ -151,7 +151,7 @@ const financeAPI = {
   /** 确认付款 */
   payReimbursement(id, data) {
     return request({
-      url: `/api/v3/finance/reimbursements/${id}/pay`,
+      url: `/finance/reimbursements/${id}/pay`,
       method: 'put',
       data
     })
@@ -160,7 +160,7 @@ const financeAPI = {
   /** 获取我的报销 */
   getMyReimbursements(params) {
     return request({
-      url: '/api/v3/finance/my-reimbursements',
+      url: '/finance/my-reimbursements',
       method: 'get',
       params
     })
@@ -171,7 +171,7 @@ const financeAPI = {
   /** 获取收支分类 */
   getCategories(params) {
     return request({
-      url: '/api/v3/finance/categories',
+      url: '/finance/categories',
       method: 'get',
       params
     })
@@ -182,7 +182,7 @@ const financeAPI = {
   /** 获取股东列表 */
   getShareholders() {
     return request({
-      url: '/api/v3/finance/shareholders',
+      url: '/finance/shareholders',
       method: 'get'
     })
   },
@@ -190,7 +190,7 @@ const financeAPI = {
   /** 创建股东 */
   createShareholder(data) {
     return request({
-      url: '/api/v3/finance/shareholders',
+      url: '/finance/shareholders',
       method: 'post',
       data
     })
@@ -199,7 +199,7 @@ const financeAPI = {
   /** 更新股东 */
   updateShareholder(id, data) {
     return request({
-      url: `/api/v3/finance/shareholders/${id}`,
+      url: `/finance/shareholders/${id}`,
       method: 'put',
       data
     })
@@ -208,7 +208,7 @@ const financeAPI = {
   /** 删除股东 */
   deleteShareholder(id) {
     return request({
-      url: `/api/v3/finance/shareholders/${id}`,
+      url: `/finance/shareholders/${id}`,
       method: 'delete'
     })
   },
@@ -216,7 +216,7 @@ const financeAPI = {
   /** 获取企业章程 */
   getCharter() {
     return request({
-      url: '/api/v3/finance/charter',
+      url: '/finance/charter',
       method: 'get'
     })
   },
@@ -224,7 +224,7 @@ const financeAPI = {
   /** 保存企业章程 */
   saveCharter(data) {
     return request({
-      url: '/api/v3/finance/charter',
+      url: '/finance/charter',
       method: 'post',
       data
     })
@@ -235,7 +235,7 @@ const financeAPI = {
   /** 获取操作日志 */
   getAuditLogs(params) {
     return request({
-      url: '/api/v3/finance/audit-logs',
+      url: '/finance/audit-logs',
       method: 'get',
       params
     })
@@ -246,7 +246,7 @@ const financeAPI = {
   /** 总览统计 */
   getAnalysisOverview() {
     return request({
-      url: '/api/v3/finance/analysis/overview',
+      url: '/finance/analysis/overview',
       method: 'get'
     })
   },
@@ -254,7 +254,7 @@ const financeAPI = {
   /** 月度收支趋势 */
   getMonthlyTrend() {
     return request({
-      url: '/api/v3/finance/analysis/monthly-trend',
+      url: '/finance/analysis/monthly-trend',
       method: 'get'
     })
   },
@@ -262,7 +262,7 @@ const financeAPI = {
   /** 分类统计 */
   getCategoryStats(params) {
     return request({
-      url: '/api/v3/finance/analysis/category-stats',
+      url: '/finance/analysis/category-stats',
       method: 'get',
       params
     })
@@ -271,7 +271,7 @@ const financeAPI = {
   /** 最近交易 */
   getRecentTransactions(params) {
     return request({
-      url: '/api/v3/finance/analysis/recent-transactions',
+      url: '/finance/analysis/recent-transactions',
       method: 'get',
       params
     })
