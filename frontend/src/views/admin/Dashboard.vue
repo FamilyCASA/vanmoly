@@ -246,7 +246,7 @@ const quickLinks = ref([
   { name: '数据报表', path: '/admin/dashboard', icon: 'TrendCharts', bgColor: '#E6A23C' },
   { name: '系统设置', path: '/admin/frontend', icon: 'Setting', bgColor: '#909399' },
   // 第四排：财务管理
-  { name: '收支登记', path: '/finance/transactions', icon: 'Wallet', bgColor: '#722ED1' }
+  { name: '收支登记', path: '/admin/finance', icon: 'Wallet', bgColor: '#722ED1' }
 ])
 
 // 最近动态

@@ -74,7 +74,7 @@
         </el-menu-item>
 
         <!-- 财务管理 -->
-        <el-menu-item index="/finance/overview">
+        <el-menu-item index="/admin/finance">
           <el-icon><Wallet /></el-icon>
           <span>财务管理</span>
         </el-menu-item>
