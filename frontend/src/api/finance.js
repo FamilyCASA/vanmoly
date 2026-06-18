@@ -5,7 +5,7 @@ import request from '@/utils/request'
 
 const financeAPI = {
   // ========== 组织架构与权限 ==========
-  
+
   /** 获取财务角色列表 */
   getRoles() {
     return request({
@@ -13,7 +13,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 获取财务团队成员 */
   getMembers() {
     return request({
@@ -21,7 +21,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 添加财务团队成员 */
   createMember(data) {
     return request({
@@ -30,7 +30,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 更新财务团队成员 */
   updateMember(id, data) {
     return request({
@@ -39,7 +39,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 删除财务团队成员 */
   deleteMember(id) {
     return request({
@@ -47,7 +47,7 @@ const financeAPI = {
       method: 'delete'
     })
   },
-  
+
   /** 获取可添加的用户列表 */
   getAvailableUsers() {
     return request({
@@ -55,7 +55,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 获取当前用户的财务权限 */
   getMyPermissions() {
     return request({
@@ -63,9 +63,9 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   // ========== 流水管理 ==========
-  
+
   /** 获取财务总览 */
   getOverview() {
     return request({
@@ -73,7 +73,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 获取流水列表 */
   getTransactions(params) {
     return request({
@@ -82,7 +82,7 @@ const financeAPI = {
       params
     })
   },
-  
+
   /** 创建流水 */
   createTransaction(data) {
     return request({
@@ -91,7 +91,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 更新流水 */
   updateTransaction(id, data) {
     return request({
@@ -100,7 +100,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 删除流水 */
   deleteTransaction(id, reason) {
     return request({
@@ -109,7 +109,7 @@ const financeAPI = {
       data: { reason }
     })
   },
-  
+
   /** 审核流水 */
   reviewTransaction(id, status, note) {
     return request({
@@ -118,9 +118,9 @@ const financeAPI = {
       data: { status, note }
     })
   },
-  
+
   // ========== 报销管理 ==========
-  
+
   /** 获取报销列表 */
   getReimbursements(params) {
     return request({
@@ -129,7 +129,7 @@ const financeAPI = {
       params
     })
   },
-  
+
   /** 创建报销申请 */
   createReimbursement(data) {
     return request({
@@ -138,7 +138,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 审核报销 */
   reviewReimbursement(id, status, note) {
     return request({
@@ -147,7 +147,7 @@ const financeAPI = {
       data: { status, note }
     })
   },
-  
+
   /** 确认付款 */
   payReimbursement(id, data) {
     return request({
@@ -156,7 +156,16 @@ const financeAPI = {
       data
     })
   },
-  
+
+  /** 审批报销并自动登账 */
+  approveReimbursementWithTransaction(id, data) {
+    return request({
+      url: `/finance/reimbursements/${id}/approve-with-transaction`,
+      method: 'put',
+      data
+    })
+  },
+
   /** 获取我的报销 */
   getMyReimbursements(params) {
     return request({
@@ -165,9 +174,51 @@ const financeAPI = {
       params
     })
   },
-  
+
+  /** 上传报销凭据 */
+  uploadReimbVoucher(id, formData) {
+    return request({
+      url: `/finance/reimbursements/${id}/upload-voucher`,
+      method: 'post',
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
+  /** 获取我的应收款 */
+  getMyReceivables(params) {
+    return request({
+      url: '/finance/my-receivables',
+      method: 'get',
+      params
+    })
+  },
+
+  /** 上传应收款凭据 */
+  uploadReceivableVoucher(id, formData) {
+    return request({
+      url: `/finance/receivables/${id}/upload-voucher`,
+      method: 'post',
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
+  getMyPayables(params) {
+    return request({ url: '/finance/my-payables', method: 'get', params })
+  },
+
+  uploadPayableVoucher(id, formData) {
+    return request({
+      url: `/finance/payables/${id}/upload-voucher`,
+      method: 'post',
+      data: formData,
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+  },
+
   // ========== 分类管理 ==========
-  
+
   /** 获取收支分类 */
   getCategories(params) {
     return request({
@@ -176,9 +227,9 @@ const financeAPI = {
       params
     })
   },
-  
+
   // ========== 投资管理 ==========
-  
+
   /** 获取股东列表 */
   getShareholders() {
     return request({
@@ -186,7 +237,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 创建股东 */
   createShareholder(data) {
     return request({
@@ -195,7 +246,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 更新股东 */
   updateShareholder(id, data) {
     return request({
@@ -204,7 +255,7 @@ const financeAPI = {
       data
     })
   },
-  
+
   /** 删除股东 */
   deleteShareholder(id) {
     return request({
@@ -212,7 +263,7 @@ const financeAPI = {
       method: 'delete'
     })
   },
-  
+
   /** 获取企业章程 */
   getCharter() {
     return request({
@@ -220,7 +271,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 保存企业章程 */
   saveCharter(data) {
     return request({
@@ -229,9 +280,9 @@ const financeAPI = {
       data
     })
   },
-  
+
   // ========== 操作日志 ==========
-  
+
   /** 获取操作日志 */
   getAuditLogs(params) {
     return request({
@@ -240,9 +291,9 @@ const financeAPI = {
       params
     })
   },
-  
+
   // ========== 财务分析 ==========
-  
+
   /** 总览统计 */
   getAnalysisOverview() {
     return request({
@@ -250,7 +301,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 月度收支趋势 */
   getMonthlyTrend() {
     return request({
@@ -258,7 +309,7 @@ const financeAPI = {
       method: 'get'
     })
   },
-  
+
   /** 分类统计 */
   getCategoryStats(params) {
     return request({
@@ -267,7 +318,7 @@ const financeAPI = {
       params
     })
   },
-  
+
   /** 最近交易 */
   getRecentTransactions(params) {
     return request({
@@ -299,6 +350,15 @@ const financeAPI = {
     return request({ url: `/finance/receivables/${id}`, method: 'delete' })
   },
 
+  /** 确认收款并自动登账 */
+  confirmReceipt(id, data) {
+    return request({
+      url: `/finance/receivables/${id}/confirm-receipt`,
+      method: 'put',
+      data
+    })
+  },
+
   /** 获取应付款项列表 */
   getPayables(params) {
     return request({ url: '/finance/payables', method: 'get', params })
@@ -326,12 +386,12 @@ const financeAPI = {
     return request({ url: '/finance/payment-plans', method: 'get', params })
   },
 
-  /** 创建付款计划（支持批量分期） */
+  /** 创建付款计划(支持批量分期) */
   createPaymentPlan(data) {
     return request({ url: '/finance/payment-plans', method: 'post', data })
   },
 
-  /** 更新付款计划（确认收付款） */
+  /** 更新付款计划(确认收付款) */
   updatePaymentPlan(id, data) {
     return request({ url: `/finance/payment-plans/${id}`, method: 'put', data })
   },

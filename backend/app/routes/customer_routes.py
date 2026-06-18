@@ -227,19 +227,28 @@ def get_stats(current_user):
     status_stats = db.session.query(
         Customer.status,
         db.func.count(Customer.id)
-    ).filter_by(is_deleted=False).group_by(Customer.status).all()
+    ).filter(
+        Customer.is_deleted == False,
+        Customer.status != None
+    ).group_by(Customer.status).all()
 
     # 按类型统计
     type_stats = db.session.query(
         Customer.customer_type,
         db.func.count(Customer.id)
-    ).filter_by(is_deleted=False).group_by(Customer.customer_type).all()
+    ).filter(
+        Customer.is_deleted == False,
+        Customer.customer_type != None
+    ).group_by(Customer.customer_type).all()
 
     # 按来源统计
     source_stats = db.session.query(
         Customer.source,
         db.func.count(Customer.id)
-    ).filter_by(is_deleted=False).group_by(Customer.source).all()
+    ).filter(
+        Customer.is_deleted == False,
+        Customer.source != None
+    ).group_by(Customer.source).all()
 
     # 本月新增
     from datetime import datetime, timedelta

@@ -59,6 +59,32 @@ def create_department(current_user):
     })
 
 
+@employee_bp.route('/departments/<int:dept_id>', methods=['PUT'])
+@jwt_required_v2
+def update_department(dept_id, current_user):
+    """更新部门"""
+    data = request.get_json()
+    dept = Department.query.get_or_404(dept_id)
+    if 'name' in data: dept.name = data['name']
+    if 'code' in data: dept.code = data['code']
+    if 'parent_id' in data: dept.parent_id = data['parent_id']
+    if 'manager_id' in data: dept.manager_id = data['manager_id']
+    if 'sort_order' in data: dept.sort_order = data['sort_order']
+    if 'is_enabled' in data: dept.is_enabled = data['is_enabled']
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '更新成功', 'data': dept.to_dict()})
+
+
+@employee_bp.route('/departments/<int:dept_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_department(dept_id, current_user):
+    """删除部门（软删除，设置is_enabled=False）"""
+    dept = Department.query.get_or_404(dept_id)
+    dept.is_enabled = False
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '已停用'})
+
+
 # ========== 岗位管理 ==========
 
 @employee_bp.route('/positions', methods=['GET'])
@@ -102,6 +128,32 @@ def create_position(current_user):
         'message': '创建成功',
         'data': position.to_dict()
     })
+
+
+@employee_bp.route('/positions/<int:pos_id>', methods=['PUT'])
+@jwt_required_v2
+def update_position(pos_id, current_user):
+    """更新岗位"""
+    data = request.get_json()
+    pos = Position.query.get_or_404(pos_id)
+    if 'name' in data: pos.name = data['name']
+    if 'code' in data: pos.code = data['code']
+    if 'department_id' in data: pos.department_id = data['department_id']
+    if 'level' in data: pos.level = data['level']
+    if 'description' in data: pos.description = data['description']
+    if 'is_active' in data: pos.is_active = data['is_active']
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '更新成功', 'data': pos.to_dict()})
+
+
+@employee_bp.route('/positions/<int:pos_id>', methods=['DELETE'])
+@jwt_required_v2
+def delete_position(pos_id, current_user):
+    """删除岗位（软删除，设置is_active=False）"""
+    pos = Position.query.get_or_404(pos_id)
+    pos.is_active = False
+    db.session.commit()
+    return jsonify({'code': 200, 'message': '已停用'})
 
 
 # ========== 员工管理 ==========

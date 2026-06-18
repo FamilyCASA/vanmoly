@@ -3,6 +3,9 @@
     <!-- 左侧功能卡片导航 -->
     <div class="settings-sidebar">
       <div class="sidebar-header">
+        <div class="header-top">
+          <el-button :icon="ArrowLeft" text @click="router.push('/admin')" class="back-btn">返回管理后台</el-button>
+        </div>
         <h3>系统设置</h3>
         <p class="sidebar-desc">配置系统参数与业务模板</p>
       </div>
@@ -62,9 +65,10 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import {
-  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp, Document
+  Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp, Document, ArrowLeft
 } from '@element-plus/icons-vue'
 import WorkflowTemplateManage from './WorkflowTemplateManage.vue'
 import CategoryManage from './CategoryManage.vue'
@@ -79,7 +83,13 @@ import SlideTemplateManage from './SlideTemplateManage.vue'
 import CraftProcessManage from './CraftProcessManage.vue'
 import QuoteRulesManage from './QuoteRulesManage.vue'
 
-const activeKey = ref('workflow')
+const route = useRoute()
+const router = useRouter()
+const activeKey = ref(route.query.tab || 'workflow')
+
+watch(activeKey, (val) => {
+  router.replace({ query: { ...route.query, tab: val } })
+})
 
 const navItems = [
   {
@@ -212,8 +222,18 @@ const currentDesc = computed(() => {
 }
 
 .sidebar-header {
-  padding: 20px 20px 12px;
+  padding: 16px 20px 12px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.header-top {
+  margin-bottom: 8px;
+}
+
+.back-btn {
+  font-size: 13px;
+  color: #409EFF;
+  padding: 0;
 }
 
 .sidebar-header h3 {

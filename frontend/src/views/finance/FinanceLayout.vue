@@ -4,43 +4,33 @@
     <div class="finance-tabs-wrap">
       <el-tabs v-model="activeTab">
         <el-tab-pane label="财务总览" name="overview" />
+        <el-tab-pane label="审批任务" name="approval-tasks" />
         <el-tab-pane label="应收管理" name="receivables" />
         <el-tab-pane label="应付管理" name="payables" />
         <el-tab-pane label="流水管理" name="transactions" />
-        <el-tab-pane label="报销管理" name="reimbursements" />
-        <el-tab-pane label="我的报销" name="my-reimbursements" />
-        <el-tab-pane label="投资管理" name="shareholders" />
-        <el-tab-pane label="操作日志" name="audit-logs" />
       </el-tabs>
     </div>
 
     <!-- 子模块内容区 -->
     <div class="finance-content">
       <FinanceOverview v-if="activeTab === 'overview'" />
+      <ApprovalTasks v-if="activeTab === 'approval-tasks'" />
       <ReceivableList v-if="activeTab === 'receivables'" />
       <PayableList v-if="activeTab === 'payables'" />
       <TransactionList v-if="activeTab === 'transactions'" />
-      <ReimbursementList v-if="activeTab === 'reimbursements'" />
-      <MyReimbursements v-if="activeTab === 'my-reimbursements'" />
-      <ShareholderList v-if="activeTab === 'shareholders'" />
-      <AuditLogList v-if="activeTab === 'audit-logs'" />
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import financeAPI from '@/api/finance'
 
 import FinanceOverview from './FinanceOverview.vue'
+import ApprovalTasks from './ApprovalTasks.vue'
 import ReceivableList from './ReceivableList.vue'
 import PayableList from './PayableList.vue'
 import TransactionList from './TransactionList.vue'
-import ReimbursementList from './ReimbursementList.vue'
-import MyReimbursements from './MyReimbursements.vue'
-import ShareholderList from './ShareholderList.vue'
-import AuditLogList from './AuditLogList.vue'
 
 const route = useRoute()
 const activeTab = ref(route.query.tab || 'overview')

@@ -243,6 +243,13 @@ const routes = [
         component: () => import('@/views/admin/OrgStructureManage.vue'),
         meta: { title: '组织架构' }
       },
+      // 个人工作台（独立页面，非财务管理子模块）
+      {
+        path: 'my-workspace',
+        name: 'MyWorkspace',
+        component: () => import('@/views/admin/MyWorkspace.vue'),
+        meta: { title: '我的工作台' }
+      },
       // 财务管理（嵌入 AdminLayout，Tab 切换子模块）
       {
         path: 'finance',

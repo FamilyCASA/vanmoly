@@ -562,13 +562,13 @@ const getStatusTagType = (status) => {
 const getTypeTagType = (type) => {
   const map = {
     '已接触': 'info',
-    '已拜访': '',
+    '已拜访': 'info',
     '提案已经确认': 'warning',
     '跟进中': 'warning',
     '定金已收': 'success',
     '已成交': 'success'
   }
-  return map[type] || ''
+  return map[type] || 'info'
 }
 
 onMounted(() => {

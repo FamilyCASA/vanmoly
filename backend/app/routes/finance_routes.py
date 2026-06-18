@@ -1220,6 +1220,65 @@ def create_reimbursement():
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
 
 
+@finance_bp.route('/reimbursements/<int:reimb_id>/upload-voucher', methods=['POST'])
+@jwt_required()
+def upload_reimb_voucher(reimb_id):
+    """上传报销凭据"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        reimbursement = FinanceReimbursement.query.get_or_404(reimb_id)
+        
+        if reimbursement.applicant_id != user_id:
+            return jsonify({'code': 403, 'message': '只能上传自己的报销凭据', 'data': None}), 403
+        
+        file = request.files.get('file')
+        if not file:
+            return jsonify({'code': 400, 'message': '请选择文件', 'data': None}), 400
+        
+        import os
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ['jpg', 'jpeg', 'png', 'pdf']:
+            return jsonify({'code': 400, 'message': '仅支持 JPG/PNG/PDF 格式', 'data': None}), 400
+        
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"reimb_{reimb_id}_{timestamp}.{ext}"
+        
+        date_path = datetime.now().strftime('%Y/%m/%d')
+        save_dir = os.path.join('upload', 'finance', 'reimbursements', date_path)
+        os.makedirs(save_dir, exist_ok=True)
+        
+        filepath = os.path.join(save_dir, filename)
+        file.save(filepath)
+        os.chmod(filepath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+        
+        # 更新 payment_voucher 字段（兼容：存 JSON 数组或单路径）
+        vouchers = []
+        if reimbursement.payment_voucher:
+            try:
+                vouchers = json.loads(reimbursement.payment_voucher)
+            except:
+                vouchers = [{'path': reimbursement.payment_voucher}]
+        vouchers.append({
+            'name': file.filename,
+            'path': filepath,
+            'size': os.path.getsize(filepath),
+            'uploaded_at': datetime.now().isoformat()
+        })
+        reimbursement.payment_voucher = json.dumps(vouchers)
+        
+        db.session.commit()
+        
+        return jsonify({
+            'code': 200,
+            'message': '上传成功',
+            'data': {'filename': filename, 'path': filepath, 'vouchers': vouchers}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
 @finance_bp.route('/reimbursements/<int:reimb_id>/review', methods=['PUT'])
 @jwt_required()
 def review_reimbursement(reimb_id):
@@ -1347,6 +1406,129 @@ def get_my_reimbursements():
         })
     except Exception as e:
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+@finance_bp.route('/my-receivables', methods=['GET'])
+@jwt_required()
+def get_my_receivables():
+    """获取我登记的应收款"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        status = request.args.get('status', 'all')
+        
+        query = FinanceReceivable.query.filter_by(operator_id=user_id, tenant_id=tenant_id)
+        
+        if status != 'all':
+            query = query.filter_by(status=status)
+        
+        items = query.order_by(FinanceReceivable.created_at.desc()).all()
+        
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': [item.to_dict() for item in items]
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/my-payables', methods=['GET'])
+@jwt_required()
+def get_my_payables():
+    """获取我登记的应付款"""
+    try:
+        user_id, tenant_id = get_current_user()
+        status = request.args.get('status', 'all')
+        query = FinancePayable.query.filter_by(operator_id=user_id, tenant_id=tenant_id)
+        if status != 'all':
+            query = query.filter_by(status=status)
+        items = query.order_by(FinancePayable.created_at.desc()).all()
+        return jsonify({
+            'code': 200,
+            'message': '获取成功',
+            'data': [item.to_dict() for item in items]
+        })
+    except Exception as e:
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/reimbursements/<int:reimb_id>/approve-with-transaction', methods=['PUT'])
+@jwt_required()
+def approve_reimbursement_with_transaction(reimb_id):
+    """财务确认报销：一步完成审批 + 登记支出流水"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        if not check_permission(user_id, 'review'):
+            return jsonify({'code': 403, 'message': '没有审批权限', 'data': None}), 403
+        
+        reimbursement = FinanceReimbursement.query.get_or_404(reimb_id)
+        
+        if reimbursement.status not in ('submitted', 'draft'):
+            return jsonify({'code': 400, 'message': '该报销状态不允许审批', 'data': None}), 400
+        
+        if reimbursement.paid_at:
+            return jsonify({'code': 400, 'message': '该报销已付款', 'data': None}), 400
+        
+        data = request.get_json() or {}
+        
+        # 更新报销记录：审批 + 付款
+        reimbursement.status = 'paid'
+        reimbursement.reviewed_by = user_id
+        reimbursement.reviewed_at = datetime.utcnow()
+        reimbursement.review_note = data.get('note', '审批通过，已登记流水')
+        reimbursement.paid_by = user_id
+        reimbursement.paid_at = datetime.utcnow()
+        reimbursement.payment_method = data.get('payment_method', '')
+        reimbursement.payment_voucher = data.get('payment_voucher', '')
+        
+        # 自动生成支出流水
+        trans_no = generate_trans_no('expense')
+        transaction = FinanceTransaction(
+            tenant_id=tenant_id,
+            trans_no=trans_no,
+            trans_type='expense',
+            trans_date=datetime.utcnow().date(),
+            amount=reimbursement.total_amount,
+            category_id=reimbursement.category_id,
+            sub_category=(reimbursement.summary or '')[:50],
+            summary=f'报销：{reimbursement.reimb_no} - {reimbursement.summary or ""}',
+            payment_method=reimbursement.payment_method or '',
+            voucher_files=json.dumps([reimbursement.payment_voucher]) if reimbursement.payment_voucher else '[]',
+            source_type='reimbursement',
+            source_id=reimbursement.id,
+            operator_id=user_id,
+            status='approved',
+            employee_id=reimbursement.applicant_id,
+            reviewed_by=user_id,
+            reviewed_at=datetime.utcnow(),
+        )
+        
+        db.session.add(transaction)
+        db.session.flush()  # 获取 transaction.id
+        
+        reimbursement.transaction_id = transaction.id
+        
+        db.session.commit()
+        
+        log_action(user_id, 'approve', 'reimbursement', reimbursement.id,
+                   detail_before={'status': 'submitted'}, detail_after=reimbursement.to_dict())
+        
+        return jsonify({
+            'code': 200,
+            'message': '审批完成，已自动登记支出流水',
+            'data': {
+                'reimbursement': reimbursement.to_dict(),
+                'transaction': transaction.to_dict()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
 
 # ============================================================
 # 投资管理
@@ -1960,6 +2142,143 @@ def delete_receivable(item_id):
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
 
 
+@finance_bp.route('/receivables/<int:item_id>/confirm-receipt', methods=['PUT'])
+@jwt_required()
+def confirm_receipt(item_id):
+    """确认收款：更新应收款状态 + 自动登记收入流水"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        item = FinanceReceivable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+        
+        if item.status in ('received', 'cancelled'):
+            return jsonify({'code': 400, 'message': '该应收款已收齐或已取消', 'data': None}), 400
+        
+        data = request.get_json() or {}
+        received_amount = Decimal(str(data.get('received_amount', item.amount)))
+        
+        # 更新应收款
+        item.received_amount = (item.received_amount or 0) + received_amount
+        item.remaining_amount = item.amount - item.received_amount
+        
+        if item.remaining_amount <= 0:
+            item.status = 'received'
+            item.remaining_amount = 0
+        else:
+            item.status = 'partial'
+        
+        db.session.commit()
+        
+        # 自动生成收入流水
+        trans_no = generate_trans_no('income')
+        transaction = FinanceTransaction(
+            tenant_id=tenant_id,
+            trans_no=trans_no,
+            trans_type='income',
+            trans_date=datetime.utcnow().date(),
+            amount=received_amount,
+            summary=f'收款：{item.title or ""}',
+            source_type='receivable',
+            source_id=item.id,
+            operator_id=user_id,
+            status='approved',
+            customer_id=item.customer_id,
+            contract_id=item.contract_id,
+            quote_id=item.quote_id,
+            building_id=item.building_id,
+            reviewed_by=user_id,
+            reviewed_at=datetime.utcnow(),
+        )
+        
+        db.session.add(transaction)
+        db.session.commit()
+        
+        log_action(user_id, 'confirm', 'receivable', item.id,
+                   detail_before={'status': 'pending'}, detail_after=item.to_dict())
+        
+        return jsonify({
+            'code': 200,
+            'message': '收款确认成功，已自动登记收入流水',
+            'data': {
+                'receivable': item.to_dict(),
+                'transaction': transaction.to_dict()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/receivables/<int:item_id>/upload-voucher', methods=['POST'])
+@jwt_required()
+def upload_receivable_voucher(item_id):
+    """上传应收款收款凭据"""
+    try:
+        user_id, tenant_id = get_current_user()
+        
+        item = FinanceReceivable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+        
+        file = request.files.get('file')
+        if not file:
+            return jsonify({'code': 400, 'message': '请选择文件', 'data': None}), 400
+        
+        import os
+        ext = file.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ['jpg', 'jpeg', 'png', 'pdf']:
+            return jsonify({'code': 400, 'message': '仅支持 JPG/PNG/PDF 格式', 'data': None}), 400
+        
+        timestamp = datetime.now().strftime('%Y%m%d%H%M%S')
+        filename = f"recv_{item_id}_{timestamp}.{ext}"
+        
+        date_path = datetime.now().strftime('%Y/%m/%d')
+        save_dir = os.path.join('upload', 'finance', 'receivables', date_path)
+        os.makedirs(save_dir, exist_ok=True)
+        
+        filepath = os.path.join(save_dir, filename)
+        file.save(filepath)
+        os.chmod(filepath, stat.S_IRUSR | stat.S_IRGRP | stat.S_IROTH)
+        
+        # Store vouchers in remark field as JSON (or add a dedicated column later)
+        vouchers = []
+        if item.remark:
+            try:
+                parsed = json.loads(item.remark)
+                if isinstance(parsed, dict) and 'vouchers' in parsed:
+                    vouchers = parsed['vouchers']
+                    remark_text = parsed.get('text', '')
+                else:
+                    remark_text = item.remark
+            except:
+                remark_text = item.remark
+        else:
+            remark_text = ''
+        
+        vouchers.append({
+            'name': file.filename,
+            'path': filepath,
+            'size': os.path.getsize(filepath),
+            'uploaded_at': datetime.now().isoformat()
+        })
+        item.remark = json.dumps({'text': remark_text, 'vouchers': vouchers})
+        
+        db.session.commit()
+        
+        return jsonify({
+            'code': 200,
+            'message': '上传成功',
+            'data': {'filename': filename, 'path': filepath, 'vouchers': vouchers}
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
 @finance_bp.route('/payables', methods=['GET'])
 @jwt_required()
 def list_payables():
@@ -2132,6 +2451,46 @@ def delete_payable(item_id):
         db.session.commit()
         log_action(user_id, 'delete', 'payable', item_id, detail_before=before)
         return jsonify({'code': 200, 'message': '删除成功', 'data': None})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
+@finance_bp.route('/payables/<int:item_id>/upload-voucher', methods=['POST'])
+@jwt_required()
+def upload_payable_voucher(item_id):
+    """应付凭据上传"""
+    try:
+        user_id, tenant_id = get_current_user()
+        item = FinancePayable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        if 'file' not in request.files:
+            return jsonify({'code': 400, 'message': '请上传文件', 'data': None}), 400
+
+        file = request.files['file']
+        fname = secure_filename(file.filename)
+        if not fname:
+            return jsonify({'code': 400, 'message': '文件名无效', 'data': None}), 400
+
+        voucher_dir = os.path.join(UPLOAD_ROOT, 'payable_vouchers')
+        os.makedirs(voucher_dir, exist_ok=True)
+        save_name = f'{item_id}_{int(time.time())}_{fname}'
+        file.save(os.path.join(voucher_dir, save_name))
+
+        # 保存到 remark JSON
+        try:
+            vouchers = json.loads(item.remark) if item.remark else {}
+        except (json.JSONDecodeError, TypeError):
+            vouchers = {}
+        if 'vouchers' not in vouchers:
+            vouchers['vouchers'] = []
+        vouchers['vouchers'].append({'name': fname, 'path': f'payable_vouchers/{save_name}', 'uploaded_at': datetime.now().strftime('%Y-%m-%d %H:%M:%S')})
+        item.remark = json.dumps(vouchers, ensure_ascii=False)
+        db.session.commit()
+
+        return jsonify({'code': 200, 'message': '上传成功', 'data': vouchers['vouchers']})
     except Exception as e:
         db.session.rollback()
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500

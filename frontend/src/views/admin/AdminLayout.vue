@@ -1,6 +1,6 @@
 <template>
   <el-container class="admin-layout">
-    <el-aside width="220px" class="sidebar">
+    <el-aside v-if="!isSettingsRoute" width="220px" class="sidebar">
       <div class="logo">
         <span class="logo-text">D&B 帝标|设记家</span>
         <span class="logo-version">V3.3</span>
@@ -79,12 +79,6 @@
           <span>财务管理</span>
         </el-menu-item>
 
-        <!-- 组织架构 -->
-        <el-menu-item index="/admin/org-structure">
-          <el-icon><Connection /></el-icon>
-          <span>组织架构</span>
-        </el-menu-item>
-
         <!-- 系统设置（集成员工/分店/物料/文件/前端配置/流程模板/分类管理） -->
         <el-menu-item index="/admin/settings">
           <el-icon><Tools /></el-icon>
@@ -101,7 +95,7 @@
             <Fold v-if="!isCollapse" />
             <Expand v-else />
           </el-icon>
-          <span class="breadcrumb">管理后台</span>
+          <span class="breadcrumb clickable" @click="router.push('/admin/dashboard')">管理后台</span>
         </div>
         <div class="header-right">
           <div class="my-btn" @click="myDrawerVisible = true">
@@ -132,16 +126,20 @@
             <div class="my-user-role">{{ userInfo?.position || '系统管理员' }}</div>
           </div>
         </div>
-        <!-- 我的业务 -->
+        <!-- 业务拓展 -->
         <div class="my-section">
           <div class="my-section-title">
-            <el-icon><Briefcase /></el-icon>
-            <span>我的业务</span>
+            <el-icon><Promotion /></el-icon>
+            <span>业务拓展</span>
           </div>
           <div class="my-grid">
-            <div class="my-grid-item" @click="goMy('team')">
-              <el-icon :size="22" color="#722ED1"><Share /></el-icon>
-              <span>我的团队</span>
+            <div class="my-grid-item" @click="goMy('leads')">
+              <el-icon :size="22" color="#1890FF"><Promotion /></el-icon>
+              <span>我的线索</span>
+            </div>
+            <div class="my-grid-item" @click="goMy('customers')">
+              <el-icon :size="22" color="#2F54EB"><User /></el-icon>
+              <span>我的客户</span>
             </div>
             <div class="my-grid-item" @click="goMy('buildings')">
               <el-icon :size="22" color="#13C2C2"><OfficeBuilding /></el-icon>
@@ -155,21 +153,49 @@
               <el-icon :size="22" color="#52C41A"><Money /></el-icon>
               <span>我的报价</span>
             </div>
+          </div>
+        </div>
+
+        <!-- 工作流转 -->
+        <div class="my-section">
+          <div class="my-section-title">
+            <el-icon><Finished /></el-icon>
+            <span>工作流转</span>
+          </div>
+          <div class="my-grid">
+            <div class="my-grid-item" @click="goMy('team')">
+              <el-icon :size="22" color="#722ED1"><Share /></el-icon>
+              <span>我的团队</span>
+            </div>
             <div class="my-grid-item" @click="goMy('reviews')">
               <el-icon :size="22" color="#F5222D"><Finished /></el-icon>
               <span>我的审核</span>
             </div>
-            <div class="my-grid-item" @click="goMy('leads')">
-              <el-icon :size="22" color="#1890FF"><Promotion /></el-icon>
-              <span>我的线索</span>
-            </div>
-            <div class="my-grid-item" @click="goMy('customers')">
-              <el-icon :size="22" color="#2F54EB"><User /></el-icon>
-              <span>我的客户</span>
-            </div>
             <div class="my-grid-item" @click="goMy('workflow')">
               <el-icon :size="22" color="#EB2F96"><Connection /></el-icon>
               <span>我的服务流程</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 财务收支 -->
+        <div class="my-section">
+          <div class="my-section-title">
+            <el-icon><Wallet /></el-icon>
+            <span>财务收支</span>
+          </div>
+          <div class="my-grid">
+            <div class="my-grid-item" @click="$router.push('/admin/my-workspace?tab=reimbursements')">
+              <el-icon :size="22" color="#FA8C16"><Ticket /></el-icon>
+              <span>我的报销</span>
+            </div>
+            <div class="my-grid-item" @click="$router.push('/admin/my-workspace?tab=receivables')">
+              <el-icon :size="22" color="#52C41A"><Money /></el-icon>
+              <span>我的收款</span>
+            </div>
+            <div class="my-grid-item" @click="$router.push('/admin/my-workspace?tab=payables')">
+              <el-icon :size="22" color="#F5222D"><Wallet /></el-icon>
+              <span>我的付款</span>
             </div>
           </div>
         </div>
@@ -229,19 +255,21 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   DataLine, Picture, User, Calendar, Folder, Setting, Fold, Expand,
   UserFilled, Box, Connection, Document, OfficeBuilding,
   Money, Shop, Tools, Briefcase, Share, Finished, Promotion,
-  Lock, ArrowRight, Monitor, Wallet
+  Lock, ArrowRight, Monitor, Wallet, Ticket
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
 const router = useRouter()
+const route = useRoute()
 const isCollapse = ref(false)
+const isSettingsRoute = computed(() => route.path.startsWith('/admin/settings'))
 const userInfo = ref(null)
 
 // 我的 抽屉
@@ -297,6 +325,22 @@ const showChangePassword = () => {
   passwordForm.oldPassword = ''
   passwordForm.newPassword = ''
   passwordForm.confirmPassword = ''
+}
+
+const goMy = (type) => {
+  myDrawerVisible.value = false
+  const map = {
+    team: '/admin/team',
+    buildings: '/admin/buildings?mine=1',
+    contracts: '/admin/contracts?mine=1',
+    quotes: '/admin/quotes?mine=1',
+    reviews: '/admin/reviews',
+    leads: '/admin/leads?mine=1',
+    customers: '/admin/customers?mine=1',
+    workflow: '/admin/workflow?mine=1',
+    // 个人工作台入口已改为直接 $router.push('/admin/my-workspace?tab=xxx')
+  }
+  router.push(map[type] || '/admin')
 }
 
 const submitChangePassword = async () => {
@@ -406,6 +450,15 @@ const handleLogout = () => {
 .breadcrumb {
   font-size: 14px;
   color: var(--text-secondary, #909399);
+}
+
+.breadcrumb.clickable {
+  cursor: pointer;
+  color: #409EFF;
+}
+
+.breadcrumb.clickable:hover {
+  text-decoration: underline;
 }
 
 .header-right {
