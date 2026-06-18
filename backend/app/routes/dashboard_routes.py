@@ -355,3 +355,193 @@ def get_lead_stats():
         })
     except Exception as e:
         return api_response(code=500, message=str(e))
+
+
+@dashboard_bp.route('/dashboard/overview', methods=['GET'])
+def get_overview():
+    """综合数据概览 - 数据驾驶舱核心接口"""
+    try:
+        from app.models.finance import FinanceTransaction, FinanceReimbursement, FinanceReceivable, FinancePayable
+        
+        today = datetime.now().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        month_start = today.replace(day=1)
+        month_start_dt = datetime.combine(month_start, datetime.min.time())
+        
+        # ===== 核心指标 =====
+        total_customers = Customer.query.filter_by(is_deleted=False).count()
+        total_leads = Lead.query.count()
+        total_quotes = Quote.query.count()
+        total_contracts = Contract.query.count()
+        total_buildings = Building.query.count()
+        total_employees = Employee.query.count()
+        
+        # 今日新增
+        today_new_customers = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.created_at >= today_start
+        ).count()
+        today_new_leads = Lead.query.filter(Lead.created_at >= today_start).count()
+        today_new_quotes = Quote.query.filter(Quote.created_at >= today_start).count()
+        
+        # 本月新增
+        month_new_customers = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.created_at >= month_start_dt
+        ).count()
+        month_new_leads = Lead.query.filter(Lead.created_at >= month_start_dt).count()
+        month_new_contracts = Contract.query.filter(Contract.created_at >= month_start_dt).count()
+        
+        # ===== 财务指标 =====
+        total_income = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'income',
+            FinanceTransaction.status == 'approved'
+        ).scalar() or 0
+        
+        total_expense = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'expense',
+            FinanceTransaction.status == 'approved'
+        ).scalar() or 0
+        
+        month_income = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'income',
+            FinanceTransaction.status == 'approved',
+            FinanceTransaction.trans_date >= month_start
+        ).scalar() or 0
+        
+        month_expense = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+            FinanceTransaction.trans_type == 'expense',
+            FinanceTransaction.status == 'approved',
+            FinanceTransaction.trans_date >= month_start
+        ).scalar() or 0
+        
+        # 应收应付
+        pending_receivable = db.session.query(func.sum(FinanceReceivable.amount)).filter(
+            FinanceReceivable.status == 'pending'
+        ).scalar() or 0
+        pending_payable = db.session.query(func.sum(FinancePayable.amount)).filter(
+            FinancePayable.status == 'pending'
+        ).scalar() or 0
+        
+        # 报销统计
+        pending_reimbursements = FinanceReimbursement.query.filter(
+            FinanceReimbursement.status.in_(['submitted', 'pending'])
+        ).count()
+        
+        # ===== 报价/合同金额 =====
+        total_quote_amount = db.session.query(func.sum(Quote.total_amount)).scalar() or 0
+        total_contract_amount = db.session.query(func.sum(Contract.total_amount)).scalar() or 0
+        
+        # 报价状态分布
+        quote_status_dist = db.session.query(
+            Quote.status, func.count(Quote.id)
+        ).group_by(Quote.status).all()
+        
+        # 客户状态分布
+        customer_status_dist = db.session.query(
+            Customer.status, func.count(Customer.id)
+        ).filter(Customer.is_deleted == False).group_by(Customer.status).all()
+        
+        # 客户来源分布
+        customer_source_dist = db.session.query(
+            Customer.source, func.count(Customer.id)
+        ).filter(Customer.is_deleted == False, Customer.source != None).group_by(Customer.source).all()
+        
+        # ===== 待办事项 =====
+        pending_quotes = Quote.query.filter(Quote.status == 'draft').count()
+        pending_appointments = Appointment.query.filter(Appointment.status == 'pending').count()
+        follow_up_customers = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.status.in_(['待跟进', '跟进中'])
+        ).count()
+        
+        # ===== 月度收支趋势（最近6个月）=====
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m <= 0:
+                m += 12
+                y -= 1
+            m_start_date = datetime(y, m, 1).date()
+            if m == 12:
+                m_end_date = datetime(y + 1, 1, 1).date() - timedelta(days=1)
+            else:
+                m_end_date = datetime(y, m + 1, 1).date() - timedelta(days=1)
+            if i == 0:
+                m_end_date = today
+            
+            m_income = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+                FinanceTransaction.trans_type == 'income',
+                FinanceTransaction.status == 'approved',
+                FinanceTransaction.trans_date >= m_start_date,
+                FinanceTransaction.trans_date <= m_end_date
+            ).scalar() or 0
+            
+            m_expense = db.session.query(func.sum(FinanceTransaction.amount)).filter(
+                FinanceTransaction.trans_type == 'expense',
+                FinanceTransaction.status == 'approved',
+                FinanceTransaction.trans_date >= m_start_date,
+                FinanceTransaction.trans_date <= m_end_date
+            ).scalar() or 0
+            
+            monthly_trend.append({
+                'month': f'{y}-{m:02d}',
+                'income': float(m_income),
+                'expense': float(m_expense)
+            })
+        
+        return api_response(data={
+            # 核心指标
+            'core': {
+                'total_customers': total_customers,
+                'total_leads': total_leads,
+                'total_quotes': total_quotes,
+                'total_contracts': total_contracts,
+                'total_buildings': total_buildings,
+                'total_employees': total_employees,
+            },
+            'today': {
+                'new_customers': today_new_customers,
+                'new_leads': today_new_leads,
+                'new_quotes': today_new_quotes,
+            },
+            'month': {
+                'new_customers': month_new_customers,
+                'new_leads': month_new_leads,
+                'new_contracts': month_new_contracts,
+            },
+            # 财务
+            'finance': {
+                'total_income': float(total_income),
+                'total_expense': float(total_expense),
+                'total_profit': float(total_income) - float(total_expense),
+                'month_income': float(month_income),
+                'month_expense': float(month_expense),
+                'month_profit': float(month_income) - float(month_expense),
+                'pending_receivable': float(pending_receivable),
+                'pending_payable': float(pending_payable),
+                'pending_reimbursements': pending_reimbursements,
+                'total_quote_amount': float(total_quote_amount),
+                'total_contract_amount': float(total_contract_amount),
+            },
+            # 分布数据
+            'distributions': {
+                'quote_status': {s: c for s, c in quote_status_dist},
+                'customer_status': {s: c for s, c in customer_status_dist},
+                'customer_source': {s: c for s, c in customer_source_dist},
+            },
+            # 待办
+            'todos': {
+                'pending_quotes': pending_quotes,
+                'pending_appointments': pending_appointments,
+                'follow_up_customers': follow_up_customers,
+                'pending_reimbursements': pending_reimbursements,
+            },
+            # 趋势
+            'monthly_trend': monthly_trend,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return api_response(code=500, message=str(e))

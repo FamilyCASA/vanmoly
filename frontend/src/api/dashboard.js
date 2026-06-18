@@ -34,3 +34,8 @@ export function getCaseStats() {
 export function getLeadStats() {
   return request.get('/dashboard/lead-stats')
 }
+
+// 数据驾驶舱综合接口
+export function getDashboardOverview() {
+  return request.get('/dashboard/overview')
+}
