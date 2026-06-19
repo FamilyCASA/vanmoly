@@ -37,8 +37,6 @@
       <div class="content-body">
         <!-- 流程模板管理 -->
         <WorkflowTemplateManage v-if="activeKey === 'workflow'" />
-        <!-- 物料分类管理 -->
-        <CategoryManage v-if="activeKey === 'category'" />
         <!-- 员工管理 -->
         <EmployeeManage v-if="activeKey === 'employee'" />
         <!-- 分店管理 -->
@@ -71,7 +69,6 @@ import {
   Connection, Folder, User, Shop, Box, FolderOpened, Monitor, Trophy, Reading, Picture, SetUp, Document, ArrowLeft
 } from '@element-plus/icons-vue'
 import WorkflowTemplateManage from './WorkflowTemplateManage.vue'
-import CategoryManage from './CategoryManage.vue'
 import EmployeeManage from './EmployeeManage.vue'
 import StoreManage from './StoreManage.vue'
 import MaterialManageV2 from './MaterialManageV2.vue'
@@ -99,14 +96,6 @@ const navItems = [
     icon: Connection,
     bg: '#E6F7FF',
     color: '#1890FF'
-  },
-  {
-    key: 'category',
-    title: '物料分类管理',
-    desc: '物料分类树与编码规则',
-    icon: Folder,
-    bg: '#F6FFED',
-    color: '#52C41A'
   },
   {
     key: 'employee',

@@ -453,6 +453,20 @@ class MeasurementRule(db.Model):
 
     # 规则参数 (JSON)
     rule_params = db.Column(db.JSON, default=dict, comment='规则参数')
+
+    # 前端编辑字段
+    formula = db.Column(db.String(200), comment='计算公式')
+    unit = db.Column(db.String(50), comment='计量单位')
+    coefficient = db.Column(db.Float, default=1, comment='系数')
+    min_value = db.Column(db.Float, default=0, comment='最小值')
+    
+    # v2 参数化引擎字段
+    calc_mode = db.Column(db.String(30), comment='计量值计算模式: length/area/volume/quantity/custom')
+    match_conditions = db.Column(db.Text, comment='JSON:多条件AND数组')
+    process_coefficient_override = db.Column(db.Float, comment='工艺系数覆盖值(null=不覆盖)')
+    process_qty_override = db.Column(db.Float, comment='工艺数量覆盖值(null=不覆盖)')
+    process_price_override = db.Column(db.Float, comment='工艺单价覆盖值(null=不覆盖)')
+    amount_formula = db.Column(db.String(300), comment='金额公式模板')
     # 示例:
     # length: {}
     # area: {}
@@ -473,6 +487,13 @@ class MeasurementRule(db.Model):
     updated_at = db.Column(db.String(30))
 
     def to_dict(self):
+        import json
+        mc = None
+        if self.match_conditions:
+            try:
+                mc = json.loads(self.match_conditions) if isinstance(self.match_conditions, str) else self.match_conditions
+            except Exception:
+                mc = None
         return {
             'id': self.id,
             'name': self.name,
@@ -482,6 +503,16 @@ class MeasurementRule(db.Model):
             'match_field': self.match_field,
             'rule_type': self.rule_type,
             'rule_params': self.rule_params or {},
+            'formula': getattr(self, 'formula', None) or '',
+            'unit': getattr(self, 'unit', None) or '',
+            'coefficient': getattr(self, 'coefficient', None) if getattr(self, 'coefficient', None) is not None else 1,
+            'min_value': getattr(self, 'min_value', None) if getattr(self, 'min_value', None) is not None else 0,
+            'calc_mode': getattr(self, 'calc_mode', None) or '',
+            'match_conditions': mc or [],
+            'process_coefficient_override': getattr(self, 'process_coefficient_override', None),
+            'process_qty_override': getattr(self, 'process_qty_override', None),
+            'process_price_override': getattr(self, 'process_price_override', None),
+            'amount_formula': getattr(self, 'amount_formula', None) or '',
             'priority': self.priority,
             'is_enabled': self.is_enabled,
             'sort_order': self.sort_order,

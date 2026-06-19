@@ -115,7 +115,7 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   DataLine, Picture, User, Calendar, Fold, Expand,
   UserFilled, Connection, Document, OfficeBuilding,
-  Money, Tools, Wallet
+  Money, Tools, Wallet, Box
 } from '@element-plus/icons-vue'
 
 const router = useRouter()

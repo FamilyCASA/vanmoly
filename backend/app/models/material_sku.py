@@ -124,6 +124,7 @@ class MaterialSKU(db.Model):
 
     # 供应链
     supply_chain = db.Column(db.String(100), comment='供应链/采购渠道')
+    supplier_id = db.Column(db.Integer, comment='关联供应商ID')
 
     # 描述
     description = db.Column(db.Text, comment='产品描述')
@@ -185,6 +186,7 @@ class MaterialSKU(db.Model):
             'color_name': self.color_name,
             'env_level': self.env_level,
             'supply_chain': self.supply_chain,
+            'supplier_id': self.supplier_id,
             'main_image': self.main_image,
             'images': self.images or [],
             'cost_price': float(self.cost_price) if self.cost_price else 0,
@@ -254,20 +256,42 @@ class MaterialVariant(db.Model):
 
 
 class MaterialSupplier(db.Model):
-    """供应商信息"""
+    """供应商信息（供应链登记）"""
     __tablename__ = 'material_supplier'
 
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     tenant_id = db.Column(db.String(32), default='0', index=True)
 
+    # 基础信息
+    supplier_code = db.Column(db.String(20), comment='供应商编号(自动生成)')
     name = db.Column(db.String(100), nullable=False, comment='供应商名称')
+    brand = db.Column(db.String(200), comment='品牌(逗号分隔)')
+    main_products = db.Column(db.String(500), comment='主要产品')
+    
+    # 地址信息
+    factory_address = db.Column(db.String(255), comment='工厂地址')
+    store_address = db.Column(db.String(255), comment='门店地址')
+    
+    # 联系信息
     contact_person = db.Column(db.String(50), comment='联系人')
-    phone = db.Column(db.String(20), comment='电话')
+    phone = db.Column(db.String(20), comment='联系电话')
     email = db.Column(db.String(100), comment='邮箱')
-    address = db.Column(db.String(255), comment='地址')
-
-    # 合作状态
-    status = db.Column(db.String(20), default='active', comment='状态')
+    
+    # 供应链专员（关联员工）
+    specialist_id = db.Column(db.Integer, comment='供应链专员员工ID')
+    
+    # 合作信息
+    status = db.Column(db.String(20), default='active', comment='状态: active/paused/terminated')
+    level = db.Column(db.String(2), default='B', comment='供应商等级: A/B/C')
+    cooperation_date = db.Column(db.Date, comment='合作开始日期')
+    payment_method = db.Column(db.String(50), comment='结款方式')
+    bank_account = db.Column(db.String(100), comment='银行账户')
+    bank_name = db.Column(db.String(100), comment='开户行')
+    tax_number = db.Column(db.String(50), comment='税号')
+    
+    # 兼容旧字段
+    address = db.Column(db.String(255), comment='地址(兼容)')
+    
     remark = db.Column(db.Text, comment='备注')
 
     is_deleted = db.Column(db.Boolean, default=False)
@@ -276,12 +300,24 @@ class MaterialSupplier(db.Model):
     def to_dict(self):
         return {
             'id': self.id,
+            'supplier_code': self.supplier_code,
             'name': self.name,
+            'brand': self.brand,
+            'main_products': self.main_products,
+            'factory_address': self.factory_address,
+            'store_address': self.store_address,
             'contact_person': self.contact_person,
             'phone': self.phone,
             'email': self.email,
-            'address': self.address,
+            'specialist_id': self.specialist_id,
             'status': self.status,
+            'level': self.level,
+            'cooperation_date': self.cooperation_date.strftime('%Y-%m-%d') if self.cooperation_date else None,
+            'payment_method': self.payment_method,
+            'bank_account': self.bank_account,
+            'bank_name': self.bank_name,
+            'tax_number': self.tax_number,
+            'address': self.address,
             'remark': self.remark,
         }
 

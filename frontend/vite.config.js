@@ -14,23 +14,23 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api/v3/upload': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
       '/api': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
       '/upload': {
-        target: 'http://localhost:8080/api/v3',
+        target: 'http://127.0.0.1:8080/api/v3',
         changeOrigin: true,
       },
       '/uploads': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
       '/static': {
-        target: 'http://localhost:8080',
+        target: 'http://127.0.0.1:8080',
         changeOrigin: true,
       },
     },

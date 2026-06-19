@@ -177,12 +177,6 @@ const routes = [
         meta: { title: '服务流程' }
       },
       {
-        path: 'suppliers',
-        name: 'AdminSuppliers',
-        component: () => import('@/views/admin/SupplierManage.vue'),
-        meta: { title: '供应商管理' }
-      },
-      {
         path: 'contracts',
         name: 'AdminContracts',
         component: () => import('@/views/admin/ContractManage.vue'),

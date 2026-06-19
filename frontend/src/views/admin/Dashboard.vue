@@ -13,6 +13,30 @@
       </div>
     </div>
 
+    <!-- 快捷入口卡片（第一位） -->
+    <el-card shadow="hover" class="quick-entry-card">
+      <template #header>
+        <div class="card-header">
+          <span class="card-title">快捷入口</span>
+          <span class="card-subtitle">常用操作一键直达</span>
+        </div>
+      </template>
+      <div class="quick-entry-grid">
+        <div
+          v-for="item in quickEntries"
+          :key="item.label"
+          class="quick-entry-item"
+          :style="{ '--entry-color': item.color }"
+          @click="handleQuickEntry(item)"
+        >
+          <div class="entry-icon" :style="{ background: item.bgColor, color: item.color }">
+            <el-icon :size="22"><component :is="item.icon" /></el-icon>
+          </div>
+          <div class="entry-label">{{ item.label }}</div>
+        </div>
+      </div>
+    </el-card>
+
     <!-- 核心KPI指标行 -->
     <el-row :gutter="16" class="kpi-row">
       <el-col :span="6">
@@ -137,21 +161,6 @@
         </div>
       </el-col>
     </el-row>
-
-    <!-- 快捷操作行 -->
-    <el-card shadow="hover" class="quick-actions-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">快捷操作</span>
-        </div>
-      </template>
-      <div class="quick-actions">
-        <el-button type="primary" :icon="Plus" @click="$router.push('/admin/customers')">新建客户</el-button>
-        <el-button type="success" :icon="Money" @click="$router.push('/admin/quotes')">新建报价</el-button>
-        <el-button type="warning" :icon="DocumentChecked" @click="$router.push('/admin/contracts')">新建合同</el-button>
-        <el-button type="info" :icon="Wallet" @click="$router.push('/admin/finance')">收支登记</el-button>
-      </div>
-    </el-card>
   </div>
 </template>
 
@@ -161,7 +170,10 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
   User, TrendCharts, Money, DocumentChecked, Wallet,
-  Refresh, Plus, Document, Calendar, Phone
+  Refresh, Plus, Document, Calendar, Phone,
+  OfficeBuilding, Upload, Download, Picture,
+  List, DocumentAdd, DataAnalysis, Setting,
+  Connection, Box, Reading, Notebook, EditPen, Files
 } from '@element-plus/icons-vue'
 import * as echarts from 'echarts/core'
 import { BarChart, PieChart } from 'echarts/charts'
@@ -200,6 +212,26 @@ const trendChartRef = ref(null)
 const sourceChartRef = ref(null)
 const quoteChartRef = ref(null)
 const customerChartRef = ref(null)
+
+// 快捷入口配置
+const quickEntries = [
+  // 用户指定的 10 个
+  { label: '新建楼盘', icon: OfficeBuilding, color: '#409EFF', bgColor: '#E6F4FF', action: () => router.push('/admin/buildings') },
+  { label: '新建线索', icon: Connection, color: '#67C23A', bgColor: '#F0F9EB', action: () => router.push('/admin/leads') },
+  { label: '导入线索', icon: Download, color: '#E6A23C', bgColor: '#FDF6EC', action: () => router.push('/admin/leads?import=true') },
+  { label: '新建客户', icon: User, color: '#F56C6C', bgColor: '#FEF0F0', action: () => router.push('/admin/customers') },
+  { label: '新建案例', icon: Picture, color: '#722ED1', bgColor: '#F9F0FF', action: () => router.push('/admin/cases/create') },
+  { label: '新建报价', icon: Money, color: '#1890FF', bgColor: '#E6F4FF', action: () => router.push('/admin/quotes') },
+  { label: '新建合同', icon: DocumentAdd, color: '#52C41A', bgColor: '#F6FFED', action: () => router.push('/admin/contracts') },
+  { label: '流水登记', icon: Wallet, color: '#FA8C16', bgColor: '#FFF7E6', action: () => router.push('/admin/finance') },
+  { label: '上传物料', icon: Upload, color: '#13C2C2', bgColor: '#E6FFFB', action: () => router.push('/admin/settings?tab=material') },
+  { label: '供应链登记', icon: Box, color: '#EB2F96', bgColor: '#FFF0F6', action: () => router.push('/admin/suppliers') },
+  // 知识库相关
+  { label: '知识库管理', icon: Reading, color: '#409EFF', bgColor: '#E6F4FF', action: () => router.push('/admin/settings?tab=knowledge') },
+  { label: '编辑文章', icon: EditPen, color: '#722ED1', bgColor: '#F9F0FF', action: () => router.push('/admin/settings?tab=knowledge') },
+  { label: '分类管理', icon: Files, color: '#13C2C2', bgColor: '#E6FFFB', action: () => router.push('/admin/settings?tab=knowledge') },
+  { label: '商学院', icon: Notebook, color: '#FA8C16', bgColor: '#FFF7E6', action: () => router.push('/admin/knowledge') },
+]
 
 // 财务卡片数据
 const financeCards = computed(() => [
@@ -242,6 +274,11 @@ const todoCards = computed(() => [
   }
 ])
 
+// 快捷入口点击
+const handleQuickEntry = (item) => {
+  item.action()
+}
+
 // 格式化数字
 const formatNumber = (num) => {
   if (num === undefined || num === null) return '0'
@@ -282,45 +319,14 @@ const initCharts = async () => {
     trendChartInstance = echarts.init(trendChartRef.value)
     const trendData = overview.value.monthly_trend || []
     trendChartInstance.setOption({
-      tooltip: {
-        trigger: 'axis',
-        axisPointer: { type: 'shadow' }
-      },
-      legend: {
-        data: ['收入', '支出'],
-        top: 10
-      },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        containLabel: true
-      },
-      xAxis: {
-        type: 'category',
-        data: trendData.map(item => item.month)
-      },
-      yAxis: {
-        type: 'value',
-        axisLabel: {
-          formatter: val => val >= 10000 ? (val / 10000) + '万' : val
-        }
-      },
+      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      legend: { data: ['收入', '支出'], top: 10 },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
+      xAxis: { type: 'category', data: trendData.map(item => item.month) },
+      yAxis: { type: 'value', axisLabel: { formatter: val => val >= 10000 ? (val / 10000) + '万' : val } },
       series: [
-        {
-          name: '收入',
-          type: 'bar',
-          barWidth: '35%',
-          itemStyle: { color: '#67C23A' },
-          data: trendData.map(item => item.income)
-        },
-        {
-          name: '支出',
-          type: 'bar',
-          barWidth: '35%',
-          itemStyle: { color: '#F56C6C' },
-          data: trendData.map(item => item.expense)
-        }
+        { name: '收入', type: 'bar', barWidth: '35%', itemStyle: { color: '#67C23A' }, data: trendData.map(item => item.income) },
+        { name: '支出', type: 'bar', barWidth: '35%', itemStyle: { color: '#F56C6C' }, data: trendData.map(item => item.expense) }
       ]
     })
   }
@@ -331,26 +337,12 @@ const initCharts = async () => {
     const sourceData = overview.value.distributions?.customer_source || {}
     const sourceList = Object.entries(sourceData).map(([name, value]) => ({ name, value }))
     sourceChartInstance.setOption({
-      tooltip: {
-        trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
-      },
-      legend: {
-        orient: 'vertical',
-        left: 'left',
-        top: 'center'
-      },
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { orient: 'vertical', left: 'left', top: 'center' },
       series: [{
-        name: '客户来源',
-        type: 'pie',
-        radius: ['30%', '70%'],
-        center: ['60%', '50%'],
+        name: '客户来源', type: 'pie', radius: ['30%', '70%'], center: ['60%', '50%'],
         roseType: 'area',
-        itemStyle: {
-          borderRadius: 8,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
+        itemStyle: { borderRadius: 8, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
         data: sourceList.length > 0 ? sourceList : [{ name: '暂无数据', value: 1 }]
       }]
@@ -363,30 +355,14 @@ const initCharts = async () => {
     const quoteData = overview.value.distributions?.quote_status || {}
     const quoteList = Object.entries(quoteData).map(([name, value]) => ({ name, value }))
     quoteChartInstance.setOption({
-      tooltip: {
-        trigger: 'item',
-        formatter: '{b}: {c} ({d}%)'
-      },
-      legend: {
-        orient: 'vertical',
-        left: 'left',
-        top: 'center'
-      },
+      tooltip: { trigger: 'item', formatter: '{b}: {c} ({d}%)' },
+      legend: { orient: 'vertical', left: 'left', top: 'center' },
       series: [{
-        name: '报价状态',
-        type: 'pie',
-        radius: ['40%', '70%'],
-        center: ['60%', '50%'],
+        name: '报价状态', type: 'pie', radius: ['40%', '70%'], center: ['60%', '50%'],
         avoidLabelOverlap: false,
-        itemStyle: {
-          borderRadius: 10,
-          borderColor: '#fff',
-          borderWidth: 2
-        },
+        itemStyle: { borderRadius: 10, borderColor: '#fff', borderWidth: 2 },
         label: { show: false },
-        emphasis: {
-          label: { show: true, fontSize: 16, fontWeight: 'bold' }
-        },
+        emphasis: { label: { show: true, fontSize: 16, fontWeight: 'bold' } },
         data: quoteList.length > 0 ? quoteList : [{ name: '暂无数据', value: 1 }]
       }]
     })
@@ -399,21 +375,11 @@ const initCharts = async () => {
     const customerList = Object.entries(customerData).map(([name, value]) => ({ name, value }))
     customerChartInstance.setOption({
       tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
-      grid: {
-        left: '3%',
-        right: '4%',
-        bottom: '3%',
-        containLabel: true
-      },
+      grid: { left: '3%', right: '4%', bottom: '3%', containLabel: true },
       xAxis: { type: 'value' },
-      yAxis: {
-        type: 'category',
-        data: customerList.map(item => item.name)
-      },
+      yAxis: { type: 'category', data: customerList.map(item => item.name) },
       series: [{
-        name: '客户数量',
-        type: 'bar',
-        barWidth: '60%',
+        name: '客户数量', type: 'bar', barWidth: '60%',
         itemStyle: {
           color: new echarts.graphic.LinearGradient(0, 0, 1, 0, [
             { offset: 0, color: '#409EFF' },
@@ -516,6 +482,72 @@ onUnmounted(() => {
 .current-time {
   font-size: 14px;
   color: #909399;
+}
+
+/* 快捷入口卡片 */
+.quick-entry-card {
+  margin-bottom: 20px;
+  border-radius: 8px;
+}
+
+.quick-entry-card .card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.card-subtitle {
+  font-size: 13px;
+  color: #909399;
+}
+
+.quick-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 12px;
+}
+
+.quick-entry-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 8px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s;
+  border: 1px solid transparent;
+}
+
+.quick-entry-item:hover {
+  background: var(--entry-color, #409EFF);
+  border-color: var(--entry-color, #409EFF);
+}
+
+.quick-entry-item:hover .entry-icon {
+  background: rgba(255, 255, 255, 0.9) !important;
+}
+
+.quick-entry-item:hover .entry-label {
+  color: #fff;
+}
+
+.entry-icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.25s;
+}
+
+.entry-label {
+  font-size: 13px;
+  color: #606266;
+  text-align: center;
+  white-space: nowrap;
+  transition: color 0.25s;
 }
 
 /* KPI 卡片 */
@@ -680,14 +712,16 @@ onUnmounted(() => {
   margin-top: 4px;
 }
 
-/* 快捷操作 */
-.quick-actions-card {
-  border-radius: 8px;
+/* 响应式 */
+@media (max-width: 1400px) {
+  .quick-entry-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
 }
 
-.quick-actions {
-  display: flex;
-  gap: 12px;
-  flex-wrap: wrap;
+@media (max-width: 1024px) {
+  .quick-entry-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 </style>

@@ -355,8 +355,12 @@ def create_material(current_user):
         color_name=data.get('color_name', ''),
         env_level=data.get('env_level', '合格'),
         supply_chain=data.get('supply_chain', '直供'),
+        supplier_id=data.get('supplier_id') or 2,  # 默认供应商: 帝标家居
         created_by=1
     )
+    # 品牌默认值
+    if not material.brand:
+        material.brand = 'D&B'
 
     db.session.add(material)
     db.session.flush()
@@ -398,7 +402,8 @@ def update_material(current_user, id):
         'sale_price', 'market_price', 'unit', 'calc_type',
         'stock_quantity', 'stock_warning', 'customization_rules',
         'has_variants', 'variant_options', 'has_craft_parts',
-        'craft_parts', 'description', 'tags', 'status'
+        'craft_parts', 'description', 'tags', 'status',
+        'color_name', 'env_level', 'supply_chain', 'supplier_id'
     ]
 
     for field in fields:
@@ -515,9 +520,11 @@ def delete_variant(current_user, id):
 @material_sku_bp.route('/suppliers', methods=['GET'])
 @jwt_required_v2
 def get_suppliers(current_user):
-    """获取供应商列表"""
+    """获取供应商列表（支持分页）"""
     keyword = request.args.get('keyword', '').strip()
     status = request.args.get('status', '').strip()
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
     
     query = MaterialSupplier.query.filter_by(is_deleted=False)
     
@@ -526,33 +533,113 @@ def get_suppliers(current_user):
             db.or_(
                 MaterialSupplier.name.contains(keyword),
                 MaterialSupplier.contact_person.contains(keyword),
-                MaterialSupplier.phone.contains(keyword)
+                MaterialSupplier.phone.contains(keyword),
+                MaterialSupplier.brand.contains(keyword),
+                MaterialSupplier.main_products.contains(keyword)
             )
         )
     
     if status:
         query = query.filter_by(status=status)
     
-    suppliers = query.order_by(MaterialSupplier.created_at.desc()).all()
+    total = query.count()
+    suppliers = query.order_by(MaterialSupplier.created_at.desc())         .offset((page - 1) * page_size).limit(page_size).all()
+    
+    # 获取员工名称映射
+    from app.models.auth_v2 import UserV2
+    specialist_ids = [s.specialist_id for s in suppliers if s.specialist_id]
+    specialist_map = {}
+    if specialist_ids:
+        users = UserV2.query.filter(UserV2.id.in_(specialist_ids)).all()
+        specialist_map = {u.id: u.display_name or u.username for u in users}
+    
+    # 物料数量映射（通过 supplier_id 关联）
+    from sqlalchemy import func
+    count_rows = db.session.query(
+        MaterialSKU.supplier_id,
+        func.count(MaterialSKU.id)
+    ).filter(
+        MaterialSKU.is_deleted == False,
+        MaterialSKU.supplier_id.isnot(None)
+    ).group_by(MaterialSKU.supplier_id).all()
+    count_map = {r[0]: r[1] for r in count_rows}
+    
+    data = []
+    for s in suppliers:
+        item = s.to_dict()
+        item['specialist_name'] = specialist_map.get(s.specialist_id, '')
+        item['material_count'] = count_map.get(s.id, 0)
+        data.append(item)
+    
     return jsonify({
         'code': 200,
-        'data': [s.to_dict() for s in suppliers]
+        'data': {
+            'items': data,
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        }
     })
 
+
+@material_sku_bp.route('/suppliers/<int:id>/materials', methods=['GET'])
+@jwt_required_v2
+def get_supplier_materials(current_user, id):
+    """获取供应商关联物料列表"""
+    page = request.args.get('page', 1, type=int)
+    page_size = request.args.get('page_size', 20, type=int)
+    keyword = request.args.get('keyword', '').strip()
+    
+    query = MaterialSKU.query.filter_by(is_deleted=False, supplier_id=id)
+    if keyword:
+        query = query.filter(MaterialSKU.name.contains(keyword))
+    
+    total = query.count()
+    items = query.order_by(MaterialSKU.created_at.desc())         .offset((page - 1) * page_size).limit(page_size).all()
+    
+    return jsonify({
+        'code': 200,
+        'data': {
+            'items': [item.to_dict() for item in items],
+            'total': total,
+            'page': page,
+            'page_size': page_size
+        }
+    })
 
 @material_sku_bp.route('/suppliers/<int:id>', methods=['PUT'])
 @jwt_required_v2
 def update_supplier(current_user, id):
-    """更新供应商"""
+    """更新供应商（供应链登记）"""
     supplier = MaterialSupplier.query.get_or_404(id)
     data = request.get_json()
     
+    from datetime import datetime as dt
+    if 'cooperation_date' in data:
+        if data['cooperation_date']:
+            try:
+                supplier.cooperation_date = dt.strptime(data['cooperation_date'], '%Y-%m-%d').date()
+            except ValueError:
+                supplier.cooperation_date = None
+        else:
+            supplier.cooperation_date = None
+    
     supplier.name = data.get('name', supplier.name)
+    supplier.brand = data.get('brand', supplier.brand)
+    supplier.main_products = data.get('main_products', supplier.main_products)
+    supplier.factory_address = data.get('factory_address', supplier.factory_address)
+    supplier.store_address = data.get('store_address', supplier.store_address)
     supplier.contact_person = data.get('contact_person', supplier.contact_person)
     supplier.phone = data.get('phone', supplier.phone)
     supplier.email = data.get('email', supplier.email)
-    supplier.address = data.get('address', supplier.address)
+    supplier.specialist_id = data.get('specialist_id', supplier.specialist_id)
     supplier.status = data.get('status', supplier.status)
+    supplier.level = data.get('level', supplier.level)
+    supplier.payment_method = data.get('payment_method', supplier.payment_method)
+    supplier.bank_account = data.get('bank_account', supplier.bank_account)
+    supplier.bank_name = data.get('bank_name', supplier.bank_name)
+    supplier.tax_number = data.get('tax_number', supplier.tax_number)
+    supplier.address = data.get('address', supplier.address)
     supplier.remark = data.get('remark', supplier.remark)
     
     db.session.commit()
@@ -576,16 +663,41 @@ def delete_supplier(current_user, id):
 @material_sku_bp.route('/suppliers', methods=['POST'])
 @jwt_required_v2
 def create_supplier(current_user):
-    """创建供应商"""
+    """创建供应商（供应链登记）"""
     data = request.get_json()
 
+    # 自动生成供应商编号
+    count = MaterialSupplier.query.count()
+    supplier_code = f'SUP-{str(count + 1).zfill(4)}'
+    
+    from datetime import datetime as dt
+    cooperation_date = None
+    if data.get('cooperation_date'):
+        try:
+            cooperation_date = dt.strptime(data['cooperation_date'], '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
     supplier = MaterialSupplier(
+        supplier_code=supplier_code,
         name=data['name'],
-        contact_person=data.get('contact_person'),
-        phone=data.get('phone'),
-        email=data.get('email'),
-        address=data.get('address'),
-        remark=data.get('remark')
+        brand=data.get('brand', ''),
+        main_products=data.get('main_products', ''),
+        factory_address=data.get('factory_address', ''),
+        store_address=data.get('store_address', ''),
+        contact_person=data.get('contact_person', ''),
+        phone=data.get('phone', ''),
+        email=data.get('email', ''),
+        specialist_id=data.get('specialist_id'),
+        status=data.get('status', 'active'),
+        level=data.get('level', 'B'),
+        cooperation_date=cooperation_date,
+        payment_method=data.get('payment_method', ''),
+        bank_account=data.get('bank_account', ''),
+        bank_name=data.get('bank_name', ''),
+        tax_number=data.get('tax_number', ''),
+        address=data.get('address', ''),
+        remark=data.get('remark', '')
     )
 
     db.session.add(supplier)
@@ -676,6 +788,17 @@ def get_supplier_stats(current_user):
             'terminated': dict(status_stats).get('terminated', 0),
             'material_count': MaterialSKU.query.filter_by(is_deleted=False).count()
         }
+    })
+
+
+@material_sku_bp.route('/suppliers/options', methods=['GET'])
+@jwt_required_v2
+def get_supplier_options(current_user):
+    """获取供应商下拉选项列表（精简版）"""
+    suppliers = MaterialSupplier.query.filter_by(is_deleted=False).order_by(MaterialSupplier.name).all()
+    return jsonify({
+        'code': 200,
+        'data': [{'id': s.id, 'name': s.name, 'brand': s.brand, 'supplier_code': s.supplier_code} for s in suppliers]
     })
 
 

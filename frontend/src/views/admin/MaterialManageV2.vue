@@ -1,5 +1,7 @@
 <template>
   <div class="material-manage-v2">
+    <el-tabs v-model="activeTab" class="material-tabs">
+      <el-tab-pane label="物料列表" name="materials">
     <!-- 页面标题 -->
     <div class="page-header">
       <h2>物料管理 V2</h2>
@@ -130,6 +132,11 @@
         <el-table-column prop="name" label="物料名称" min-width="200" />
         <el-table-column prop="category_name" label="分类" width="160" />
         <el-table-column prop="brand" label="品牌" width="100" />
+        <el-table-column label="供应商" width="120">
+          <template #default="{ row }">
+            {{ getSupplierName(row.supplier_id) }}
+          </template>
+        </el-table-column>
         <el-table-column label="价格" width="150">
           <template #default="{ row }">
             <div>销售: ¥{{ row.sale_price }}</div>
@@ -305,11 +312,21 @@
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item label="供应链">
-                  <el-select v-model="editDialog.form.supply_chain" style="width: 100%">
-                    <el-option label="直供" value="直供" />
-                    <el-option label="经销商" value="经销商" />
-                    <el-option label="代采" value="代采" />
+                <el-form-item label="供应商">
+                  <el-select
+                    v-model="editDialog.form.supplier_id"
+                    filterable
+                    clearable
+                    placeholder="选择供应商"
+                    style="width: 100%"
+                    @change="onSupplierChange"
+                  >
+                    <el-option
+                      v-for="s in supplierOptions"
+                      :key="s.id"
+                      :label="`${s.name}${s.brand ? ' (' + s.brand + ')' : ''}`"
+                      :value="s.id"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
@@ -511,6 +528,29 @@
       </el-table>
     </el-dialog>
 
+    <!-- 批量导入对话框 -->
+    <el-dialog v-model="importDialog.visible" title="批量导入物料" width="500px">
+      <el-upload
+        drag
+        :auto-upload="false"
+        :limit="1"
+        accept=".xlsx,.xls"
+        :on-change="handleImportChange"
+        :on-remove="handleImportRemove"
+        :file-list="importDialog.fileList"
+      >
+        <el-icon class="el-icon--upload"><Upload /></el-icon>
+        <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+        <template #tip>
+          <div class="el-upload__tip">仅支持 .xlsx / .xls 格式，请先下载模板</div>
+        </template>
+      </el-upload>
+      <template #footer>
+        <el-button @click="importDialog.visible = false">取消</el-button>
+        <el-button type="primary" @click="submitImport" :loading="importDialog.loading">开始导入</el-button>
+      </template>
+    </el-dialog>
+
     <!-- 前台展示选择对话框 -->
     <el-dialog v-model="publicDialog.visible" title="前台展示选择" width="900px">
       <div class="public-dialog-content">
@@ -567,15 +607,28 @@
         <el-button type="primary" @click="savePublicSelection" :loading="publicDialog.saving">保存</el-button>
       </template>
     </el-dialog>
+      </el-tab-pane>
+      <el-tab-pane label="供应链登记" name="suppliers">
+        <SupplierManage />
+      </el-tab-pane>
+      <el-tab-pane label="物料分类" name="categories">
+        <CategoryManage />
+      </el-tab-pane>
+    </el-tabs>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Grid, Search } from '@element-plus/icons-vue'
+import { Plus, Grid, Search, Upload, Download } from '@element-plus/icons-vue'
 import request from '@/api/request'
 import ImageCropperUpload from '@/components/ImageCropperUpload.vue'
+import SupplierManage from './SupplierManage.vue'
+import CategoryManage from './CategoryManage.vue'
+
+// Tab 切换
+const activeTab = ref('materials')
 
 // 统计数据
 const stats = ref([
@@ -599,10 +652,6 @@ const filters = reactive({
 // 数据列表
 const materials = ref([])
 const loading = ref(false)
-const importDialogVisible = ref(false)
-const importing = ref(false)
-const uploadRef = ref(null)
-const importFile = ref(null)
 const pagination = reactive({
   page: 1,
   pageSize: 20,
@@ -653,9 +702,36 @@ const editDialog = reactive({
     images: [],
     has_variants: false,
     variant_options: [],
-    variants: []
+    variants: [],
+    supplier_id: null,
+    supply_chain: ''
   }
 })
+
+// 供应商选项
+const supplierOptions = ref([])
+const loadSupplierOptions = async () => {
+  try {
+    const res = await request.get('/materials/suppliers/options')
+    supplierOptions.value = res || []
+    // 新建物料时默认选择帝标家居 (ID=2)
+    const defaultSupplier = supplierOptions.value.find(s => s.id === 2)
+    if (defaultSupplier && !editDialog.form.supplier_id) {
+      editDialog.form.supplier_id = 2
+      editDialog.form.brand = 'D&B'
+    }
+  } catch (e) {
+    supplierOptions.value = []
+  }
+}
+// 选择供应商时自动填充品牌
+const onSupplierChange = (supplierId) => {
+  if (!supplierId) return
+  const supplier = supplierOptions.value.find(s => s.id === supplierId)
+  if (supplier && supplier.brand && !editDialog.form.brand) {
+    editDialog.form.brand = supplier.brand
+  }
+}
 
 // 变体选项编辑
 const variantOptions = ref([])
@@ -867,7 +943,9 @@ const openEditDialog = (row = null) => {
       is_public: true,
       color_name: '',
       env_level: '合格',
-      supply_chain: '直供'
+      supply_chain: '直供',
+      supplier_id: supplierOptions.value.find(s => s.id === 2)?.id || null,
+      brand: 'D&B'
     }
     variantOptions.value = []
   }
@@ -955,6 +1033,49 @@ const handlePublicChange = async (row) => {
   } catch (error) {
     ElMessage.error('更新失败')
     row.is_public = !row.is_public // 回滚
+  }
+}
+
+// 下载导入模板
+const downloadTemplate = () => {
+  const link = document.createElement('a')
+  link.href = '/api/v3/materials/import-template'
+  link.download = '物料导入模板.xlsx'
+  link.click()
+}
+
+// 打开批量导入对话框
+const importDialog = reactive({ visible: false, loading: false, fileList: [] })
+const openImportDialog = () => {
+  importDialog.visible = true
+  importDialog.fileList = []
+}
+const handleImportChange = (file) => {
+  importDialog.fileList = [file]
+}
+const handleImportRemove = () => {
+  importDialog.fileList = []
+}
+const submitImport = async () => {
+  if (importDialog.fileList.length === 0) {
+    ElMessage.warning('请先选择文件')
+    return
+  }
+  importDialog.loading = true
+  try {
+    const formData = new FormData()
+    formData.append('file', importDialog.fileList[0].raw)
+    const res = await request.post('/materials/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' }
+    })
+    ElMessage.success(`导入成功，共导入 ${res?.imported || 0} 条`)
+    importDialog.visible = false
+    loadData()
+    loadStats()
+  } catch (error) {
+    ElMessage.error(error?.response?.data?.message || '导入失败')
+  } finally {
+    importDialog.loading = false
   }
 }
 
@@ -1188,12 +1309,20 @@ const getStatusLabel = (status) => {
   return map[status] || status
 }
 
+// 根据supplier_id获取供应商名称
+const getSupplierName = (supplierId) => {
+  if (!supplierId) return '-'
+  const s = supplierOptions.value.find(s => s.id === supplierId)
+  return s ? s.name : '-'
+}
+
 onMounted(() => {
   loadData()
   loadStats()
   loadCategories()
   loadBrands()
   loadFilterOptions()
+  loadSupplierOptions()
 })
 </script>
 
@@ -1363,5 +1492,13 @@ onMounted(() => {
 .public-dialog-content .el-checkbox {
   margin-right: 10px;
   margin-bottom: 10px;
+}
+
+.material-tabs {
+  --el-tabs-header-height: 48px;
+}
+.material-tabs :deep(.el-tabs__header) {
+  margin-bottom: 16px;
+  padding: 0 20px;
 }
 </style>

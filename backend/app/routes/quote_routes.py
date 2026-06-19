@@ -3,7 +3,7 @@
 V3.0 全新设计
 """
 from flask import Blueprint, request, jsonify, render_template
-import os
+import os, json
 from app import db
 from app.models.quote import Quote, QuoteItem, QuoteTemplate, QUOTE_CATEGORIES, SERVICE_ROLES, ROOM_OPTIONS, QUOTE_STATUS, MeasurementRule, DEFAULT_MEASUREMENT_RULES
 from app.models.quote_space_template import QuoteSpaceTemplate
@@ -62,15 +62,162 @@ def _apply_height_adjustment(height, params):
     return height
 
 
+def _parse_match_conditions(rule):
+    """从规则中解析匹配条件列表，统一为 [{field, op, value}] 格式"""
+    conditions = []
+    # v2: 优先使用 match_conditions (JSON数组)
+    mc = None
+    if hasattr(rule, 'match_conditions') and rule.match_conditions:
+        try:
+            mc = json.loads(rule.match_conditions) if isinstance(rule.match_conditions, str) else rule.match_conditions
+        except Exception:
+            mc = None
+    if mc and isinstance(mc, list) and len(mc) > 0:
+        for c in mc:
+            if isinstance(c, dict) and 'field' in c and 'value' in c:
+                conditions.append({
+                    'field': c['field'],
+                    'op': c.get('op', 'contains'),
+                    'value': c['value']
+                })
+        return conditions
+    # v1 兼容: 从 match_type/match_value/match_field 构建
+    if rule.match_type and rule.match_value:
+        conditions.append({
+            'field': rule.match_field or 'unit',
+            'op': 'contains' if 'keyword' in (rule.match_type or '') else 'equals',
+            'value': rule.match_value
+        })
+    return conditions
+
+
+def _check_conditions(conditions, unit, width, depth, height, category_level2,
+                      custom_name, material_name, process_name):
+    """检查所有条件是否满足（AND关系）"""
+    if not conditions:
+        return True  # 无条件=匹配所有
+    
+    field_map = {
+        'unit': lambda: unit or '',
+        'name': lambda: material_name or '',
+        'material_name': lambda: material_name or '',
+        'custom_name': lambda: custom_name or '',
+        'category_level2': lambda: category_level2 or '',
+        'category_level1': lambda: '',  # 暂不传
+        'process_name': lambda: process_name or '',
+    }
+    
+    unit_cat = _classify_unit(unit)
+    unit_cat_map = {
+        'length': LENGTH_UNITS,
+        'area': AREA_UNITS,
+        'volume': VOLUME_UNITS,
+        'quantity': (),
+    }
+    
+    for cond in conditions:
+        field = cond['field']
+        op = cond['op']
+        val = cond['value']
+        actual = field_map.get(field, lambda: '')()
+        
+        if field == 'unit_category':
+            # 特殊: 按单位分类匹配
+            cat = val.lower()
+            if cat == 'length' and unit_cat != 'length':
+                return False
+            if cat == 'area' and unit_cat != 'area':
+                return False
+            if cat == 'volume' and unit_cat != 'volume':
+                return False
+            if cat == 'quantity' and unit_cat != 'quantity':
+                return False
+            continue
+        
+        if op == 'contains':
+            keywords = [k.strip() for k in str(val).split(',') if k.strip()]
+            if not any(kw.lower() in str(actual).lower() for kw in keywords):
+                return False
+        elif op == 'equals':
+            if str(actual).strip().lower() != str(val).strip().lower():
+                return False
+        elif op == 'unit_category':
+            cat = str(val).lower()
+            if cat == 'length' and unit_cat != 'length':
+                return False
+            if cat == 'area' and unit_cat != 'area':
+                return False
+            if cat == 'volume' and unit_cat != 'volume':
+                return False
+            if cat == 'quantity' and unit_cat != 'quantity':
+                return False
+    
+    return True
+
+
+def _calc_by_mode(calc_mode, w, d, h, rule_params):
+    """根据计算模式返回计量值（不含系数/最小值）"""
+    dims = [v for v in [w, d, h] if v > 0]
+    if not dims:
+        return 1.0
+    
+    mode = (calc_mode or '').lower()
+    
+    if mode == 'length':
+        return max(dims) / 1000.0
+    elif mode == 'area':
+        if len(dims) >= 2:
+            sd = sorted(dims, reverse=True)
+            return (sd[0] * sd[1]) / 1000000.0
+        return max(dims) / 1000.0
+    elif mode == 'volume':
+        return (w * d * h) / 1000000000.0
+    elif mode == 'quantity':
+        return 1.0
+    elif mode == 'door_frame':
+        # (高度×2 + 宽度) / 1000
+        return ((h * 2 + w) if h > 0 else (max(dims) * 2 + w)) / 1000.0
+    elif mode == 'four_sided':
+        # (宽度 + 高度) × 2 / 1000
+        return ((w + h) * 2) if (w > 0 and h > 0) else (sum(dims[:2]) * 2) / 1000.0
+    elif mode == 'adjust_height':
+        # 高度补足后取最大值
+        thresholds = (rule_params or {}).get('thresholds', [])
+        adjusted = h
+        if thresholds:
+            for t in sorted(thresholds, key=lambda x: x.get('min', 0)):
+                if adjusted < t['min']:
+                    adjusted = t['adjust_to']
+                    break
+        ad = [v for v in [w, d, adjusted] if v > 0]
+        return max(ad) / 1000.0 if ad else 1.0
+    elif mode == 'adjust_min_area':
+        # 面积计算 + 保底
+        if len(dims) >= 2:
+            sd = sorted(dims, reverse=True)
+            result = (sd[0] * sd[1]) / 1000000.0
+        else:
+            result = max(dims) / 1000.0
+        min_v = (rule_params or {}).get('min_value', 0)
+        return max(result, min_v)
+    elif mode == 'custom':
+        # 自定义公式: 暂不支持安全eval，返回1
+        return 1.0
+    else:
+        # 未知模式，fallback按单位分类
+        return 1.0
+
+
 def calc_measurement_value(unit, width=None, depth=None, height=None, manual_value=None,
                            category_level2=None, custom_name=None, material_name=None,
                            process_name=None, rules=None):
-    """根据规则引擎计算计量值
+    """根据规则引擎计算计量值（v2 参数化 + v1 兼容）
 
-    规则优先级：
+    优先级：
     1. 手动值覆盖
-    2. 特殊修正规则（门套/四方/投影/柜门/赠送等）
-    3. 基础计算规则（长度/面积/体积/数量）
+    2. v2 参数化规则（有 calc_mode 或 match_conditions 的规则）
+    3. v1 兼容硬编码规则（旧规则按 rule_type 匹配）
+    4. fallback 默认计算
     """
     # 1. 手动值优先
     if manual_value is not None:
@@ -88,7 +235,11 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
     if not dims:
         return 1
 
-    # 辅助函数：检查关键词匹配
+    # 加载规则
+    if rules is None:
+        rules = _get_measurement_rules()
+
+    # 辅助函数：检查关键词匹配 (v1 兼容)
     def _match_keywords(text, keywords_str):
         if not text or not keywords_str:
             return False
@@ -96,9 +247,30 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
         text_lower = str(text).lower()
         return any(kw.lower() in text_lower for kw in keywords)
 
-    # 加载规则（如果未传入）
-    if rules is None:
-        rules = _get_measurement_rules()
+    # --- v2 参数化路径 ---
+    # 先检查有 calc_mode 或 match_conditions 的规则
+    v2_rules = [r for r in rules if getattr(r, 'calc_mode', None) or 
+                (getattr(r, 'match_conditions', None) and r.match_conditions)]
+    for rule in v2_rules:
+        conditions = _parse_match_conditions(rule)
+        if not _check_conditions(conditions, unit, w, d, h, category_level2,
+                                 custom_name, material_name, process_name):
+            continue
+        # 匹配成功，计算计量值
+        calc_mode = getattr(rule, 'calc_mode', None) or rule.rule_type
+        result = _calc_by_mode(calc_mode, w, d, h, rule.rule_params)
+        # 应用系数
+        coef = getattr(rule, 'coefficient', None)
+        if coef is not None and coef != 1:
+            result *= coef
+        # 应用最小值保底
+        min_v = getattr(rule, 'min_value', None)
+        if min_v and result < min_v:
+            result = min_v
+        return round(result, 4)
+
+    # --- v1 兼容路径（原有硬编码逻辑） ---
+    unit_cat = _classify_unit(unit)
 
     # 工艺赠送检测
     process_free = False
@@ -115,19 +287,14 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
             field_val = ''
             if rule.match_field == 'category_level2':
                 field_val = category_level2 or ''
-            elif rule.match_field == 'category_level1':
-                field_val = ''
             if _match_keywords(field_val, rule.match_value):
                 adjusted_h = _apply_height_adjustment(h, rule.rule_params or {})
                 break
 
-    # 重新构建尺寸数组（使用调整后的高度）
+    # 重新构建尺寸数组
     adjusted_dims = [v for v in [w, d, adjusted_h] if v > 0]
     if not adjusted_dims:
         adjusted_dims = dims
-
-    # 2. 检查特殊规则
-    unit_cat = _classify_unit(unit)
 
     # 门套/垭口套
     for rule in rules:
@@ -136,7 +303,6 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
             if rule.match_field == 'name':
                 field_val = material_name or ''
             if _match_keywords(field_val, rule.match_value) and unit_cat == 'length':
-                # (高度×2 + 宽度) / 1000
                 return round((adjusted_h * 2 + w) / 1000.0, 4)
 
     # 四方轮廓
@@ -146,10 +312,9 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
             if rule.match_field == 'custom_name':
                 field_val = custom_name or ''
             if _match_keywords(field_val, rule.match_value) and unit_cat == 'length':
-                # (宽度 + 高度) × 2 / 1000
                 return round((w + adjusted_h) * 2 / 1000.0, 4)
 
-    # 3. 基础计算
+    # 基础计算
     result = 1
     if unit_cat == 'length':
         result = max(adjusted_dims) / 1000.0
@@ -166,7 +331,7 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
 
     result = round(result, 4)
 
-    # 4. 柜门面积保底
+    # 柜门面积保底
     for rule in rules:
         if rule.rule_type == 'adjust_min_area':
             field_val = ''
@@ -180,24 +345,57 @@ def calc_measurement_value(unit, width=None, depth=None, height=None, manual_val
 
 
 def calc_item_total_price(item, rules=None):
-    """计算单项总价: qty * measurement_value * process_coefficient * unit_price + process_quantity * process_unit_price"""
+    """计算单项总价 (v2 参数化 + v1 兼容)
+    
+    v2: 规则可覆盖工艺系数/数量/单价
+    公式: qty × mval × p_coef × u_price + p_qty × p_unit_price
+    """
     qty = float(item.quantity or 1)
     m_val = float(item.measurement_value or 1)
-    p_coef = float(item.process_coefficient or 1)  # 工艺系数，默认1
     u_price = float(item.unit_price or 0)
-
+    
+    # 默认从物料项取值
+    p_coef = float(item.process_coefficient or 1)
+    process_qty = float(item.process_quantity or 0)
+    process_unit_price = float(item.process_unit_price or 0)
+    
+    # v2: 查找匹配规则，应用工艺参数覆盖
+    if rules is None:
+        rules = _get_measurement_rules()
+    
+    matched_rule = None
+    v2_rules = [r for r in rules if getattr(r, 'calc_mode', None) or 
+                (getattr(r, 'match_conditions', None) and r.match_conditions)]
+    for rule in v2_rules:
+        conditions = _parse_match_conditions(rule)
+        if _check_conditions(conditions, item.unit, item.width, item.depth, item.height,
+                             getattr(item, 'category_level2', None),
+                             getattr(item, 'custom_name', None),
+                             getattr(item, 'name', None),
+                             getattr(item, 'process_name', None)):
+            matched_rule = rule
+            break
+    
+    # 应用覆盖值
+    if matched_rule:
+        v = getattr(matched_rule, 'process_coefficient_override', None)
+        if v is not None:
+            p_coef = float(v)
+        v = getattr(matched_rule, 'process_qty_override', None)
+        if v is not None:
+            process_qty = float(v)
+        v = getattr(matched_rule, 'process_price_override', None)
+        if v is not None:
+            process_unit_price = float(v)
+    
     # 基础金额 = 数量 × 计量值 × 工艺系数 × 单价
     base_amount = qty * m_val * p_coef * u_price
 
     # 工艺金额 = 工艺数量 × 工艺单价
-    process_qty = float(item.process_quantity or 0)
-    process_unit_price = float(item.process_unit_price or 0)
     process_amount = process_qty * process_unit_price
 
-    # 检查赠送规则（工艺金额归零）
+    # 检查赠送规则（工艺金额归零）- v1 兼容
     if process_amount > 0:
-        if rules is None:
-            rules = _get_measurement_rules()
         process_name = getattr(item, 'process_name', None) or ''
         for rule in rules:
             if rule.rule_type == 'process_free':
@@ -3146,6 +3344,16 @@ def create_measurement_rule(current_user):
         match_field=data.get('match_field', 'unit'),
         rule_type=data.get('rule_type', 'length'),
         rule_params=data.get('rule_params', {}),
+        formula=data.get('formula', ''),
+        unit=data.get('unit', ''),
+        coefficient=data.get('coefficient', 1),
+        min_value=data.get('min_value', 0),
+        calc_mode=data.get('calc_mode', ''),
+        match_conditions=json.dumps(data.get('match_conditions', []), ensure_ascii=False) if data.get('match_conditions') else None,
+        process_coefficient_override=data.get('process_coefficient_override'),
+        process_qty_override=data.get('process_qty_override'),
+        process_price_override=data.get('process_price_override'),
+        amount_formula=data.get('amount_formula', ''),
         priority=data.get('priority', 100),
         sort_order=data.get('sort_order', 0),
         is_enabled=data.get('is_enabled', True),
@@ -3164,9 +3372,16 @@ def update_measurement_rule(current_user, rule_id):
     rule = MeasurementRule.query.get_or_404(rule_id)
     data = request.get_json()
     for field in ['name', 'description', 'match_type', 'match_value', 'match_field',
-                  'rule_type', 'rule_params', 'priority', 'sort_order', 'is_enabled']:
+                  'rule_type', 'rule_params', 'formula', 'unit', 'coefficient', 'min_value',
+                  'calc_mode', 'process_coefficient_override', 'process_qty_override',
+                  'process_price_override', 'amount_formula',
+                  'priority', 'sort_order', 'is_enabled']:
         if field in data:
             setattr(rule, field, data[field])
+    # match_conditions 是JSON数组，需要序列化
+    if 'match_conditions' in data:
+        mc = data['match_conditions']
+        rule.match_conditions = json.dumps(mc, ensure_ascii=False) if mc else None
     rule.updated_at = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     db.session.commit()
     return jsonify({'code': 200, 'message': '更新成功', 'data': rule.to_dict()})
