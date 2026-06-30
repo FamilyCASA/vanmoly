@@ -253,7 +253,7 @@
         class="grid-card"
         :class="{ 'fade-in': true }"
         :style="{ animationDelay: `${index * 50}ms` }"
-        @click="openCaseDetail(caseItem)"
+        @click="router.push(`/cases/${caseItem.id}`)"
       >
         <!-- 图片容器 4:3 比例 -->
         <div class="grid-image-wrap">
@@ -340,63 +340,7 @@
 
     </el-dialog>
 
-    <!-- 案例详情弹窗 -->
-    <el-dialog
-      v-model="detailDialogVisible"
-      :title="currentCaseDetail?.title || '案例详情'"
-      width="900px"
-      class="case-detail-dialog"
-      destroy-on-close
-    >
-      <div v-loading="detailLoading" class="detail-content">
-        <!-- 高清大图 -->
-        <div class="detail-image-wrap">
-          <img
-            v-if="hasValidCoverImage(currentCaseDetail)"
-            :src="getCoverImage(currentCaseDetail)"
-            :alt="currentCaseDetail?.title"
-            class="detail-image"
-          >
-          <div v-else class="detail-no-image" :style="{ background: getAtmosphereGradient(currentCaseDetail?.atmosphere) }">
-            <span>{{ currentCaseDetail?.title }}</span>
-          </div>
-        </div>
-        <!-- 三元标签 -->
-        <div class="detail-tags" v-if="currentCaseDetail">
-          <span v-if="currentCaseDetail.space_type" class="tag tag-space">{{ currentCaseDetail.space_type }}</span>
-          <span v-if="currentCaseDetail.atmosphere" class="tag tag-atmosphere">{{ getAtmosphereLabel(currentCaseDetail.atmosphere) }}</span>
-          <span v-if="currentCaseDetail.package_type" class="tag tag-product">{{ currentCaseDetail.package_type }}</span>
-        </div>
-        <!-- 描述文案：从首阶段取 -->
-        <div class="detail-description" v-if="getFirstPhaseDescription(currentCaseDetail)">
-          <h4>设计解说</h4>
-          <p>{{ getFirstPhaseDescription(currentCaseDetail) }}</p>
-        </div>
-        <!-- 其他信息 -->
-        <div class="detail-meta" v-if="currentCaseDetail">
-          <div class="meta-item" v-if="currentCaseDetail.house_type">
-            <span class="meta-label">户型</span>
-            <span class="meta-value">{{ currentCaseDetail.house_type }}</span>
-          </div>
-          <div class="meta-item" v-if="currentCaseDetail.area">
-            <span class="meta-label">面积</span>
-            <span class="meta-value">{{ currentCaseDetail.area }}m²</span>
-          </div>
-          <div class="meta-item" v-if="currentCaseDetail.city">
-            <span class="meta-label">城市</span>
-            <span class="meta-value">{{ currentCaseDetail.city }}</span>
-          </div>
-          <div class="meta-item" v-if="currentCaseDetail.total_price">
-            <span class="meta-label">总价</span>
-            <span class="meta-value">¥{{ formatPrice(currentCaseDetail.total_price) }}万</span>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
-        <el-button type="primary" @click="router.push(`/cases/${currentCaseDetail?.id}`)">查看完整详情</el-button>
-      </template>
-    </el-dialog>
+
 
   </div>
 
@@ -464,9 +408,6 @@ const total = ref(0)
 const totalPages = computed(() => Math.ceil(total.value / pagination.page_size))
 
 // 详情弹窗
-const detailDialogVisible = ref(false)
-const currentCaseDetail = ref(null)
-const detailLoading = ref(false)
 
 // Hero 轮播相关
 
@@ -1497,22 +1438,9 @@ const submitSubscribe = async () => {
 
 
 
-// 打开案例详情弹窗
-const openCaseDetail = async (caseItem) => {
-  currentCaseDetail.value = caseItem
-  detailDialogVisible.value = true
-  detailLoading.value = true
-  try {
-    const { getPublicCase } = await import('@/api/case')
-    const res = await getPublicCase(caseItem.id)
-    if (res?.code === 200 && res.data) {
-      currentCaseDetail.value = { ...caseItem, ...res.data }
-    }
-  } catch (error) {
-    console.error('获取案例详情失败:', error)
-  } finally {
-    detailLoading.value = false
-  }
+// 打开案例详情页（路由导航）
+const openCaseDetail = (caseItem) => {
+  router.push(`/cases/${caseItem.id}`)
 }
 
 // 分页切换
