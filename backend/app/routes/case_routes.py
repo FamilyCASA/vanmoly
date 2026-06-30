@@ -2421,7 +2421,7 @@ def update_slide_config(current_user, id):
 def get_slide_data(current_user, id):
     """获取案例幻灯片完整数据（用于前端渲染）"""
     try:
-        from app.models.case import CasePhase, CaseSpaceRendering, CaseRenderingItem
+        from app.models.case import CasePhase, CaseSpaceRendering, CaseRenderingItem, CaseSlideConfig, CaseSpaceMaterial
         from app.models.frontend_config import PageConfig
         from app.models.hr import Employee
 
@@ -2822,7 +2822,7 @@ def batch_import_materials(current_user, id):
 def get_public_slide_data(id):
     """公开接口：获取案例幻灯片数据"""
     try:
-        from app.models.case import CasePhase, CaseSpaceRendering
+        from app.models.case import CasePhase, CaseSpaceRendering, CaseSlideConfig, CaseSpaceMaterial
         from app.models.frontend_config import PageConfig
         from app.models.hr import Employee
 
