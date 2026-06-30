@@ -14,13 +14,23 @@
       </div>
       
       <div class="nav-menu">
-        <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' && !$route.hash }">首页</router-link>
-        <a href="/#services" class="nav-link">全案服务</a>
-        <a href="/#process" class="nav-link">全案流程</a>
-        <a href="/#cases" class="nav-link">精选案例</a>
-        <a href="/#about" class="nav-link">关于设记家</a>
-        <a href="/#partner" class="nav-link">合作品牌</a>
-        <a href="/#contact" class="nav-link">联系我们</a>
+        <!-- 首页下拉菜单 -->
+        <div class="nav-dropdown" @mouseenter="showHomeDropdown = true" @mouseleave="showHomeDropdown = false">
+          <router-link to="/" class="nav-link" :class="{ active: $route.path === '/' && !$route.hash }">
+            首页
+            <span class="dropdown-arrow" :class="{ 'rotate': showHomeDropdown }">▼</span>
+          </router-link>
+          <transition name="dropdown">
+            <div v-show="showHomeDropdown" class="dropdown-menu">
+              <a href="/#about" class="dropdown-item" @click="showHomeDropdown = false">关于设记家</a>
+              <a href="/#services" class="dropdown-item" @click="showHomeDropdown = false">全案服务</a>
+              <a href="/#process" class="dropdown-item" @click="showHomeDropdown = false">全案流程</a>
+              <a href="/#cases" class="dropdown-item" @click="showHomeDropdown = false">精选案例</a>
+              <a href="/#partners" class="dropdown-item" @click="showHomeDropdown = false">合作品牌</a>
+              <a href="/#contact" class="dropdown-item" @click="showHomeDropdown = false">联系我们</a>
+            </div>
+          </transition>
+        </div>
         <router-link to="/book" class="nav-link" :class="{ active: $route.path === '/book' }">预约中心</router-link>
         <router-link to="/cases" class="nav-link" :class="{ active: $route.path.startsWith('/cases') }">案例中心</router-link>
         <router-link to="/proposals" class="nav-link" :class="{ active: $route.path.startsWith('/proposals') || $route.path.startsWith('/slides') }">提案中心</router-link>
@@ -39,12 +49,15 @@
     <!-- 移动端菜单 -->
     <div class="mobile-menu" :class="{ 'open': mobileMenuOpen }">
       <router-link to="/" @click="mobileMenuOpen = false">首页</router-link>
-      <a href="/#services" @click="mobileMenuOpen = false">全案服务</a>
-      <a href="/#process" @click="mobileMenuOpen = false">全案流程</a>
-      <a href="/#cases" @click="mobileMenuOpen = false">精选案例</a>
-      <a href="/#about" @click="mobileMenuOpen = false">关于设记家</a>
-      <a href="/#partner" @click="mobileMenuOpen = false">合作品牌</a>
-      <a href="/#contact" @click="mobileMenuOpen = false">联系我们</a>
+      <div class="mobile-submenu">
+        <span class="mobile-submenu-title">— 首页导航</span>
+        <a href="/#about" @click="mobileMenuOpen = false">关于设记家</a>
+        <a href="/#services" @click="mobileMenuOpen = false">全案服务</a>
+        <a href="/#process" @click="mobileMenuOpen = false">全案流程</a>
+        <a href="/#cases" @click="mobileMenuOpen = false">精选案例</a>
+        <a href="/#partners" @click="mobileMenuOpen = false">合作品牌</a>
+        <a href="/#contact" @click="mobileMenuOpen = false">联系我们</a>
+      </div>
       <router-link to="/book" @click="mobileMenuOpen = false">预约中心</router-link>
       <router-link to="/cases" @click="mobileMenuOpen = false">案例中心</router-link>
       <router-link to="/proposals" @click="mobileMenuOpen = false">提案中心</router-link>
@@ -62,6 +75,7 @@ const route = useRoute()
 const router = useRouter()
 const scrolled = ref(false)
 const mobileMenuOpen = ref(false)
+const showHomeDropdown = ref(false)
 
 const props = defineProps({
   // 沉浸式选品模式：筛选栏锁定时 Navbar 也跟随页面滚走
@@ -144,11 +158,12 @@ onUnmounted(() => {
 .nav-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 0 40px;
+  padding: 0 24px;
   height: 80px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  gap: 24px;
 }
 
 .nav-brand {
@@ -159,17 +174,17 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   gap: 12px;
-
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 6px;
-  padding: 4px 14px 4px 8px;}
+  padding: 4px 14px 4px 8px;
+}
 
-/* white/scrolled background */
+/* scrolled background - 保持一致的深色背景 */
 .navbar.scrolled .logo-mark,
 .navbar:not(.transparent) .logo-mark {
-  background: rgba(0, 0, 0, 0.03);
-  border: 1px solid rgba(0, 0, 0, 0.06);
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 .logo-icon {
@@ -181,7 +196,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: row;
   align-items: center;
-  background: rgba(255, 255, 255, 0.12);
   padding: 4px 12px 4px 8px;
   border-radius: 4px;
   gap: 8px;
@@ -216,7 +230,8 @@ onUnmounted(() => {
 .nav-menu {
   display: flex;
   align-items: center;
-  gap: 40px;
+  gap: 20px;
+  margin-left: 16px;
 }
 
 .nav-link {
@@ -265,6 +280,73 @@ onUnmounted(() => {
 .nav-link:hover::after,
 .nav-link.active::after {
   width: 100%;
+}
+
+/* 首页下拉菜单 */
+.nav-dropdown {
+  position: relative;
+}
+
+.dropdown-arrow {
+  display: inline-block;
+  margin-left: 4px;
+  font-size: 10px;
+  transition: transform 0.3s ease;
+  opacity: 0.7;
+}
+
+.dropdown-arrow.rotate {
+  transform: rotate(180deg);
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-top: 8px;
+  background: var(--bg-elevated, #111111);
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.6);
+  padding: 8px 0;
+  min-width: 140px;
+  z-index: 1001;
+  border: 1px solid var(--border, #2a2a3e);
+}
+
+.dropdown-item {
+  display: block;
+  padding: 10px 20px;
+  color: var(--text-secondary, #A0A0B8);
+  text-decoration: none;
+  font-size: 14px;
+  transition: all 0.2s ease;
+  position: relative;
+  border-left: 3px solid transparent;
+}
+
+.dropdown-item:hover {
+  color: var(--text-title, #FFFFFF);
+  background: rgba(64, 158, 255, 0.1);
+  border-left-color: var(--primary, #409EFF);
+}
+
+/* 下拉菜单动画 */
+.dropdown-enter-active,
+.dropdown-leave-active {
+  transition: all 0.25s ease;
+}
+
+.dropdown-enter-from,
+.dropdown-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.dropdown-enter-to,
+.dropdown-leave-from {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .nav-actions {
@@ -414,6 +496,21 @@ onUnmounted(() => {
 .mobile-menu .btn-primary {
   margin-top: 8px;
   justify-content: center;
+}
+
+.mobile-submenu {
+  display: flex;
+  flex-direction: column;
+  padding-left: 16px;
+  border-left: 2px solid var(--border, #2a2a3e);
+  margin: 4px 0 4px 8px;
+}
+
+.mobile-submenu-title {
+  font-size: 12px;
+  color: var(--text-secondary, #A0A0B8);
+  padding: 8px 0;
+  margin-bottom: 4px;
 }
 
 /* 响应式 */
