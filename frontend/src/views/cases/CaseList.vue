@@ -3,8 +3,17 @@
   <div class="case-list-page">
 
     <!-- 统一导航栏 -->
-
     <Navbar />
+
+    <!-- 筛选向导 -->
+    <CaseFilterWizard
+      :stages="wizardStages"
+      :budgets="wizardBudgets"
+      :styles="wizardStyles"
+      @filter-change="onWizardFilterChange"
+      @skip="onWizardSkip"
+      @reset="onWizardReset"
+    />
 
 
 
@@ -214,218 +223,11 @@
 
 
 
-    <!-- 第二层:服务流程阶段横向筛选(横排按钮,点击展开细分节点) -->
+    <!-- [已替换为筛选向导组件] 原有的复杂筛选区域已注释，如需恢复请删除此注释标记
 
-    <div class="workflow-phase-filter-bar">
+    <div class="workflow-phase-filter-bar">...</div>
 
-      <div class="filter-row-wrapper"><span class="row-label">服务阶段</span><div class="phase-filter-row">
-
-        <button
-
-          v-for="phase in workflowPhases"
-
-          :key="phase.key"
-
-          class="phase-filter-btn"
-
-          :class="{ active: selectedWorkflowPhase === phase.key, expanded: expandedPhase === phase.key }"
-
-          @click="togglePhaseExpand(phase)"
-
-        >
-
-          <span class="phase-dot breathing-dot" v-if="phase.count > 0"></span>
-
-          <span class="phase-name">{{ phase.label }}</span>
-
-          <span class="phase-count" v-if="phase.count">({{ phase.count }})</span>
-
-          <el-icon class="phase-arrow" :class="{ rotated: expandedPhase === phase.key }"><CaretBottom /></el-icon>
-
-        </button>
-
-        <button class="phase-clear-btn" v-if="selectedWorkflowPhase" @click="clearWorkflowFilter">
-
-          <el-icon><Close /></el-icon> 清除筛选
-
-        </button>
-
-      </div>
-
-
-
-      <!-- 展开的节点列表(横向滚动) -->
-
-      <transition name="slide-down">
-
-        <div class="phase-nodes-panel" v-if="expandedPhase && phaseNodes[expandedPhase]?.length > 0">
-
-          <div class="nodes-scroll">
-
-            <button
-
-              v-for="node in phaseNodes[expandedPhase]"
-
-              :key="node.id"
-
-              class="node-chip"
-
-              :class="{ selected: selectedNodeId === node.id }"
-
-              @click="selectNode(node)"
-
-              :title="node.caseTitle + ' - ' + node.node_name"
-
-            >
-
-              <span class="node-phase-tag">{{ getPhaseShortLabel(node.phase) }}</span>
-
-              <span class="node-name">{{ node.node_name }}</span>
-
-              <span class="node-case" v-if="node.caseTitle">{{ node.caseTitle }}</span>
-
-            </button>
-
-          </div>
-
-        </div>
-
-        <div class="phase-nodes-panel phase-nodes-loading" v-else-if="expandedPhase && loadingNodes">
-
-          <span class="loading-text">加载节点中...</span>
-
-        </div>
-
-        <div class="phase-nodes-panel phase-nodes-empty" v-else-if="expandedPhase">
-
-          <span>该阶段暂无节点数据</span>
-
-        </div>
-
-      </transition>
-
-    </div></div>
-
-
-
-<!-- 第一层:氛围选择Tab(蔚来车型Tab风格) -->
-
-    <div class="filter-row-wrapper"><span class="row-label">空间氛围</span><div class="atmosphere-tabs">
-
-      <div
-
-        v-for="atm in atmospheres"
-
-        :key="atm.key"
-
-        class="tab-item"
-
-        :class="{ active: filters.atmosphere === atm.value }"
-
-        :style="{
-
-          backgroundColor: atm.color,
-
-          color: atm.textColor,
-
-          borderColor: atm.color
-
-        }"
-
-        @click="selectAtmosphere(atm.key)"
-
-      >
-
-        <span class="tab-label">{{ atm.label }}</span>
-
-        <span class="tab-count" v-if="atm.count">{{ atm.count }}</span>
-
-      </div>
-
-    </div></div>
-
-
-
-    <!-- 预算数字分段筛选 -->
-
-    <div class="filter-row-wrapper"><span class="row-label">预算筛选</span><div class="budget-seg-bar">
-
-      <div class="budget-seg-header">
-
-        <span class="budget-seg-label">预算区间</span>
-
-        <span class="budget-seg-hint" v-if="!selectedBudgetSeg">点击选择</span>
-
-        <span class="budget-seg-active" v-else>
-
-          <span class="budget-seg-chip">{{ selectedBudgetSeg.label }}</span>
-
-          <span class="budget-seg-count">约 {{ budgetTip }} 个方案</span>
-
-          <button class="budget-seg-clear" @click="clearBudgetFilter">清除</button>
-
-        </span>
-
-      </div>
-
-      <div class="budget-seg-tags">
-
-        <button v-for="seg in budgetSegments" :key="seg.key" class="seg-btn"
-
-          :class="{ active: selectedBudgetSeg?.key === seg.key }"
-
-          @click="selectSeg(seg)">{{ seg.label }}</button>
-
-      </div>
-
-
-
-      
-
-    </div></div>
-
-    <!-- 偏好色筛选(来自数据库实际配色,点击快速筛选) -->
-
-    <div class="filter-row-wrapper"><span class="row-label">颜色偏好</span><div class="preference-color-bar" v-if="colorPalette.length > 0">
-
-      <div class="pref-color-row">
-
-
-        <div class="pref-color-cards">
-
-          <div
-
-            v-for="color in colorPalette"
-
-            :key="color.hex"
-
-            class="pref-color-card"
-
-            :class="{ active: selectedColor === color.hex }"
-
-            :style="{ backgroundColor: color.hex }"
-
-            :title="color.hex + (color.count ? ' (' + color.count + '个方案)' : '')"
-
-            @click="selectColor(color.hex)"
-
-          >
-
-            <span class="pref-color-count" v-if="color.count">{{ color.count }}</span>
-
-          </div>
-
-        </div>
-
-        <button class="pref-clear-btn" v-if="selectedColor" @click="clearColorFilter">
-
-          <el-icon><Close /></el-icon>清除
-
-        </button>
-
-      </div>
-
-    </div></div>
+    -->
 
 
 
@@ -600,8 +402,8 @@ import { Bell, Plus, Minus, CaretBottom, Close, ArrowRight } from '@element-plus
 import { getPublicCases, getCaseFilters, subscribeCase, getWorkflowTimeline } from '@/api/case'
 
 import Navbar from '@/components/Navbar.vue'
-
 import Footer from '@/components/Footer.vue'
+import CaseFilterWizard from '@/components/case/CaseFilterWizard.vue'
 
 
 
@@ -818,6 +620,172 @@ const clearWorkflowFilter = () => {
   selectedNodeId.value = null
 
   expandedPhase.value = ''
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
+// ==================== 筛选向导数据 ====================
+
+const wizardStages = computed(() => [
+
+  { value: 'acquisition', label: '刚接触，了解中', desc: '获客沉淀阶段', icon: '👋', count: workflowPhases.value.find(p => p.key === 'acquisition')?.count || 0 },
+
+  { value: 'conversion', label: '已确定，准备签约', desc: '转化签约阶段', icon: '📝', count: workflowPhases.value.find(p => p.key === 'conversion')?.count || 0 },
+
+  { value: 'preparation', label: '前期准备中', desc: '设计准备阶段', icon: '📐', count: workflowPhases.value.find(p => p.key === 'preparation')?.count || 0 },
+
+  { value: 'construction', label: '正在施工', desc: '硬装施工阶段', icon: '🔨', count: workflowPhases.value.find(p => p.key === 'construction')?.count || 0 },
+
+  { value: 'soft_service', label: '软装搭配', desc: '软装服务阶段', icon: '🛋️', count: workflowPhases.value.find(p => p.key === 'soft_service')?.count || 0 },
+
+  { value: 'after_sales', label: '售后服务', desc: '售后保障阶段', icon: '✅', count: workflowPhases.value.find(p => p.key === 'after_sales')?.count || 0 }
+
+])
+
+
+
+const wizardBudgets = ref([
+
+  { value: '', label: '不限预算', count: 0 },
+
+  { value: '0-50000', label: '5万以下', count: 0 },
+
+  { value: '50000-150000', label: '5-15万', count: 0 },
+
+  { value: '150000-350000', label: '15-35万', count: 0 },
+
+  { value: '350000-600000', label: '35-60万', count: 0 },
+
+  { value: '600000-', label: '60万以上', count: 0 }
+
+])
+
+
+
+const wizardStyles = computed(() => [
+
+  { value: 'warm', label: '温馨', gradient: 'linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 100%)', count: 0 },
+
+  { value: 'fresh', label: '清新', gradient: 'linear-gradient(135deg, #d4e8d4 0%, #c5dcc5 100%)', count: 0 },
+
+  { value: 'simple', label: '简约', gradient: 'linear-gradient(135deg, #e8e8e8 0%, #d4d4d4 100%)', count: 0 },
+
+  { value: 'luxury', label: '轻奢', gradient: 'linear-gradient(135deg, #f0e6d2 0%, #e5d5b5 100%)', count: 0 },
+
+  { value: 'modern', label: '现代', gradient: 'linear-gradient(135deg, #d4d8e8 0%, #c5c9d8 100%)', count: 0 },
+
+  { value: '', label: '不限风格', gradient: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)', count: 0 }
+
+])
+
+
+
+// 向导筛选变化处理
+
+const onWizardFilterChange = (wizardFilters) => {
+
+  // 阶段筛选
+
+  if (wizardFilters.stage) {
+
+    selectedWorkflowPhase.value = wizardFilters.stage
+
+  } else {
+
+    selectedWorkflowPhase.value = ''
+
+  }
+
+
+
+  // 预算筛选
+
+  if (wizardFilters.budget) {
+
+    const budgetRange = wizardFilters.budget.split('-')
+
+    filters.budget_min = budgetRange[0] ? parseInt(budgetRange[0]) : null
+
+    filters.budget_max = budgetRange[1] ? parseInt(budgetRange[1]) : null
+
+  } else {
+
+    filters.budget_min = null
+
+    filters.budget_max = null
+
+  }
+
+
+
+  // 风格筛选
+
+  if (wizardFilters.style) {
+
+    filters.atmosphere = wizardFilters.style
+
+  } else {
+
+    filters.atmosphere = ''
+
+  }
+
+
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
+const onWizardSkip = () => {
+
+  // 跳过向导，显示全部
+
+  selectedWorkflowPhase.value = ''
+
+  filters.budget_min = null
+
+  filters.budget_max = null
+
+  filters.atmosphere = ''
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
+const onWizardReset = () => {
+
+  // 重置所有筛选
+
+  selectedWorkflowPhase.value = ''
+
+  selectedNodeId.value = null
+
+  expandedPhase.value = ''
+
+  filters.budget_min = null
+
+  filters.budget_max = null
+
+  filters.atmosphere = ''
 
   pagination.page = 1
 

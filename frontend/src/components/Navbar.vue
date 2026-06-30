@@ -162,8 +162,7 @@ onUnmounted(() => {
   height: 80px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 24px;
+  justify-content: space-between;
 }
 
 .nav-brand {
@@ -230,8 +229,7 @@ onUnmounted(() => {
 .nav-menu {
   display: flex;
   align-items: center;
-  gap: 20px;
-  margin-left: 16px;
+  gap: 28px;
 }
 
 .nav-link {
