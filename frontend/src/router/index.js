@@ -256,6 +256,27 @@ const routes = [
         name: 'AdminFinance',
         component: () => import('@/views/finance/FinanceLayout.vue'),
         meta: { title: '财务管理' }
+      },
+      // 权限矩阵
+      {
+        path: 'permission-center',
+        name: 'PermissionCenter',
+        component: () => import('@/views/admin/PermissionCenter.vue'),
+        meta: { title: '权限矩阵' }
+      },
+      // 项目组织协同
+      {
+        path: 'project-organization',
+        name: 'ProjectOrganization',
+        component: () => import('@/views/admin/ProjectOrganization.vue'),
+        meta: { title: '项目组织' }
+      },
+      // 用户中心
+      {
+        path: 'user-center',
+        name: 'UserCenter',
+        component: () => import('@/views/UserCenter.vue'),
+        meta: { title: '用户中心' }
       }
     ]
   },

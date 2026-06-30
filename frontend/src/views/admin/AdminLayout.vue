@@ -98,7 +98,7 @@ import { useRouter, useRoute } from 'vue-router'
 import {
   DataLine, Picture, User, Calendar, Fold, Expand,
   UserFilled, Connection, Document, OfficeBuilding,
-  Money, Tools, Wallet, ArrowRight, House
+  Money, Tools, Wallet, ArrowRight, House, Lock, Coordinate
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
@@ -124,6 +124,8 @@ const menuItems = [
   { key: 'workflow', path: '/admin/workflow', label: '服务流程', icon: Connection },
   { key: 'appointments', path: '/admin/appointments', label: '预约管理', icon: Calendar },
   { key: 'finance', path: '/admin/finance', label: '财务管理', icon: Wallet },
+  { key: 'permission', path: '/admin/permission-center', label: '权限矩阵', icon: Lock },
+  { key: 'project', path: '/admin/project-organization', label: '项目组织', icon: Coordinate },
   { key: 'settings', path: '/admin/settings', label: '系统设置', icon: Tools }
 ]
 
