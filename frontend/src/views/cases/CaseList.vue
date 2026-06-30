@@ -675,6 +675,8 @@ const styleGradients = {
 
 const onWizardFilterChange = (wizardFilters) => {
 
+  featuredCase.value = null
+
   // 阶段筛选
 
   if (wizardFilters.stage) {
@@ -756,6 +758,8 @@ const onWizardSkip = () => {
 
 
 const onWizardReset = () => {
+
+  featuredCase.value = null
 
   // 重置所有筛选
 
@@ -909,6 +913,7 @@ const selectColor = (hex) => {
 
   pagination.page = 1
 
+  featuredCase.value = null
 
   fetchCases()
 
@@ -924,6 +929,7 @@ const clearColorFilter = () => {
 
   pagination.page = 1
 
+  featuredCase.value = null
 
   fetchCases()
 
@@ -1668,6 +1674,38 @@ const updateHeroImages = (caseItem) => {
 }
 
 
+
+
+
+// [RESPONSIVE PAGINATION] Terminal detection & auto page-size
+const PAGE_SIZE_CONFIG = {
+  mobile: 6,    // < 768px
+  tablet: 8,    // 768px - 1200px
+  desktop: 12   // >= 1200px
+}
+const getDefaultPageSize = () => {
+  const w = window.innerWidth
+  if (w < 768) return PAGE_SIZE_CONFIG.mobile
+  if (w < 1200) return PAGE_SIZE_CONFIG.tablet
+  return PAGE_SIZE_CONFIG.desktop
+}
+// Initialize with current viewport
+pagination.page_size = getDefaultPageSize()
+
+// [HERO RESET] Reset featured case on viewport cross-threshold
+let _resizeTimer = null
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer)
+  _resizeTimer = setTimeout(() => {
+    const newSize = getDefaultPageSize()
+    if (pagination.page_size !== newSize) {
+      pagination.page_size = newSize
+      pagination.page = 1
+      featuredCase.value = null
+      fetchCases()
+    }
+  }, 200)
+})
 
 onMounted(() => {
 
