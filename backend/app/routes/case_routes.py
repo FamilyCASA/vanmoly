@@ -1551,19 +1551,51 @@ def get_case_filters():
             ).distinct().count()
             phase_counts[f'{phase_code}_count'] = cnt
         
+        # 预算分布统计（合并到筛选接口，避免额外请求）
+        budget_rows = db.session.query(
+            CaseStudy.total_price
+        ).filter(
+            CaseStudy.status == '已发布',
+            CaseStudy.deleted_at.is_(None),
+            CaseStudy.total_price.isnot(None),
+            CaseStudy.total_price > 0
+        ).all()
+        prices = [r[0] for r in budget_rows if r[0]]
+        budget_buckets = []
+        if prices:
+            min_price = min(prices)
+            max_price = max(prices)
+            bucket_size = 50000
+            current = int(min_price // bucket_size) * bucket_size
+            max_buckets = 10
+            while current <= max_price + bucket_size and len(budget_buckets) < max_buckets:
+                bucket_start = current
+                next_val = current + bucket_size
+                key = f'{bucket_start // 10000}-{next_val // 10000}' if next_val <= max_price else f'{bucket_start // 10000}+'
+                if current < bucket_size:
+                    label = f'0-{next_val // 10000}万' if next_val <= max_price else f'{current // 10000}万以下'
+                elif next_val > max_price:
+                    label = f'{current // 10000}万+'
+                else:
+                    label = f'{current // 10000}-{next_val // 10000}万'
+                count = sum(1 for p in prices if bucket_start <= p < next_val) if next_val <= max_price else sum(1 for p in prices if bucket_start <= p)
+                budget_buckets.append({'key': key, 'label': label, 'count': count, 'min': bucket_start, 'max': next_val if next_val <= max_price else None})
+                current += bucket_size
+
         return api_response(data={
             'styles': [s[0] for s in styles if s[0]],
             'house_types': [h[0] for h in house_types if h[0]],
             'packages': [p[0] for p in packages if p[0]],
             'atmospheres': atmospheres,
+            'budget_buckets': budget_buckets,
+            'budget_extents': {'min_wan': round(min(prices)/10000,1) if prices else 0, 'max_wan': round(max(prices)/10000,1) if prices else 0},
             'progress_options': [
-                {'key': 'real_case', 'label': '真实案例', 'count': real_case_count},
-                {'key': 'acquisition_count', 'label': '获客沉淀', 'count': phase_counts.get('acquisition_count', 0)},
-                {'key': 'conversion_count', 'label': '转化签约', 'count': phase_counts.get('conversion_count', 0)},
-                {'key': 'preparation_count', 'label': '前期准备', 'count': phase_counts.get('preparation_count', 0)},
+                {'key': 'acquisition', 'label': '获客沉淀', 'count': phase_counts.get('acquisition_count', 0)},
+                {'key': 'conversion', 'label': '转化签约', 'count': phase_counts.get('conversion_count', 0)},
+                {'key': 'preparation', 'label': '前期准备', 'count': phase_counts.get('preparation_count', 0)},
                 {'key': 'construction', 'label': '硬装施工', 'count': phase_counts.get('construction_count', 0)},
                 {'key': 'soft_service', 'label': '软装服务', 'count': phase_counts.get('soft_service_count', 0)},
-                {'key': 'after_sales_count', 'label': '售后服务', 'count': phase_counts.get('after_sales_count', 0)}
+                {'key': 'after_sales', 'label': '售后服务', 'count': phase_counts.get('after_sales_count', 0)}
             ]
         })
     except Exception as e:

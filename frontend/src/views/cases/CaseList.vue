@@ -631,59 +631,24 @@ const clearWorkflowFilter = () => {
 
 
 
-// ==================== 筛选向导数据 ====================
+// ==================== 筛选向导数据（从 API 动态获取）====================
+const wizardStages = ref([])
+const wizardBudgets = ref([])
+const wizardStyles = ref([])
 
-const wizardStages = computed(() => [
+const stageIcons = { 'acquisition': '👋', 'conversion': '📝', 'preparation': '📐', 'construction': '🔨', 'soft_service': '🛋️', 'after_sales': '✅' }
+const stageDescs = { 'acquisition': '刚刚开始了解', 'conversion': '准备签约阶段', 'preparation': '设计方案阶段', 'construction': '硬装施工阶段', 'soft_service': '软装搭配阶段', 'after_sales': '售后服务阶段' }
 
-  { value: 'acquisition', label: '刚接触，了解中', desc: '获客沉淀阶段', icon: '👋', count: workflowPhases.value.find(p => p.key === 'acquisition')?.count || 0 },
-
-  { value: 'conversion', label: '已确定，准备签约', desc: '转化签约阶段', icon: '📝', count: workflowPhases.value.find(p => p.key === 'conversion')?.count || 0 },
-
-  { value: 'preparation', label: '前期准备中', desc: '设计准备阶段', icon: '📐', count: workflowPhases.value.find(p => p.key === 'preparation')?.count || 0 },
-
-  { value: 'construction', label: '正在施工', desc: '硬装施工阶段', icon: '🔨', count: workflowPhases.value.find(p => p.key === 'construction')?.count || 0 },
-
-  { value: 'soft_service', label: '软装搭配', desc: '软装服务阶段', icon: '🛋️', count: workflowPhases.value.find(p => p.key === 'soft_service')?.count || 0 },
-
-  { value: 'after_sales', label: '售后服务', desc: '售后保障阶段', icon: '✅', count: workflowPhases.value.find(p => p.key === 'after_sales')?.count || 0 }
-
-])
-
-
-
-const wizardBudgets = ref([
-
-  { value: '', label: '不限预算', count: 0 },
-
-  { value: '0-50000', label: '5万以下', count: 0 },
-
-  { value: '50000-150000', label: '5-15万', count: 0 },
-
-  { value: '150000-350000', label: '15-35万', count: 0 },
-
-  { value: '350000-600000', label: '35-60万', count: 0 },
-
-  { value: '600000-', label: '60万以上', count: 0 }
-
-])
-
-
-
-const wizardStyles = computed(() => [
-
-  { value: 'warm', label: '温馨', gradient: 'linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 100%)', count: 0 },
-
-  { value: 'fresh', label: '清新', gradient: 'linear-gradient(135deg, #d4e8d4 0%, #c5dcc5 100%)', count: 0 },
-
-  { value: 'simple', label: '简约', gradient: 'linear-gradient(135deg, #e8e8e8 0%, #d4d4d4 100%)', count: 0 },
-
-  { value: 'luxury', label: '轻奢', gradient: 'linear-gradient(135deg, #f0e6d2 0%, #e5d5b5 100%)', count: 0 },
-
-  { value: 'modern', label: '现代', gradient: 'linear-gradient(135deg, #d4d8e8 0%, #c5c9d8 100%)', count: 0 },
-
-  { value: '', label: '不限风格', gradient: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)', count: 0 }
-
-])
+const styleGradients = {
+  '温馨': 'linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 100%)',
+  '清新': 'linear-gradient(135deg, #d4e8d4 0%, #c5dcc5 100%)',
+  '简约': 'linear-gradient(135deg, #e8e8e8 0%, #d4d4d4 100%)',
+  '浪漫': 'linear-gradient(135deg, #f0d4d4 0%, #e8c4c4 100%)',
+  '雅致': 'linear-gradient(135deg, #d4d4e8 0%, #c4c4d8 100%)',
+  '沉稳': 'linear-gradient(135deg, #c8c0b0 0%, #b8b0a0 100%)',
+  '现代': 'linear-gradient(135deg, #d4d8e8 0%, #c5c9d8 100%)',
+  '轻奢': 'linear-gradient(135deg, #f0e6d2 0%, #e5d5b5 100%)'
+}
 
 
 
@@ -711,15 +676,15 @@ const onWizardFilterChange = (wizardFilters) => {
 
     const budgetRange = wizardFilters.budget.split('-')
 
-    filters.budget_min = budgetRange[0] ? parseInt(budgetRange[0]) : null
+    filters.price_min = budgetRange[0] ? parseInt(budgetRange[0]) : null
 
-    filters.budget_max = budgetRange[1] ? parseInt(budgetRange[1]) : null
+    filters.price_max = budgetRange[1] ? parseInt(budgetRange[1]) : null
 
   } else {
 
-    filters.budget_min = null
+    filters.price_min = undefined
 
-    filters.budget_max = null
+    filters.price_max = undefined
 
   }
 
@@ -755,9 +720,9 @@ const onWizardSkip = () => {
 
   selectedWorkflowPhase.value = ''
 
-  filters.budget_min = null
+  filters.price_min = undefined
 
-  filters.budget_max = null
+  filters.price_max = undefined
 
   filters.atmosphere = ''
 
@@ -781,9 +746,9 @@ const onWizardReset = () => {
 
   expandedPhase.value = ''
 
-  filters.budget_min = null
+  filters.price_min = undefined
 
-  filters.budget_max = null
+  filters.price_max = undefined
 
   filters.atmosphere = ''
 
@@ -1073,6 +1038,10 @@ const fetchFilterOptions = async () => {
 
     const res = await getCaseFilters()
 
+
+
+    // ——— 氛围插件（旧筛选组件用） ———
+
     if (res.atmospheres) {
 
       atmospheres.forEach(atm => {
@@ -1083,23 +1052,13 @@ const fetchFilterOptions = async () => {
 
       })
 
-    // 预算统计
-
-    if (res.budget_stats) {
-
-      budgetStats.value = res.budget_stats
-
     }
 
 
 
-    }
+    // ——— 阶段计数（旧筛选组件用） ———
 
-    // 服务流程阶段计数(从后端 progress_options 映射到6个阶段)
-
-    // 后端返回: real_case, designing(acq+conv+prep), construction, soft_service, after_sales
-
-    // 前端需要拆分 designing 为 acquisition/conversion/preparation 三个独立计数
+    // 后端 progress_options 已返回独立 6 个阶段 key（无 _count 后缀）
 
     if (res.progress_options) {
 
@@ -1107,29 +1066,83 @@ const fetchFilterOptions = async () => {
 
       res.progress_options.forEach(opt => { optMap[opt.key] = opt.count || 0 })
 
-
-
-      // 直接使用后端返回的各阶段计数
-
-      // designing 是 acquisition+conversion+preparation 的合计,需按比例或查实际数据拆分
-
-      // 更好的方式:后端直接返回6个阶段的独立计数
-
       workflowPhases.value.forEach(p => {
 
-        if (p.key === 'acquisition') p.count = optMap['acquisition_count'] || 0
-
-        else if (p.key === 'conversion') p.count = optMap['conversion_count'] || 0
-
-        else if (p.key === 'preparation') p.count = optMap['preparation_count'] || 0
-
-        else if (p.key === 'construction') p.count = optMap['construction'] || 0
-
-        else if (p.key === 'soft_service') p.count = optMap['soft_service'] || 0
-
-        else if (p.key === 'after_sales') p.count = optMap['after_sales'] || 0
+        p.count = optMap[p.key] || 0
 
       })
+
+
+
+      // ——— 筛选向导 步骤1：服务阶段（从 real DB count）————
+
+      wizardStages.value = res.progress_options
+
+        .filter(stage => stage.label) // 排除空标签
+
+        .map(stage => ({
+
+          value: stage.key,
+
+          label: stage.label,
+
+          desc: stageDescs[stage.key] || stage.label,
+
+          icon: stageIcons[stage.key] || '📋',
+
+          count: stage.count || 0
+
+        }))
+
+    }
+
+
+
+    // ——— 筛选向导 步骤2：预算区间（从 real DB 价格分布）————
+
+    if (res.budget_buckets && res.budget_buckets.length > 0) {
+
+      wizardBudgets.value = [
+
+        { value: '', label: '不限预算', count: res.budget_buckets.reduce((s, b) => s + (b.count || 0), 0) },
+
+        ...res.budget_buckets.map(b => ({
+
+          value: b.min != null && b.max != null ? `${b.min}-${b.max}` : (b.min != null ? `${b.min}-` : ''),
+
+          label: b.label,
+
+          count: b.count || 0
+
+        }))
+
+      ]
+
+    }
+
+
+
+    // ——— 筛选向导 步骤3：风格偏好（从 real DB atmosphere 字段）————
+
+    if (res.atmospheres && res.atmospheres.length > 0) {
+
+      wizardStyles.value = [
+
+        { value: '', label: '不限风格', gradient: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)', count: res.atmospheres.reduce((s, a) => s + (a.count || 0), 0) },
+
+        ...res.atmospheres.map(a => ({
+
+          value: a.key,
+
+          label: a.key,
+
+          gradient: styleGradients[a.key] || 'linear-gradient(135deg, #e0e0e0 0%, #c0c0c0 100%)',
+
+          count: a.count || 0
+
+        }))
+
+      ]
 
     }
 

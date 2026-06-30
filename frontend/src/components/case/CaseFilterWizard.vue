@@ -134,35 +134,15 @@ import { ArrowRight, ArrowLeft, Close } from '@element-plus/icons-vue'
 const props = defineProps({
   stages: {
     type: Array,
-    default: () => [
-      { value: 'lead', label: '刚接触，了解中', desc: '获客沉淀阶段', icon: '👋', count: 0 },
-      { value: 'contract', label: '已确定，准备签约', desc: '转化签约阶段', icon: '📝', count: 0 },
-      { value: 'preparation', label: '前期准备中', desc: '设计准备阶段', icon: '📐', count: 0 },
-      { value: 'construction', label: '正在施工', desc: '硬装施工阶段', icon: '🔨', count: 0 },
-      { value: 'soft', label: '软装搭配', desc: '软装服务阶段', icon: '🛋️', count: 0 },
-      { value: 'aftersales', label: '售后服务', desc: '售后保障阶段', icon: '✅', count: 0 }
-    ]
+    default: () => []
   },
   budgets: {
     type: Array,
-    default: () => [
-      { value: 'all', label: '不限预算', count: 0 },
-      { value: '5-15', label: '5-15万', count: 0 },
-      { value: '15-35', label: '15-35万', count: 0 },
-      { value: '35-60', label: '35-60万', count: 0 },
-      { value: '60+', label: '60万以上', count: 0 }
-    ]
+    default: () => []
   },
   styles: {
     type: Array,
-    default: () => [
-      { value: 'warm', label: '温馨', gradient: 'linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 100%)', count: 0 },
-      { value: 'fresh', label: '清新', gradient: 'linear-gradient(135deg, #d4e8d4 0%, #c5dcc5 100%)', count: 0 },
-      { value: 'simple', label: '简约', gradient: 'linear-gradient(135deg, #e8e8e8 0%, #d4d4d4 100%)', count: 0 },
-      { value: 'luxury', label: '轻奢', gradient: 'linear-gradient(135deg, #f0e6d2 0%, #e5d5b5 100%)', count: 0 },
-      { value: 'modern', label: '现代', gradient: 'linear-gradient(135deg, #d4d8e8 0%, #c5c9d8 100%)', count: 0 },
-      { value: 'all', label: '不限风格', gradient: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)', count: 0 }
-    ]
+    default: () => []
   }
 })
 
