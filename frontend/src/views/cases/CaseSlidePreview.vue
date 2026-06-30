@@ -9,6 +9,9 @@
   >
     <!-- 导航按钮（放在视口层，不随缩放变化） -->
       <div class="slide-nav" @click.stop v-if="!loading && slideData">
+        <button class="nav-btn home" @click.stop="router.push('/proposals')" title="返回提案列表">
+          <span>&#8962;</span>
+        </button>
         <button class="nav-btn prev" @click="prevSlide" :disabled="currentSlide === 0">
           <span>&#8592;</span>
         </button>
@@ -1500,6 +1503,10 @@ const budgetDisplay = computed(() => {
 .nav-btn:disabled {
   opacity: 0.3;
   cursor: default;
+}
+.nav-btn.home {
+  font-size: 18px;
+  padding: 4px 10px;
 }
 .slide-counter {
   color: rgba(255,255,255,0.9);
