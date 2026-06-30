@@ -11,6 +11,7 @@ from app.models.contract import (
 from app.models.customer import Customer
 from app.models import Employee as Emp
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 from datetime import datetime, date
 import io
 
@@ -24,10 +25,15 @@ except ImportError:
 contract_bp = Blueprint('contract', __name__, url_prefix='/api/v3/contracts')
 
 
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
+
+
 # ========== 合同模板 ==========
 
 @contract_bp.route('/templates', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_templates(current_user):
     """获取合同模板列表"""
     contract_type = request.args.get('contract_type')
@@ -50,6 +56,7 @@ def get_templates(current_user):
 
 @contract_bp.route('/templates', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.template.manage', _store_scope)
 def create_template(current_user):
     """创建合同模板"""
     data = request.get_json()
@@ -78,6 +85,7 @@ def create_template(current_user):
 
 @contract_bp.route('/templates/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('contract.template.manage', _store_scope)
 def update_template(current_user, id):
     """更新合同模板"""
     template = ContractTemplate.query.get_or_404(id)
@@ -99,6 +107,7 @@ def update_template(current_user, id):
 
 @contract_bp.route('/templates/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('contract.template.manage', _store_scope)
 def delete_template(current_user, id):
     """删除合同模板"""
     template = ContractTemplate.query.get_or_404(id)
@@ -111,6 +120,7 @@ def delete_template(current_user, id):
 
 @contract_bp.route('', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_contracts(current_user):
     """获取合同列表"""
     page = request.args.get('page', 1, type=int)
@@ -164,6 +174,7 @@ def get_contracts(current_user):
 
 @contract_bp.route('/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_contract(current_user, id):
     """获取合同详情"""
     contract = Contract.query.get_or_404(id)
@@ -470,6 +481,7 @@ def _generate_contract_html(contract, customer, payments, v):
 
 @contract_bp.route('/<int:id>/preview-full', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def preview_full_contract(current_user, id):
     """生成完整合同正文HTML（用于打印预览）- 基于全功能成交合同范本"""
     contract = Contract.query.get_or_404(id)
@@ -482,6 +494,7 @@ def preview_full_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/export-pdf', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def export_contract_pdf(current_user, id):
     """导出合同PDF（使用weasyprint生成真正的PDF文件）"""
     if not WEASYPRINT_AVAILABLE:
@@ -518,6 +531,7 @@ def export_contract_pdf(current_user, id):
 
 @contract_bp.route('/export-pdf', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def export_contract_pdf_full(current_user):
     """旧版PDF导出接口（保持兼容）- 仍返回HTML"""
 
@@ -671,6 +685,7 @@ def export_contract_pdf_full(current_user):
 
 @contract_bp.route('', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.create', _store_scope)
 def create_contract(current_user):
     """创建合同"""
     data = request.get_json()
@@ -753,6 +768,7 @@ def create_contract(current_user):
 
 @contract_bp.route('/preview', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def preview_contract(current_user):
     """预览合同（不保存）"""
     data = request.get_json()
@@ -788,6 +804,7 @@ def preview_contract(current_user):
 
 @contract_bp.route('/export-pdf', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def export_contract_pdf_simple(current_user):
     """导出合同PDF"""
     data = request.get_json()
@@ -886,6 +903,7 @@ def export_contract_pdf_simple(current_user):
 
 @contract_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('contract.update', _store_scope)
 def update_contract(current_user, id):
     """更新合同"""
     contract = Contract.query.get_or_404(id)
@@ -911,6 +929,7 @@ def update_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/submit', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.flow', _store_scope)
 def submit_contract(current_user, id):
     """提交合同（草稿->待签署）"""
     contract = Contract.query.get_or_404(id)
@@ -930,6 +949,7 @@ def submit_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/sign', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.flow', _store_scope)
 def sign_contract(current_user, id):
     """签署合同"""
     contract = Contract.query.get_or_404(id)
@@ -960,6 +980,7 @@ def sign_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/execute', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.flow', _store_scope)
 def execute_contract(current_user, id):
     """开始执行合同"""
     contract = Contract.query.get_or_404(id)
@@ -979,6 +1000,7 @@ def execute_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/complete', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.flow', _store_scope)
 def complete_contract(current_user, id):
     """完成合同"""
     contract = Contract.query.get_or_404(id)
@@ -995,6 +1017,7 @@ def complete_contract(current_user, id):
 
 @contract_bp.route('/<int:id>/cancel', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.flow', _store_scope)
 def cancel_contract(current_user, id):
     """取消合同"""
     contract = Contract.query.get_or_404(id)
@@ -1025,6 +1048,7 @@ def cancel_contract(current_user, id):
 
 @contract_bp.route('/<int:contract_id>/payments/<int:payment_id>/pay', methods=['POST'])
 @jwt_required_v2
+@require_permission('contract.payment', _store_scope)
 def record_payment(current_user, contract_id, payment_id):
     """记录付款"""
     payment = ContractPayment.query.get_or_404(payment_id)
@@ -1050,6 +1074,7 @@ def record_payment(current_user, contract_id, payment_id):
 
 @contract_bp.route('/statistics', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_statistics(current_user):
     """获取合同统计"""
     tenant_id = current_user.get('tenant_id', '0')
@@ -1103,6 +1128,7 @@ def get_statistics(current_user):
 
 @contract_bp.route('/options', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_options(current_user):
     """获取合同相关选项"""
     return jsonify({
@@ -1119,6 +1145,7 @@ def get_options(current_user):
 
 @contract_bp.route('/employees-for-team', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def get_employees_for_team(current_user):
     """获取可用于项目负责人的员工列表（按岗位分组）"""
     employees = Emp.query.filter_by(
@@ -1145,6 +1172,7 @@ def get_employees_for_team(current_user):
 
 @contract_bp.route('/templates/<int:id>/apply', methods=['GET'])
 @jwt_required_v2
+@require_permission('contract.view', _store_scope)
 def apply_template(current_user, id):
     """获取模板的变量数据，用于前端一键填充表单"""
     template = ContractTemplate.query.get_or_404(id)

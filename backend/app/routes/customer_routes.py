@@ -6,13 +6,19 @@ from flask import Blueprint, request, jsonify
 from app import db
 from app.models.customer import Customer, CustomerFollow, CUSTOMER_SOURCES, CUSTOMER_TYPES, CUSTOMER_STATUS, PRIORITY_OPTIONS, FOLLOW_TYPES
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 from datetime import datetime
 
 customer_bp = Blueprint('customer', __name__, url_prefix='/api/v3/customers')
 
 
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
+
+
 @customer_bp.route('', methods=['GET'])
 @jwt_required_v2
+@require_permission('customer.view', _store_scope)
 def get_customers(current_user):
     """获取客户列表"""
     # 查询参数
@@ -65,6 +71,7 @@ def get_customers(current_user):
 
 @customer_bp.route('/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('customer.view', _store_scope)
 def get_customer(current_user, id):
     """获取客户详情"""
     from app.models.service_workflow import CustomerWorkflow
@@ -88,6 +95,7 @@ def get_customer(current_user, id):
 
 @customer_bp.route('', methods=['POST'])
 @jwt_required_v2
+@require_permission('customer.create', _store_scope)
 def create_customer(current_user):
     """创建客户"""
     data = request.get_json()
@@ -141,6 +149,7 @@ def create_customer(current_user):
 
 @customer_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('customer.update', _store_scope)
 def update_customer(current_user, id):
     """更新客户"""
     customer = Customer.query.get_or_404(id)
@@ -171,6 +180,7 @@ def update_customer(current_user, id):
 
 @customer_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('customer.delete', _store_scope)
 def delete_customer(current_user, id):
     """删除客户（软删除）"""
     customer = Customer.query.get_or_404(id)
@@ -185,6 +195,7 @@ def delete_customer(current_user, id):
 
 @customer_bp.route('/<int:id>/follow', methods=['POST'])
 @jwt_required_v2
+@require_permission('customer.update', _store_scope)
 def add_follow(current_user, id):
     """添加跟进记录"""
     customer = Customer.query.get_or_404(id)
@@ -218,6 +229,7 @@ def add_follow(current_user, id):
 
 @customer_bp.route('/stats', methods=['GET'])
 @jwt_required_v2
+@require_permission('customer.view', _store_scope)
 def get_stats(current_user):
     """获取客户统计"""
     # 总客户数

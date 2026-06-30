@@ -10,9 +10,14 @@ from app.models.quote_space_template import QuoteSpaceTemplate
 from app.models.customer import Customer
 from app.models import Employee  # 从 hr_v2 导入
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 from datetime import datetime, date, timedelta
 
 quote_bp = Blueprint('quote', __name__, url_prefix='/api/v3/quotes')
+
+
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
 
 
 # ========== 计量值计算（规则引擎）==========
@@ -411,6 +416,7 @@ def calc_item_total_price(item, rules=None):
 
 @quote_bp.route('/templates', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_templates(current_user):
     """获取报价封面模板"""
     templates = QuoteTemplate.query.filter_by(
@@ -426,6 +432,7 @@ def get_templates(current_user):
 
 @quote_bp.route('/templates', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def create_template(current_user):
     """创建模板"""
     data = request.get_json()
@@ -453,6 +460,7 @@ def create_template(current_user):
 
 @quote_bp.route('/templates/<int:template_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def update_template(current_user, template_id):
     """更新模板"""
     template = QuoteTemplate.query.get_or_404(template_id)
@@ -483,6 +491,7 @@ def update_template(current_user, template_id):
 
 @quote_bp.route('/templates/<int:template_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def delete_template(current_user, template_id):
     """删除模板"""
     template = QuoteTemplate.query.get_or_404(template_id)
@@ -496,6 +505,7 @@ def delete_template(current_user, template_id):
 
 @quote_bp.route('/templates/from-quote', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def create_template_from_quote(current_user):
     """从报价单创建模板（另存为模板功能）
     同时创建 QuoteSpaceTemplate 按空间粒度存储物料
@@ -832,6 +842,7 @@ def import_space_templates_to_case(current_user):
 
 @quote_bp.route('', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_quotes(current_user):
     """获取报价列表"""
     page = request.args.get('page', 1, type=int)
@@ -887,6 +898,7 @@ def get_quotes(current_user):
 
 @quote_bp.route('/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_quote(current_user, id):
     """获取报价详情"""
     quote = Quote.query.get_or_404(id)
@@ -905,6 +917,7 @@ def get_quote(current_user, id):
 
 @quote_bp.route('', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.create', _store_scope)
 def create_quote(current_user):
     """创建报价"""
     data = request.get_json()
@@ -1011,6 +1024,7 @@ def create_quote(current_user):
 
 @quote_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def update_quote(current_user, id):
     """更新报价"""
     quote = Quote.query.get_or_404(id)
@@ -1108,6 +1122,7 @@ def update_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/send', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def send_quote(current_user, id):
     """发送报价"""
     quote = Quote.query.get_or_404(id)
@@ -1123,6 +1138,7 @@ def send_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/confirm', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def confirm_quote(current_user, id):
     """确认报价 - 自动生成双版本PDF并授权案例"""
     quote = Quote.query.get_or_404(id)
@@ -1167,6 +1183,7 @@ def confirm_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/sign', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def sign_quote(current_user, id):
     """签署报价"""
     quote = Quote.query.get_or_404(id)
@@ -1214,6 +1231,7 @@ def sign_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/pdf', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def download_pdf(current_user, id):
     """下载报价PDF（访客版）"""
     from flask import send_from_directory
@@ -1242,6 +1260,7 @@ def download_pdf(current_user, id):
 
 @quote_bp.route('/<int:id>/pdf-preview', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def pdf_preview(current_user, id):
     """生成报价PDF预览（支持紧凑/完整两种视图）
     Query param: show_ref=true(完整)/false(紧凑，默认true)
@@ -1274,6 +1293,7 @@ def pdf_preview(current_user, id):
 
 @quote_bp.route('/<int:id>/pdf-customer', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def download_pdf_customer(current_user, id):
     """下载报价PDF（客户版，无水印）"""
     from flask import send_from_directory
@@ -1300,6 +1320,7 @@ def download_pdf_customer(current_user, id):
 
 @quote_bp.route('/<int:id>/generate-pdf', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def generate_pdf(current_user, id):
     """手动重新生成报价PDF（双版本）"""
     quote = Quote.query.get_or_404(id)
@@ -1326,6 +1347,7 @@ def generate_pdf(current_user, id):
 
 @quote_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('quote.delete', _store_scope)
 def delete_quote(current_user, id):
     """删除报价"""
     quote = Quote.query.get_or_404(id)
@@ -1342,6 +1364,7 @@ def delete_quote(current_user, id):
 
 @quote_bp.route('/<int:quote_id>/items', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def add_item(current_user, quote_id):
     """添加报价项"""
     data = request.get_json()
@@ -1413,6 +1436,7 @@ def add_item(current_user, quote_id):
 
 @quote_bp.route('/<int:quote_id>/items/<int:item_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def update_item(current_user, quote_id, item_id):
     """更新报价项"""
     item = QuoteItem.query.get_or_404(item_id)
@@ -1463,6 +1487,7 @@ def update_item(current_user, quote_id, item_id):
 
 @quote_bp.route('/<int:quote_id>/items/<int:item_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def delete_item(current_user, quote_id, item_id):
     """删除报价项"""
     item = QuoteItem.query.get_or_404(item_id)
@@ -1481,6 +1506,7 @@ def delete_item(current_user, quote_id, item_id):
 
 @quote_bp.route('/statistics', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_statistics(current_user):
     """获取报价统计"""
     tenant_id = current_user.get('tenant_id', '0')
@@ -1524,6 +1550,7 @@ def get_statistics(current_user):
 
 @quote_bp.route('/options', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_options(current_user):
     """获取报价相关选项"""
     # 获取员工列表（用于服务团队选择）
@@ -3168,6 +3195,7 @@ def get_quote_fee_breakdown(current_user, id):
 
 @quote_bp.route('/<int:id>/submit', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.update', _store_scope)
 def submit_quote(current_user, id):
     from app.routes.auth_routes_v2 import jwt_required_v2
     quote = Quote.query.get_or_404(id)
@@ -3191,15 +3219,13 @@ def submit_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/approve', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.approve', _store_scope)
 def approve_quote(current_user, id):
-    if current_user.role != 'admin':
-        return jsonify({'code': 403, 'message': 'admin only'}), 403
-    
     quote = Quote.query.get_or_404(id)
     data = request.get_json() or {}
     
     quote.status = 'approved'
-    quote.approved_by = current_user.id
+    quote.approved_by = current_user.get('id')
     quote.approval_note = data.get('note', '')
     
     if data.get('seal_url'):
@@ -3212,10 +3238,8 @@ def approve_quote(current_user, id):
 
 @quote_bp.route('/<int:id>/reject', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.approve', _store_scope)
 def reject_quote(current_user, id):
-    if current_user.role != 'admin':
-        return jsonify({'code': 403, 'message': 'admin only'}), 403
-    
     quote = Quote.query.get_or_404(id)
     data = request.get_json() or {}
     reason = data.get('reason', '')
@@ -3224,7 +3248,7 @@ def reject_quote(current_user, id):
         return jsonify({'code': 400, 'message': 'reason required'}), 400
     
     quote.status = 'rejected'
-    quote.approved_by = current_user.id
+    quote.approved_by = current_user.get('id')
     quote.approval_note = reason
     db.session.commit()
     
@@ -3233,6 +3257,7 @@ def reject_quote(current_user, id):
 
 @quote_bp.route('/import', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.create', _store_scope)
 def import_quote(current_user):
     if 'file' not in request.files:
         return jsonify({'code': 400, 'message': 'no file'}), 400
@@ -3265,6 +3290,7 @@ def import_quote(current_user):
 
 @quote_bp.route('/measurement-calc', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def calc_measurement_api(current_user):
     """实时计量值计算 API（前端定制参数变化时调用）"""
     data = request.get_json() or {}
@@ -3293,6 +3319,7 @@ def calc_measurement_api(current_user):
 
 @quote_bp.route('/measurement-rules', methods=['GET'])
 @jwt_required_v2
+@require_permission('quote.view', _store_scope)
 def get_measurement_rules(current_user):
     """获取计量规则列表"""
     rules = MeasurementRule.query.filter_by(
@@ -3304,6 +3331,7 @@ def get_measurement_rules(current_user):
 
 @quote_bp.route('/measurement-rules/init', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def init_measurement_rules(current_user):
     """初始化默认计量规则（仅在无规则时创建）"""
     tenant_id = current_user.get('tenant_id', '0')
@@ -3332,6 +3360,7 @@ def init_measurement_rules(current_user):
 
 @quote_bp.route('/measurement-rules', methods=['POST'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def create_measurement_rule(current_user):
     """创建计量规则"""
     data = request.get_json()
@@ -3367,6 +3396,7 @@ def create_measurement_rule(current_user):
 
 @quote_bp.route('/measurement-rules/<int:rule_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def update_measurement_rule(current_user, rule_id):
     """更新计量规则"""
     rule = MeasurementRule.query.get_or_404(rule_id)
@@ -3389,6 +3419,7 @@ def update_measurement_rule(current_user, rule_id):
 
 @quote_bp.route('/measurement-rules/<int:rule_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('quote.template.manage', _store_scope)
 def delete_measurement_rule(current_user, rule_id):
     """删除计量规则"""
     rule = MeasurementRule.query.get_or_404(rule_id)

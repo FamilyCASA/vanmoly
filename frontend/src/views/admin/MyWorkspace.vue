@@ -3,8 +3,11 @@
     <!-- 顶部操作栏 -->
     <div class="top-bar">
       <div class="top-left">
-        <el-button :icon="ArrowLeft" text @click="router.push('/admin/dashboard')">
+        <el-button v-if="canEnterAdmin" :icon="ArrowLeft" text @click="router.push('/admin/dashboard')">
           返回管理后台
+        </el-button>
+        <el-button v-else :icon="ArrowLeft" text @click="router.push('/')">
+          返回前台
         </el-button>
       </div>
       <div class="top-center">
@@ -49,6 +52,113 @@
       <!-- 右侧内容区 -->
       <div class="workspace-content">
         <div class="content-body">
+          <!-- 我的概览 -->
+          <div v-if="activeKey === 'overview'" class="tab-panel overview-panel">
+            <!-- 个人英雄区 -->
+            <div class="dash-hero">
+              <div class="dash-hero-left">
+                <div class="dash-avatar">{{ userInitial }}</div>
+                <div class="dash-hero-info">
+                  <div class="dash-hero-title">
+                    <h2>{{ currentUserName }}</h2>
+                    <el-tag :type="canEnterAdmin ? 'success' : 'info'" size="small">{{ roleLabel(currentUser.role) }}</el-tag>
+                  </div>
+                  <p class="dash-hero-desc">{{ greetingText }}，以下是你的专属数据概览。</p>
+                  <div class="dash-hero-meta">
+                    <span>{{ nowText }}</span>
+                    <span v-if="myOverviewData">数据实时同步</span>
+                  </div>
+                </div>
+              </div>
+              <div class="dash-hero-right">
+                <el-button :icon="Refresh" :loading="overviewLoading" @click="loadMyOverview">刷新</el-button>
+              </div>
+            </div>
+
+            <!-- KPI 卡片网格 -->
+            <div v-loading="overviewLoading" class="dash-kpi-grid">
+              <div class="dash-kpi-card" v-for="card in kpiCards" :key="card.label"
+                :style="{ '--kpi-color': card.color, '--kpi-bg': card.bg }">
+                <div class="kpi-top">
+                  <div class="kpi-icon-box" :style="{ background: card.bg }">
+                    <el-icon :size="20" :color="card.color"><component :is="card.icon" /></el-icon>
+                  </div>
+                  <span class="kpi-chip" :style="{ color: card.color, background: card.bg }">{{ card.chip }}</span>
+                </div>
+                <div class="kpi-num">{{ card.value }}</div>
+                <div class="kpi-name">{{ card.label }}</div>
+                <div class="kpi-sub">
+                  <span>{{ card.subLabel }}</span>
+                  <strong :style="{ color: card.color }">{{ card.subValue }}</strong>
+                </div>
+              </div>
+            </div>
+
+            <!-- 图表 + 待办 -->
+            <div class="dash-mid-grid">
+              <div class="dash-chart-card">
+                <div class="dash-card-header">
+                  <span class="dash-card-title">月度业务趋势</span>
+                  <span class="dash-card-sub">最近6个月线索/客户/报价</span>
+                </div>
+                <div ref="myTrendChartRef" class="dash-chart-box"></div>
+              </div>
+              <div class="dash-todo-card">
+                <div class="dash-card-header">
+                  <span class="dash-card-title">待办提醒</span>
+                  <span class="dash-card-sub">需要优先处理的事项</span>
+                </div>
+                <div class="dash-todo-list">
+                  <div v-for="item in todoItems" :key="item.label" class="dash-todo-item"
+                    :style="{ '--todo-bg': item.bg }" @click="activeKey = item.tab">
+                    <div class="dash-todo-icon">
+                      <el-icon :size="18"><component :is="item.icon" /></el-icon>
+                    </div>
+                    <div class="dash-todo-body">
+                      <strong>{{ item.value }}</strong>
+                      <span>{{ item.label }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 近期动态 -->
+            <div class="dash-activity-card">
+              <div class="dash-card-header">
+                <span class="dash-card-title">近期动态</span>
+                <span class="dash-card-sub">你最近的业务记录</span>
+              </div>
+              <div class="dash-activity-list">
+                <div v-for="(item, idx) in myOverviewData?.recent_activities || []" :key="idx" class="dash-activity-item">
+                  <div class="dash-activity-dot" :class="item.type"></div>
+                  <div class="dash-activity-content">
+                    <div class="dash-activity-title">{{ item.title }}</div>
+                    <div class="dash-activity-desc">{{ item.desc }} · <el-tag size="small" :type="statusTagType(item.status)">{{ statusLabel(item.status) }}</el-tag></div>
+                  </div>
+                  <div class="dash-activity-time">{{ item.time }}</div>
+                </div>
+                <div v-if="!myOverviewData?.recent_activities?.length" class="dash-empty">暂无近期动态</div>
+              </div>
+            </div>
+
+            <!-- 可操作范围 -->
+            <div class="access-panel">
+              <div class="panel-title">当前可操作范围</div>
+              <div class="access-list">
+                <div v-for="item in allowedFlatItems" :key="item.key" class="access-item" @click="activeKey = item.key">
+                  <div class="access-icon" :style="{ background: item.bg, color: item.color }">
+                    <el-icon><component :is="item.icon" /></el-icon>
+                  </div>
+                  <div>
+                    <div class="access-title">{{ item.title }}</div>
+                    <div class="access-desc">{{ item.desc }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- 我的线索 -->
           <div v-if="activeKey === 'leads'" v-loading="leadsLoading" class="tab-panel">
             <div class="search-bar">
@@ -245,6 +355,102 @@
             </el-table>
           </div>
 
+          <!-- 我的项目小组 -->
+          <div v-if="activeKey === 'projects'" v-loading="projectsLoading" class="tab-panel">
+            <div class="search-bar">
+              <el-input v-model="projectSearch" placeholder="搜索项目名称/编码" clearable style="width: 260px" />
+              <el-select v-model="projectStatus" placeholder="状态筛选" clearable style="width: 140px">
+                <el-option v-for="opt in projectStatusOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+              </el-select>
+              <el-button type="primary" @click="loadProjects">查询</el-button>
+            </div>
+            <div v-if="projectList.length" class="project-cards">
+              <div v-for="proj in filteredProjects" :key="proj.id" class="project-card">
+                <div class="project-card-header">
+                  <div class="project-name">
+                    <el-tag v-if="proj.status === 'active'" type="success" size="small">进行中</el-tag>
+                    <el-tag v-else-if="proj.status === 'planning'" type="warning" size="small">规划中</el-tag>
+                    <el-tag v-else-if="proj.status === 'completed'" type="info" size="small">已完成</el-tag>
+                    <el-tag v-else size="small">{{ proj.status }}</el-tag>
+                    <span class="name-text">{{ proj.name }}</span>
+                  </div>
+                  <span class="project-code">{{ proj.code || `#${proj.id}` }}</span>
+                </div>
+                <div class="project-card-body">
+                  <div class="project-meta">
+                    <div class="meta-item">
+                      <span class="meta-label">负责人</span>
+                      <span class="meta-value">{{ proj.owner_name || '-' }}</span>
+                    </div>
+                    <div class="meta-item">
+                      <span class="meta-label">类型</span>
+                      <span class="meta-value">{{ proj.project_type || '-' }}</span>
+                    </div>
+                    <div class="meta-item">
+                      <span class="meta-label">进度</span>
+                      <span class="meta-value">{{ proj.progress || 0 }}%</span>
+                    </div>
+                    <div class="meta-item">
+                      <span class="meta-label">成员</span>
+                      <span class="meta-value">{{ proj.member_count || 0 }}人</span>
+                    </div>
+                    <div class="meta-item">
+                      <span class="meta-label">待办任务</span>
+                      <span class="meta-value">{{ proj.pending_task_count || 0 }}</span>
+                    </div>
+                  </div>
+                  <div v-if="proj.objective" class="project-objective">{{ proj.objective }}</div>
+                </div>
+                <div class="project-card-footer">
+                  <el-button size="small" @click="toggleProjectDetail(proj)">
+                    {{ proj._expanded ? '收起' : '查看成员与任务' }}
+                  </el-button>
+                </div>
+                <div v-if="proj._expanded" class="project-detail">
+                  <div class="detail-section">
+                    <div class="detail-title">项目成员</div>
+                    <el-table :data="proj._members || []" size="small" border>
+                      <el-table-column prop="employee_name" label="姓名" width="100" />
+                      <el-table-column label="角色" width="90">
+                        <template #default="{ row }">
+                          <el-tag v-if="row.is_leader" type="warning" size="small">组长</el-tag>
+                          <span v-else>{{ row.role_code }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column prop="responsibility" label="职责" min-width="140" show-overflow-tooltip />
+                      <el-table-column prop="workload" label="工作量" width="80" />
+                    </el-table>
+                  </div>
+                  <div class="detail-section">
+                    <div class="detail-title">任务列表</div>
+                    <el-table :data="(proj._tasks || []).slice(0, 10)" size="small" border>
+                      <el-table-column prop="title" label="任务" min-width="140" show-overflow-tooltip />
+                      <el-table-column label="状态" width="90">
+                        <template #default="{ row }">
+                          <el-tag :type="taskStatusTag(row.status)" size="small">{{ taskStatusLabel(row.status) }}</el-tag>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="优先级" width="70">
+                        <template #default="{ row }">
+                          <el-tag v-if="row.priority === 'urgent'" type="danger" size="small">紧急</el-tag>
+                          <el-tag v-else-if="row.priority === 'high'" type="warning" size="small">高</el-tag>
+                          <span v-else>{{ row.priority || '普通' }}</span>
+                        </template>
+                      </el-table-column>
+                      <el-table-column label="截止" width="100">
+                        <template #default="{ row }">{{ row.due_date ? row.due_date.slice(0, 10) : '-' }}</template>
+                      </el-table-column>
+                    </el-table>
+                    <div v-if="(proj._tasks || []).length > 10" class="more-tasks">
+                      还有 {{ (proj._tasks || []).length - 10 }} 条任务...
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <el-empty v-if="!projectsLoading && !projectList.length" description="暂无参与的项目小组" />
+          </div>
+
           <!-- 我的审核 -->
           <div v-if="activeKey === 'reviews'" class="tab-panel embedded-view">
             <ApprovalTasks />
@@ -329,7 +535,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import {
   ElTable, ElTableColumn, ElButton, ElTag, ElInput, ElSelect, ElOption, ElPagination,
@@ -337,9 +543,11 @@ import {
 } from 'element-plus'
 import {
   ArrowLeft, SwitchButton, User, OfficeBuilding, Document, Money,
-  Promotion, Share, Finished, Connection, Wallet, Ticket, Lock
+  Promotion, Share, Finished, Connection, Wallet, Ticket, Lock,
+  Refresh, TrendCharts, DocumentChecked, List, Calendar
 } from '@element-plus/icons-vue'
 import request from '@/utils/request'
+import { getMyOverview } from '@/api/dashboard'
 import ApprovalTasks from '@/views/finance/ApprovalTasks.vue'
 import MyReimbursements from '@/views/finance/MyReimbursements.vue'
 import MyReceivables from '@/views/finance/MyReceivables.vue'
@@ -349,9 +557,40 @@ import ServiceWorkflow from '@/views/admin/ServiceWorkflow.vue'
 const route = useRoute()
 const router = useRouter()
 
-const activeKey = ref(route.query.tab || 'leads')
+const activeKey = ref(route.query.tab || 'overview')
 const userId = ref('')
 const submitting = ref(false)
+const permissionProfile = ref(null)
+const permissionLoaded = ref(false)
+
+const localUser = computed(() => {
+  try {
+    return JSON.parse(localStorage.getItem('user') || '{}')
+  } catch {
+    return {}
+  }
+})
+const currentUser = computed(() => permissionProfile.value?.user || localUser.value || {})
+const currentUserName = computed(() => currentUser.value.nickname || currentUser.value.name || currentUser.value.username || '员工')
+const userInitial = computed(() => currentUserName.value.slice(0, 1))
+const currentRole = computed(() => currentUser.value.role || 'staff')
+const isManagerLike = computed(() => ['super_admin', 'admin', 'manager'].includes(currentRole.value))
+const visibleModuleKeys = computed(() => (permissionProfile.value?.visible_modules || []).map((item) => item.key))
+const permissionKeys = computed(() => (permissionProfile.value?.permissions || []).map((item) => item.permission_key))
+const myProjectCount = computed(() => (permissionProfile.value?.projects || []).length)
+const myTaskCount = computed(() => (permissionProfile.value?.task_cards || []).length)
+const canEnterAdmin = computed(() => visibleModuleKeys.value.includes('dashboard'))
+const roleLabel = (role) => {
+  const labels = {
+    super_admin: '超级管理员',
+    admin: '管理员',
+    manager: '门店店长',
+    staff: '员工',
+    employee: '员工',
+    customer: '客户'
+  }
+  return labels[role] || '员工'
+}
 
 // 通用状态标签
 const statusTagType = (status) => {
@@ -402,7 +641,13 @@ const normalizeList = (res) => {
 }
 
 // 左侧导航
-const navGroups = [
+const baseNavGroups = [
+  {
+    title: '个人中心',
+    items: [
+      { key: 'overview', title: '我的概览', desc: '账号与权限状态', icon: User, bg: '#E6F7FF', color: '#1890FF' }
+    ]
+  },
   {
     title: '业务拓展',
     items: [
@@ -417,6 +662,7 @@ const navGroups = [
     title: '工作流转',
     items: [
       { key: 'team', title: '我的团队', desc: '部门成员信息', icon: Share, bg: '#F9F0FF', color: '#722ED1' },
+      { key: 'projects', title: '我的项目小组', desc: '参与的项目组', icon: Connection, bg: '#E6F7FF', color: '#1890FF' },
       { key: 'reviews', title: '我的审核', desc: '待审核任务', icon: Finished, bg: '#FFF1F0', color: '#F5222D' },
       { key: 'workflow', title: '我的服务流程', desc: '客户服务流程', icon: Connection, bg: '#FFF0F6', color: '#EB2F96' }
     ]
@@ -437,8 +683,229 @@ const navGroups = [
   }
 ]
 
-const currentNav = computed(() => navGroups.flatMap((g) => g.items).find((i) => i.key === activeKey.value))
+const moduleNavMap = {
+  leads: ['leads'],
+  customers: ['customers'],
+  buildings: ['buildings'],
+  contracts: ['contracts'],
+  quotes: ['quotes'],
+  team: ['settings', 'dashboard'],
+  reviews: ['finance', 'quotes', 'workflow'],
+  workflow: ['workflow'],
+  receivables: ['finance'],
+  payables: ['finance']
+}
+const permissionNavMap = {
+  team: ['employee.view', 'employee.permission.assign'],
+  projects: ['project.view', 'project.manage'],
+  reviews: ['expense.approve', 'payment.confirm', 'quote.approve', 'task.review', 'workflow.review'],
+  workflow: ['workflow.view', 'workflow.manage'],
+  receivables: ['finance.receivable.view', 'finance.manage'],
+  payables: ['finance.payable.view', 'finance.manage']
+}
+const baseEntryKeys = ['overview', 'reimbursements', 'password']
+const hasAny = (source, targets) => targets.some((target) => source.includes(target))
+const canShowNavItem = (key) => {
+  if (baseEntryKeys.includes(key)) return true
+  if (key === 'projects') return isManagerLike.value || myProjectCount.value > 0 || hasAny(permissionKeys.value, permissionNavMap.projects)
+  if (moduleNavMap[key] && hasAny(visibleModuleKeys.value, moduleNavMap[key])) return true
+  if (permissionNavMap[key] && hasAny(permissionKeys.value, permissionNavMap[key])) return true
+  return false
+}
+const navGroups = computed(() =>
+  baseNavGroups
+    .map((group) => ({ ...group, items: group.items.filter((item) => canShowNavItem(item.key)) }))
+    .filter((group) => group.items.length)
+)
+const allowedFlatItems = computed(() => navGroups.value.flatMap((g) => g.items))
+const allowedEntryCount = computed(() => allowedFlatItems.value.length)
+const isAllowedKey = (key) => allowedFlatItems.value.some((item) => item.key === key)
+const firstAllowedKey = computed(() => allowedFlatItems.value[0]?.key || 'overview')
+const currentNav = computed(() => allowedFlatItems.value.find((i) => i.key === activeKey.value))
 const currentTitle = computed(() => currentNav.value?.title || '我的工作台')
+
+// ========== 个人数据驾驶舱 ==========
+const myOverviewData = ref(null)
+const overviewLoading = ref(false)
+const myTrendChartRef = ref(null)
+let trendChart = null
+
+const nowText = computed(() => {
+  const d = new Date()
+  const h = d.getHours()
+  if (h < 12) return `${h.toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} 上午好`
+  if (h < 18) return `${h.toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} 下午好`
+  return `${h.toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')} 晚上好`
+})
+const greetingText = computed(() => {
+  const h = new Date().getHours()
+  if (h < 12) return '早上好'
+  if (h < 18) return '下午好'
+  return '晚上好'
+})
+
+const kpiCards = computed(() => {
+  const k = myOverviewData.value?.kpi || {}
+  return [
+    {
+      label: '我的线索',
+      value: k.leads?.total ?? '-',
+      subLabel: '今日新 / 本月新增',
+      subValue: `${k.leads?.today ?? 0} / ${k.leads?.month ?? 0}`,
+      chip: '线索',
+      icon: Promotion,
+      color: '#6366f1',
+      bg: 'rgba(99,102,241,0.1)',
+    },
+    {
+      label: '我的客户',
+      value: k.customers?.total ?? '-',
+      subLabel: '今日新 / 需跟进',
+      subValue: `${k.customers?.today ?? 0} / ${k.customers?.follow_up ?? 0}`,
+      chip: '客户',
+      icon: User,
+      color: '#10b981',
+      bg: 'rgba(16,185,129,0.1)',
+    },
+    {
+      label: '我的报价',
+      value: k.quotes?.total ?? '-',
+      subLabel: '审批中 / 已通过',
+      subValue: `${k.quotes?.pending ?? 0} / ${k.quotes?.approved ?? 0}`,
+      chip: '报价',
+      icon: Document,
+      color: '#f59e0b',
+      bg: 'rgba(245,158,11,0.1)',
+    },
+    {
+      label: '我的合同',
+      value: k.contracts?.total ?? '-',
+      subLabel: '合同总金额（万元）',
+      subValue: ((k.contracts?.amount ?? 0) / 10000).toFixed(1),
+      chip: '合同',
+      icon: Ticket,
+      color: '#ef4444',
+      bg: 'rgba(239,68,68,0.1)',
+    },
+    {
+      label: '项目小组',
+      value: k.projects?.total ?? '-',
+      subLabel: '主持项目',
+      subValue: `${k.projects?.leading ?? 0}`,
+      chip: '项目',
+      icon: Share,
+      color: '#8b5cf6',
+      bg: 'rgba(139,92,246,0.1)',
+    },
+    {
+      label: '待办任务',
+      value: k.tasks?.pending ?? '-',
+      subLabel: '待审核 / 已完成',
+      subValue: `${k.tasks?.reviewing ?? 0} / ${k.tasks?.completed ?? 0}`,
+      chip: '任务',
+      icon: List,
+      color: '#06b6d4',
+      bg: 'rgba(6,182,212,0.1)',
+    },
+    {
+      label: '待跟进线索',
+      value: k.leads?.follow_up ?? '-',
+      subLabel: '需及时跟进',
+      subValue: '线索',
+      chip: '跟进',
+      icon: Connection,
+      color: '#f97316',
+      bg: 'rgba(249,115,22,0.1)',
+    },
+    {
+      label: '本月签约额',
+      value: ((k.contracts?.amount ?? 0)).toLocaleString('zh-CN', { maximumFractionDigits: 0 }),
+      subLabel: '报价累计金额（万元）',
+      subValue: ((k.quotes?.amount ?? 0) / 10000).toFixed(1),
+      chip: '业绩',
+      icon: Money,
+      color: '#ec4899',
+      bg: 'rgba(236,72,153,0.1)',
+    },
+  ]
+})
+
+const todoItems = computed(() => {
+  const k = myOverviewData.value?.kpi || {}
+  const items = []
+  if (k.leads?.follow_up > 0) items.push({
+    label: '条线索待跟进', value: k.leads.follow_up, tab: 'leads',
+    icon: Promotion, bg: 'rgba(99,102,241,0.1)'
+  })
+  if (k.customers?.follow_up > 0) items.push({
+    label: '位客户待跟进', value: k.customers.follow_up, tab: 'customers',
+    icon: User, bg: 'rgba(16,185,129,0.1)'
+  })
+  if (k.quotes?.pending > 0) items.push({
+    label: '份报价待审批', value: k.quotes.pending, tab: 'quotes',
+    icon: Document, bg: 'rgba(245,158,11,0.1)'
+  })
+  if (k.tasks?.pending > 0) items.push({
+    label: '个任务待完成', value: k.tasks.pending, tab: 'projects',
+    icon: List, bg: 'rgba(6,182,212,0.1)'
+  })
+  if (k.tasks?.reviewing > 0) items.push({
+    label: '个任务待审核', value: k.tasks.reviewing, tab: 'projects',
+    icon: DocumentChecked, bg: 'rgba(139,92,246,0.1)'
+  })
+  if (k.appointments?.upcoming > 0) items.push({
+    label: '场待办预约', value: k.appointments.upcoming, tab: 'appointments',
+    icon: Calendar, bg: 'rgba(249,115,22,0.1)'
+  })
+  if (!items.length) items.push({
+    label: '暂无待办，状态良好',
+    value: '✓',
+    tab: '',
+    icon: Finished,
+    bg: 'rgba(16,185,129,0.1)'
+  })
+  return items
+})
+
+const loadMyOverview = async () => {
+  overviewLoading.value = true
+  try {
+    const res = await getMyOverview()
+    if (res.data?.code === 200) {
+      myOverviewData.value = res.data.data
+      nextTick(() => renderTrendChart())
+    }
+  } catch (e) {
+    console.error('loadMyOverview error', e)
+  } finally {
+    overviewLoading.value = false
+  }
+}
+
+const renderTrendChart = async () => {
+  if (!myTrendChartRef.value) return
+  const echarts = await import('echarts')
+  if (trendChart) trendChart.dispose()
+  const el = myTrendChartRef.value
+  trendChart = echarts.init(el)
+  const trend = myOverviewData.value?.monthly_trend || []
+  const months = trend.map((t) => t.month)
+  const leadsData = trend.map((t) => t.leads)
+  const custData = trend.map((t) => t.customers)
+  const quoteData = trend.map((t) => t.quotes)
+  trendChart.setOption({
+    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    legend: { data: ['线索', '客户', '报价'], bottom: 0, textStyle: { fontSize: 11 } },
+    grid: { left: 40, right: 16, top: 10, bottom: 40 },
+    xAxis: { type: 'category', data: months, axisLabel: { fontSize: 10 } },
+    yAxis: { type: 'value', axisLabel: { fontSize: 10 } },
+    series: [
+      { name: '线索', type: 'bar', data: leadsData, itemStyle: { color: '#6366f1' } },
+      { name: '客户', type: 'bar', data: custData, itemStyle: { color: '#10b981' } },
+      { name: '报价', type: 'line', data: quoteData, smooth: true, itemStyle: { color: '#f59e0b' }, lineStyle: { width: 2 } },
+    ],
+  })
+}
 
 // 我的线索
 const leads = ref([])
@@ -660,6 +1127,71 @@ const loadQuotes = async () => {
   }
 }
 
+// 我的项目小组
+const projectsLoading = ref(false)
+const projectList = ref([])
+const projectSearch = ref('')
+const projectStatus = ref('')
+const projectStatusOptions = [
+  { value: '', label: '全部' },
+  { value: 'planning', label: '规划中' },
+  { value: 'active', label: '进行中' },
+  { value: 'completed', label: '已完成' }
+]
+const filteredProjects = computed(() => {
+  return projectList.value.filter((p) => {
+    const text = projectSearch.value.trim().toLowerCase()
+    const matchText = !text || (p.name || '').toLowerCase().includes(text) || (p.code || '').toLowerCase().includes(text)
+    const matchStatus = !projectStatus.value || (p.status || '') === projectStatus.value
+    return matchText && matchStatus
+  })
+})
+const taskStatusTag = (status) => {
+  const s = String(status || '').toLowerCase()
+  if (['draft', 'published'].includes(s)) return 'info'
+  if (['accepted', 'in_progress', 'submitted', 'rework'].includes(s)) return 'warning'
+  if (['completed', 'done'].includes(s)) return 'success'
+  if (['cancelled', 'rejected'].includes(s)) return 'danger'
+  return 'info'
+}
+const taskStatusLabel = (status) => {
+  const labels = {
+    draft: '草稿', published: '待领取', accepted: '已接受', in_progress: '进行中',
+    submitted: '已提交', rework: '返工', completed: '已完成', cancelled: '已取消'
+  }
+  return labels[status] || status || '-'
+}
+const toggleProjectDetail = async (proj) => {
+  if (proj._expanded) {
+    proj._expanded = false
+    return
+  }
+  if (proj._members) {
+    proj._expanded = true
+    return
+  }
+  try {
+    const detail = await request.get(`/project-teams/${proj.id}`)
+    proj._members = detail.members || []
+    proj._tasks = detail.tasks || []
+    proj._expanded = true
+  } catch (e) {
+    ElMessage.error('加载项目详情失败')
+  }
+}
+const loadProjects = async () => {
+  projectsLoading.value = true
+  try {
+    const res = await request.get('/project-teams', { params: { pageSize: 100 } })
+    const data = res || {}
+    projectList.value = (data.items || []).map((p) => ({ ...p, _expanded: false }))
+  } catch (e) {
+    ElMessage.error('加载项目小组失败')
+  } finally {
+    projectsLoading.value = false
+  }
+}
+
 // 我的团队
 const teamLoading = ref(false)
 const teamInfo = ref({})
@@ -750,8 +1282,34 @@ const handleLogout = () => {
     .catch(() => {})
 }
 
+const loadPermissionProfile = async () => {
+  try {
+    permissionProfile.value = await request.get('/permissions/me')
+  } catch (e) {
+    permissionProfile.value = {
+      user: localUser.value,
+      permissions: [],
+      visible_modules: [],
+      projects: [],
+      task_cards: []
+    }
+  } finally {
+    permissionLoaded.value = true
+  }
+}
+
+loadMyOverview()
+
+const normalizeActiveKey = () => {
+  if (!permissionLoaded.value) return
+  if (!isAllowedKey(activeKey.value)) {
+    activeKey.value = firstAllowedKey.value
+  }
+}
+
 // 按 Tab 加载数据
 const loadByKey = (key) => {
+  if (!permissionLoaded.value || !isAllowedKey(key)) return
   switch (key) {
     case 'leads':
       loadLeads()
@@ -768,6 +1326,9 @@ const loadByKey = (key) => {
     case 'quotes':
       loadQuotes()
       break
+    case 'projects':
+      loadProjects()
+      break
     case 'team':
       loadTeam()
       break
@@ -775,6 +1336,11 @@ const loadByKey = (key) => {
 }
 
 watch(activeKey, (val) => {
+  if (!permissionLoaded.value) return
+  if (!isAllowedKey(val)) {
+    normalizeActiveKey()
+    return
+  }
   router.replace({ query: { ...route.query, tab: val } })
   loadByKey(val)
 })
@@ -798,7 +1364,14 @@ onMounted(() => {
       userId.value = ''
     }
   }
-  loadByKey(activeKey.value)
+  loadPermissionProfile().then(() => {
+    normalizeActiveKey()
+    loadByKey(activeKey.value)
+  })
+})
+
+watch([permissionLoaded, allowedFlatItems], () => {
+  normalizeActiveKey()
 })
 </script>
 
@@ -963,6 +1536,279 @@ onMounted(() => {
   min-height: 100%;
 }
 
+.overview-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ========== 个人数据驾驶舱样式 ========== */
+.dash-hero {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 24px 28px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  margin-bottom: 20px;
+}
+.dash-hero-left { display: flex; gap: 18px; align-items: center; }
+.dash-avatar {
+  width: 64px; height: 64px; border-radius: 14px;
+  background: rgba(255,255,255,0.2);
+  backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 28px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.dash-hero-info { flex: 1; min-width: 0; }
+.dash-hero-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 6px; }
+.dash-hero-title h2 { margin: 0; font-size: 24px; color: #fff; }
+.dash-hero-desc { margin: 0; color: rgba(255,255,255,0.8); font-size: 14px; }
+.dash-hero-meta { display: flex; gap: 16px; margin-top: 6px; font-size: 12px; color: rgba(255,255,255,0.6); }
+.dash-hero-right { flex-shrink: 0; }
+.dash-hero-right .el-button { color: #fff; border-color: rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); }
+
+.dash-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.dash-kpi-card {
+  padding: 18px;
+  border-radius: 10px;
+  background: #fff;
+  border: 1px solid #eef0f5;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.dash-kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.06);
+}
+.dash-kpi-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--kpi-color);
+}
+.kpi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.kpi-icon-box {
+  width: 36px; height: 36px; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+}
+.kpi-chip {
+  font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 500;
+}
+.kpi-num {
+  font-size: 28px; font-weight: 700; color: #172033; line-height: 1;
+}
+.kpi-name {
+  margin-top: 6px; font-size: 13px; color: #7a8699;
+}
+.kpi-sub {
+  margin-top: 8px; font-size: 12px; color: #98a2b3;
+  display: flex; gap: 4px; align-items: center;
+}
+
+.dash-mid-grid {
+  display: grid;
+  grid-template-columns: 1.6fr 1fr;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.dash-chart-card, .dash-todo-card, .dash-activity-card {
+  background: #fff;
+  border: 1px solid #eef0f5;
+  border-radius: 10px;
+  padding: 18px;
+}
+.dash-card-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+.dash-card-title { font-size: 16px; font-weight: 600; color: #1f2f46; }
+.dash-card-sub { font-size: 12px; color: #98a2b3; }
+.dash-chart-box { height: 240px; }
+
+.dash-todo-list { display: flex; flex-direction: column; gap: 10px; }
+.dash-todo-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 14px; border-radius: 8px; background: var(--todo-bg, #f8f9fb);
+  cursor: pointer; transition: background 0.15s;
+}
+.dash-todo-item:hover { background: #eef0f5; }
+.dash-todo-icon {
+  width: 32px; height: 32px; border-radius: 8px;
+  background: rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
+  color: #5a6a80; flex-shrink: 0;
+}
+.dash-todo-body { display: flex; flex-direction: column; }
+.dash-todo-body strong { font-size: 18px; color: #172033; }
+.dash-todo-body span { font-size: 12px; color: #7a8699; }
+
+.dash-activity-card { margin-bottom: 20px; }
+.dash-activity-list { display: flex; flex-direction: column; }
+.dash-activity-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f2f5;
+}
+.dash-activity-item:last-child { border-bottom: none; }
+.dash-activity-dot {
+  width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0;
+}
+.dash-activity-dot.lead { background: #6366f1; }
+.dash-activity-dot.quote { background: #f59e0b; }
+.dash-activity-dot.customer { background: #10b981; }
+.dash-activity-content { flex: 1; min-width: 0; }
+.dash-activity-title { font-size: 14px; font-weight: 500; color: #1f2f46; }
+.dash-activity-desc { font-size: 12px; color: #7a8699; margin-top: 2px; }
+.dash-activity-time { font-size: 12px; color: #98a2b3; flex-shrink: 0; }
+.dash-empty { text-align: center; color: #98a2b3; padding: 24px 0; font-size: 13px; }
+
+/* ========== 旧概览样式（保留兼容） ========== */
+.employee-hero {
+  display: flex;
+  gap: 18px;
+  align-items: center;
+  padding: 22px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #f8fbff 0%, #eef7ff 100%);
+  border: 1px solid #dcecff;
+}
+
+.employee-avatar {
+  width: 72px;
+  height: 72px;
+  border-radius: 8px;
+  background: #1677ff;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.employee-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.employee-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 8px;
+}
+
+.employee-title-row h2 {
+  margin: 0;
+  font-size: 24px;
+  color: #1f2f46;
+}
+
+.employee-main p {
+  margin: 0;
+  color: #5f6f89;
+  line-height: 1.7;
+  max-width: 720px;
+}
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.overview-card {
+  padding: 18px;
+  border: 1px solid #eef0f5;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.overview-label {
+  font-size: 13px;
+  color: #7a8699;
+}
+
+.overview-value {
+  margin-top: 8px;
+  font-size: 30px;
+  font-weight: 700;
+  color: #172033;
+  line-height: 1;
+}
+
+.overview-note {
+  margin-top: 10px;
+  font-size: 12px;
+  color: #98a2b3;
+}
+
+.access-panel {
+  border: 1px solid #eef0f5;
+  border-radius: 8px;
+  padding: 18px;
+  background: #fff;
+}
+
+.panel-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2f46;
+  margin-bottom: 14px;
+}
+
+.access-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.access-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #eef0f5;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.access-item:hover {
+  border-color: #409eff;
+  box-shadow: 0 4px 14px rgba(64, 158, 255, 0.12);
+}
+
+.access-icon {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.access-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.access-desc {
+  margin-top: 2px;
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
 .embedded-view {
   padding: 0;
   background: transparent;
@@ -983,8 +1829,151 @@ onMounted(() => {
   align-items: center;
 }
 
+.project-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.project-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: box-shadow 0.2s;
+}
+
+.project-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+}
+
+.project-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.project-name {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.project-name .name-text {
+  font-size: 15px;
+  font-weight: 600;
+  color: #262626;
+}
+
+.project-code {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.project-card-body {
+  padding: 14px 18px;
+}
+
+.project-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  margin-bottom: 8px;
+}
+
+.meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.meta-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.meta-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #262626;
+}
+
+.project-objective {
+  font-size: 13px;
+  color: #595959;
+  margin-top: 8px;
+  line-height: 1.6;
+  padding: 8px 12px;
+  background: #fafafa;
+  border-radius: 4px;
+}
+
+.project-card-footer {
+  padding: 0 18px 12px;
+}
+
+.project-detail {
+  border-top: 1px solid #f0f0f0;
+  padding: 16px 18px;
+  background: #fafbfc;
+}
+
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-section:last-child {
+  margin-bottom: 0;
+}
+
+.detail-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #262626;
+  margin-bottom: 10px;
+}
+
+.more-tasks {
+  text-align: center;
+  font-size: 12px;
+  color: #8c8c8c;
+  padding: 8px 0;
+}
+
 :deep(.el-pagination) {
   margin-top: 16px;
   justify-content: flex-end;
+}
+
+@media (max-width: 900px) {
+  .workspace-body {
+    flex-direction: column;
+  }
+
+  .workspace-sidebar {
+    width: 100%;
+    min-width: 0;
+    max-height: 320px;
+    border-right: 0;
+    border-bottom: 1px solid #f0f0f0;
+  }
+
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dash-kpi-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .dash-mid-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .employee-hero {
+    align-items: flex-start;
+  }
 }
 </style>

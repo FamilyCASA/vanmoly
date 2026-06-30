@@ -80,6 +80,12 @@ const routes = [
     meta: { title: '客户注册', public: true }
   },
   {
+    path: '/user-center',
+    name: 'UserCenter',
+    component: () => import('@/views/UserCenter.vue'),
+    meta: { title: '用户中心', public: true, hasHero: true }
+  },
+  {
     path: '/selection-center',
     name: 'SelectionCenter',
     component: () => import('@/views/SelectionCenter.vue'),
@@ -292,21 +298,21 @@ router.beforeEach((to, from, next) => {
   // 递归检查路由是否需要认证
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth)
   
-  if (requiresAuth && !token) {
-    // 需要登录但未登录，跳转到登录页
-    next({ path: '/login', replace: true })
-    return
-  }
-  
   // 客户专属页面：未注册引导注册，已注册可直达
   if (to.meta.isCustomerAuth && !customerToken) {
-    next({ path: '/register', replace: true })
+    next({ path: '/user-center', query: { redirect: to.fullPath }, replace: true })
     return
   }
-  
+
+  if (requiresAuth && !to.meta.isCustomerAuth && !token) {
+    // 需要员工登录但未登录，跳转到统一用户中心
+    next({ path: '/user-center', query: { redirect: to.fullPath }, replace: true })
+    return
+  }
+
   if (to.path === '/login' && token) {
-    // 已登录但访问登录页，跳转到后台
-    next({ path: '/admin/dashboard', replace: true })
+    // 已登录但访问登录页，跳转到个人工作台并打开“我的”
+    next({ path: '/admin/my-workspace', query: { openMine: '1' }, replace: true })
     return
   }
   

@@ -16,6 +16,8 @@ from app.models.lead_v2 import Lead
 from app.models.quote import Quote
 from app.models.appointment import Appointment
 from app.models.case import CaseStudy
+from app.models.project_team import ProjectTeam, ProjectTeamMember, ProjectTask
+from app.routes.auth_routes_v2 import jwt_required_v2
 
 dashboard_bp = Blueprint('dashboard', __name__)
 
@@ -540,6 +542,228 @@ def get_overview():
             },
             # 趋势
             'monthly_trend': monthly_trend,
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return api_response(code=500, message=str(e))
+
+
+@dashboard_bp.route('/dashboard/my-overview', methods=['GET'])
+@jwt_required_v2
+def get_my_overview(current_user):
+    """个人数据驾驶舱 — 当前登录员工的专属数据概览"""
+    try:
+        employee_id = current_user.get('employee_id')
+        if not employee_id:
+            return api_response(code=400, message='当前账号未关联员工信息')
+
+        today = datetime.now().date()
+        today_start = datetime.combine(today, datetime.min.time())
+        month_start = today.replace(day=1)
+        month_start_dt = datetime.combine(month_start, datetime.min.time())
+
+        # ===== 线索 =====
+        my_leads_total = Lead.query.filter_by(assigned_to=employee_id).count()
+        my_leads_today = Lead.query.filter(
+            Lead.assigned_to == employee_id,
+            Lead.created_at >= today_start
+        ).count()
+        my_leads_month = Lead.query.filter(
+            Lead.assigned_to == employee_id,
+            Lead.created_at >= month_start_dt
+        ).count()
+        my_leads_follow_up = Lead.query.filter(
+            Lead.assigned_to == employee_id,
+            Lead.status.in_(['new', 'follow_up', 'contacted', 'visited'])
+        ).count()
+
+        # ===== 客户 =====
+        my_customers_total = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.owner_id == employee_id
+        ).count()
+        my_customers_today = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.owner_id == employee_id,
+            Customer.created_at >= today_start
+        ).count()
+        my_customers_month = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.owner_id == employee_id,
+            Customer.created_at >= month_start_dt
+        ).count()
+        my_customers_follow_up = Customer.query.filter(
+            Customer.is_deleted == False,
+            Customer.owner_id == employee_id,
+            Customer.status.in_(['待跟进', '跟进中'])
+        ).count()
+
+        # ===== 报价 =====
+        my_quotes_total = Quote.query.filter_by(creator_id=employee_id).count()
+        my_quotes_pending = Quote.query.filter(
+            Quote.creator_id == employee_id,
+            Quote.status.in_(['draft', 'pending'])
+        ).count()
+        my_quotes_approved = Quote.query.filter(
+            Quote.creator_id == employee_id,
+            Quote.status.in_(['approved', 'confirmed'])
+        ).count()
+        my_quote_amount = db.session.query(func.sum(Quote.total_amount)).filter(
+            Quote.creator_id == employee_id,
+            Quote.status.in_(['approved', 'confirmed'])
+        ).scalar() or 0
+
+        # ===== 合同 =====
+        my_contracts_total = Contract.query.filter_by(manager_id=employee_id).count()
+        my_contract_amount = db.session.query(func.sum(Contract.total_amount)).filter(
+            Contract.manager_id == employee_id
+        ).scalar() or 0
+
+        # ===== 项目 =====
+        my_projects = ProjectTeamMember.query.filter_by(
+            employee_id=employee_id
+        ).join(ProjectTeam).filter(
+            ProjectTeam.is_deleted == False
+        ).all()
+        my_projects_total = len(my_projects)
+        leading_projects = [m for m in my_projects if m.is_leader]
+        my_projects_leading = len(leading_projects)
+
+        # ===== 任务 =====
+        my_tasks_pending = ProjectTask.query.filter(
+            ProjectTask.assignee_id == employee_id,
+            ProjectTask.status.in_(['published', 'accepted', 'in_progress', 'rework'])
+        ).count()
+        my_tasks_reviewing = ProjectTask.query.filter(
+            ProjectTask.reviewer_id == employee_id,
+            ProjectTask.status == 'submitted'
+        ).count()
+        my_tasks_completed = ProjectTask.query.filter(
+            ProjectTask.assignee_id == employee_id,
+            ProjectTask.status == 'completed'
+        ).count()
+
+        # ===== 预约 =====
+        my_appointments_upcoming = Appointment.query.filter(
+            Appointment.assigned_to == employee_id,
+            Appointment.status == 'pending',
+            Appointment.appointment_date >= today
+        ).count() if hasattr(Appointment, 'appointment_date') else 0
+
+        # ===== 月度趋势（最近6个月）=====
+        monthly_trend = []
+        for i in range(5, -1, -1):
+            m = today.month - i
+            y = today.year
+            if m <= 0:
+                m += 12
+                y -= 1
+            m_start = datetime(y, m, 1).date()
+            if m == 12:
+                m_end = datetime(y + 1, 1, 1).date() - timedelta(days=1)
+            else:
+                m_end = datetime(y, m + 1, 1).date() - timedelta(days=1)
+            if i == 0:
+                m_end = today
+
+            m_leads = Lead.query.filter(
+                Lead.assigned_to == employee_id,
+                Lead.created_at >= datetime.combine(m_start, datetime.min.time()),
+                Lead.created_at <= datetime.combine(m_end, datetime.max.time())
+            ).count()
+            m_customers = Customer.query.filter(
+                Customer.is_deleted == False,
+                Customer.owner_id == employee_id,
+                Customer.created_at >= datetime.combine(m_start, datetime.min.time()),
+                Customer.created_at <= datetime.combine(m_end, datetime.max.time())
+            ).count()
+            m_quotes = Quote.query.filter(
+                Quote.creator_id == employee_id,
+                Quote.created_at >= datetime.combine(m_start, datetime.min.time()),
+                Quote.created_at <= datetime.combine(m_end, datetime.max.time())
+            ).count()
+            monthly_trend.append({
+                'month': f'{y}-{m:02d}',
+                'leads': m_leads,
+                'customers': m_customers,
+                'quotes': m_quotes,
+            })
+
+        # ===== 近期活动（最近10条）=====
+        recent_items = []
+        # 最近线索
+        recent_leads = Lead.query.filter_by(assigned_to=employee_id).order_by(
+            Lead.created_at.desc()
+        ).limit(5).all()
+        for lead in recent_leads:
+            recent_items.append({
+                'type': 'lead',
+                'title': lead.name or '未知客户',
+                'desc': f'线索 · {lead.source or "未知来源"}',
+                'status': lead.status or 'new',
+                'time': lead.created_at.strftime('%Y-%m-%d %H:%M') if lead.created_at else '',
+            })
+        # 最近报价
+        recent_quotes = Quote.query.filter_by(creator_id=employee_id).order_by(
+            Quote.created_at.desc()
+        ).limit(5).all()
+        for quote in recent_quotes:
+            recent_items.append({
+                'type': 'quote',
+                'title': f'报价单 #{quote.quote_no}',
+                'desc': f'¥{quote.total_amount:,.0f}' if quote.total_amount else '金额未定',
+                'status': quote.status or 'draft',
+                'time': quote.created_at.strftime('%Y-%m-%d %H:%M') if hasattr(quote, 'created_at') and quote.created_at else '',
+            })
+        # 排序并取前10
+        recent_items.sort(key=lambda x: x['time'], reverse=True)
+        recent_items = recent_items[:10]
+
+        return api_response(data={
+            'employee': {
+                'id': employee_id,
+                'name': current_user.get('nickname', ''),
+                'role': current_user.get('role', ''),
+            },
+            'kpi': {
+                'leads': {
+                    'total': my_leads_total,
+                    'today': my_leads_today,
+                    'month': my_leads_month,
+                    'follow_up': my_leads_follow_up,
+                },
+                'customers': {
+                    'total': my_customers_total,
+                    'today': my_customers_today,
+                    'month': my_customers_month,
+                    'follow_up': my_customers_follow_up,
+                },
+                'quotes': {
+                    'total': my_quotes_total,
+                    'pending': my_quotes_pending,
+                    'approved': my_quotes_approved,
+                    'amount': float(my_quote_amount),
+                },
+                'contracts': {
+                    'total': my_contracts_total,
+                    'amount': float(my_contract_amount),
+                },
+                'projects': {
+                    'total': my_projects_total,
+                    'leading': my_projects_leading,
+                },
+                'tasks': {
+                    'pending': my_tasks_pending,
+                    'reviewing': my_tasks_reviewing,
+                    'completed': my_tasks_completed,
+                },
+                'appointments': {
+                    'upcoming': my_appointments_upcoming,
+                },
+            },
+            'monthly_trend': monthly_trend,
+            'recent_activities': recent_items,
         })
     except Exception as e:
         import traceback

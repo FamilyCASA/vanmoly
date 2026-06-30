@@ -2496,6 +2496,80 @@ def upload_payable_voucher(item_id):
         return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
 
 
+@finance_bp.route('/payables/<int:item_id>/confirm-payment', methods=['PUT'])
+@jwt_required()
+def confirm_payment(item_id):
+    """确认付款：更新应付款状态 + 自动登记支出流水"""
+    try:
+        user_id, tenant_id = get_current_user()
+
+        if not check_permission(user_id, 'review') and not check_permission(user_id, 'pay'):
+            return jsonify({'code': 403, 'message': '没有付款确认权限', 'data': None}), 403
+
+        item = FinancePayable.query.filter_by(id=item_id, tenant_id=tenant_id).first()
+        if not item:
+            return jsonify({'code': 404, 'message': '记录不存在', 'data': None}), 404
+
+        if item.status in ('paid', 'cancelled'):
+            return jsonify({'code': 400, 'message': '该应付款已付清或已取消', 'data': None}), 400
+
+        data = request.get_json() or {}
+        paid_amount = Decimal(str(data.get('paid_amount', item.remaining_amount or item.amount)))
+        if paid_amount <= 0:
+            return jsonify({'code': 400, 'message': '付款金额必须大于 0', 'data': None}), 400
+        if item.remaining_amount and paid_amount > item.remaining_amount:
+            return jsonify({'code': 400, 'message': '付款金额不能大于剩余应付金额', 'data': None}), 400
+
+        before = item.to_dict()
+        item.paid_amount = (item.paid_amount or 0) + paid_amount
+        item.remaining_amount = item.amount - item.paid_amount
+        if item.remaining_amount <= 0:
+            item.status = 'paid'
+            item.remaining_amount = 0
+        else:
+            item.status = 'partial'
+
+        transaction = FinanceTransaction(
+            tenant_id=tenant_id,
+            trans_no=generate_trans_no('expense'),
+            trans_type='expense',
+            trans_date=datetime.utcnow().date(),
+            amount=paid_amount,
+            summary=f'付款：{item.title or item.supplier_name or ""}',
+            payment_method=data.get('payment_method', ''),
+            voucher_files=json.dumps(data.get('vouchers', []), ensure_ascii=False),
+            source_type='payable',
+            source_id=item.id,
+            operator_id=user_id,
+            status='approved',
+            contract_id=item.contract_id,
+            quote_id=item.quote_id,
+            building_id=item.building_id,
+            reviewed_by=user_id,
+            reviewed_at=datetime.utcnow(),
+        )
+
+        db.session.add(transaction)
+        db.session.commit()
+
+        log_action(user_id, 'confirm', 'payable', item.id,
+                   detail_before=before, detail_after=item.to_dict())
+
+        return jsonify({
+            'code': 200,
+            'message': '付款确认成功，已自动登记支出流水',
+            'data': {
+                'payable': item.to_dict(),
+                'transaction': transaction.to_dict()
+            }
+        })
+    except Exception as e:
+        db.session.rollback()
+        import traceback
+        traceback.print_exc()
+        return jsonify({'code': 500, 'message': str(e), 'data': None}), 500
+
+
 # ============================================================
 # 付款计划
 # ============================================================

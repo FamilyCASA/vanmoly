@@ -5,150 +5,251 @@
       <div class="km-sidebar">
         <div class="sidebar-header">
           <span class="sidebar-title">分类导航</span>
+          <el-tooltip content="分类管理" placement="top">
+            <el-button :icon="Setting" size="small" circle @click="categoryMgrVisible = true" />
+          </el-tooltip>
         </div>
         <el-tree
           ref="categoryTreeRef"
           :data="categoryTreeData"
           :props="{ label: 'name', children: 'children' }"
           node-key="id"
-          default-expand-all
+          :default-expanded-keys="defaultExpandedKeys"
           highlight-current
           :expand-on-click-node="false"
           @node-click="onCategoryClick"
         >
           <template #default="{ node, data }">
-            <div class="cat-tree-node">
+            <div class="cat-tree-node" :class="{ 'is-active': selectedCategoryId === data.id }">
               <span class="cat-name">{{ data.name }}</span>
-              <el-badge :value="data.base_count || 0" :max="99" class="cat-badge" />
+              <el-badge :value="data.article_count || data.base_count || 0" :max="999" class="cat-badge" type="primary" />
             </div>
           </template>
         </el-tree>
+
+        <!-- 知识库快捷列表 -->
+        <div class="sidebar-bases" v-if="bases.length">
+          <div class="sidebar-subtitle">知识库</div>
+          <div
+            v-for="base in bases"
+            :key="base.id"
+            class="sidebar-base-item"
+            :class="{ 'is-active': selectedBaseId === base.id }"
+            @click="onBaseClick(base)"
+          >
+            <span class="base-emoji">{{ base.icon || '📚' }}</span>
+            <span class="base-label">{{ base.name }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- 右侧内容区 -->
       <div class="km-content">
-        <el-tabs v-model="activeTab" class="km-tabs">
-          <!-- Tab 1: 知识库管理 -->
-          <el-tab-pane label="知识库管理" name="bases">
-            <div class="tab-toolbar">
-              <div class="toolbar-left">
-                <el-button type="primary" @click="openBaseDialog()">
-                  <el-icon><Plus /></el-icon> 新建知识库
-                </el-button>
+        <!-- ============ 列表视图 ============ -->
+        <template v-if="viewMode === 'list'">
+          <!-- 面包屑 + 工具栏 -->
+          <div class="km-breadcrumb-bar">
+            <el-breadcrumb separator="/">
+              <el-breadcrumb-item>知识库</el-breadcrumb-item>
+              <el-breadcrumb-item v-if="selectedCategoryName">{{ selectedCategoryName }}</el-breadcrumb-item>
+              <el-breadcrumb-item v-if="selectedBaseName">{{ selectedBaseName }}</el-breadcrumb-item>
+            </el-breadcrumb>
+            <div class="km-toolbar">
+              <el-input
+                v-model="articleSearch"
+                placeholder="搜索文章..."
+                clearable
+                style="width: 220px"
+                @clear="loadArticles()"
+                @keyup.enter="loadArticles()"
+              >
+                <template #prefix><el-icon><Search /></el-icon></template>
+              </el-input>
+              <el-select v-model="articleStatusFilter" placeholder="状态" clearable style="width: 110px" @change="loadArticles()">
+                <el-option label="草稿" value="draft" />
+                <el-option label="已发布" value="published" />
+                <el-option label="待审" value="pending" />
+              </el-select>
+              <el-button @click="loadArticles()"><el-icon><Refresh /></el-icon></el-button>
+              <el-button type="primary" @click="startNewArticle()">
+                <el-icon><Plus /></el-icon> 新建文章
+              </el-button>
+            </div>
+          </div>
+
+          <!-- 子节点快捷入口 -->
+          <div v-if="childNodes.length" class="child-nodes-bar">
+            <span class="child-nodes-label">子章节：</span>
+            <el-tag
+              v-for="node in childNodes"
+              :key="node.id"
+              class="child-node-tag"
+              effect="plain"
+              @click="onNodeClick(node)"
+            >
+              {{ node.node_name }}
+              <span v-if="node.article_count" class="node-count">({{ node.article_count }})</span>
+            </el-tag>
+          </div>
+
+          <!-- 文章卡片列表 -->
+          <div v-loading="articleLoading" class="article-card-list">
+            <div v-for="article in articles" :key="article.id" class="article-card">
+              <div class="article-card-main" @click="previewArticle(article)">
+                <div class="article-card-title-row">
+                  <h3 class="article-title">{{ article.title }}</h3>
+                  <el-tag :type="statusTagType(article.status)" size="small">{{ statusLabel(article.status) }}</el-tag>
+                </div>
+                <p class="article-summary">{{ article.summary || '暂无摘要' }}</p>
+                <div class="article-meta">
+                  <span class="meta-item" v-if="article.node_name">📂 {{ article.node_name }}</span>
+                  <span class="meta-item">👁 {{ article.view_count || 0 }}</span>
+                  <span class="meta-item">👍 {{ article.like_count || 0 }}</span>
+                  <span class="meta-item">{{ formatTime(article.updated_at) }}</span>
+                </div>
+                <div class="article-tags" v-if="article.tags && normalizeTags(article.tags).length">
+                  <el-tag v-for="tag in normalizeTags(article.tags)" :key="tag" size="small" effect="plain">{{ tag }}</el-tag>
+                </div>
               </div>
-              <div class="toolbar-right">
-                <el-input v-model="baseSearch" placeholder="搜索知识库..." clearable style="width:200px" @clear="loadBases" @keyup.enter="loadBases">
-                  <template #prefix><el-icon><Search /></el-icon></template>
-                </el-input>
-                <el-button @click="loadBases"><el-icon><Refresh /></el-icon></el-button>
+              <div class="article-card-actions">
+                <el-button size="small" type="primary" plain @click="startEditArticle(article)">编辑</el-button>
+                <el-button size="small" type="danger" plain @click="deleteArticle(article)">删除</el-button>
               </div>
             </div>
+            <el-empty v-if="!articleLoading && articles.length === 0" description="暂无文章，点击右上角新建" />
+          </div>
 
-            <div v-loading="baseLoading" class="base-grid">
-              <div v-for="base in bases" :key="base.id" class="base-card" :style="{ borderTopColor: base.theme_color || '#409EFF' }">
-                <div class="base-card-header">
-                  <span class="base-icon">{{ base.icon || '📚' }}</span>
-                  <div class="base-card-info">
-                    <h3>{{ base.name }}</h3>
-                    <el-tag v-if="base.category_name" size="small" :style="{ backgroundColor: base.theme_color || '#409EFF', color: '#fff', border: 'none' }">{{ base.category_name }}</el-tag>
+          <!-- 分页 -->
+          <el-pagination
+            v-if="articleTotal > articlePageSize"
+            class="mt16"
+            background
+            layout="total, prev, pager, next"
+            :total="articleTotal"
+            :page-size="articlePageSize"
+            :current-page="articlePage"
+            @current-change="loadArticles"
+          />
+        </template>
+
+        <!-- ============ 编辑视图 ============ -->
+        <template v-if="viewMode === 'edit'">
+          <div class="edit-view">
+            <div class="edit-header">
+              <el-button @click="backToList" :icon="ArrowLeft">返回列表</el-button>
+              <span class="edit-title">{{ editingArticle ? '编辑文章' : '新建文章' }}</span>
+              <div class="edit-header-right">
+                <el-button type="primary" :loading="saving" @click="saveArticleInline">保存</el-button>
+              </div>
+            </div>
+            <div class="edit-form-area">
+              <el-form :model="articleForm" label-width="90px">
+                <el-row :gutter="16">
+                  <el-col :span="12">
+                    <el-form-item label="知识库" required>
+                      <el-select v-model="articleForm.base_id" placeholder="选择知识库" style="width:100%" @change="onArticleBaseChange">
+                        <el-option v-for="base in allBases" :key="base.id" :label="base.name" :value="base.id" />
+                      </el-select>
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="节点" required>
+                      <el-cascader
+                        v-model="articleForm.nodePath"
+                        :options="articleNodeOptions"
+                        :props="{ value: 'id', label: 'node_name', children: 'children', checkStrictly: true, emitPath: false }"
+                        placeholder="选择节点"
+                        style="width:100%"
+                        clearable
+                      />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-form-item label="标题" required>
+                  <el-input v-model="articleForm.title" placeholder="文章标题" maxlength="200" />
+                </el-form-item>
+                <el-form-item label="摘要">
+                  <el-input v-model="articleForm.summary" type="textarea" :rows="2" placeholder="文章摘要" maxlength="500" />
+                </el-form-item>
+                <el-form-item label="封面图">
+                  <el-input v-model="articleForm.cover_image" placeholder="封面图URL" />
+                </el-form-item>
+                <el-form-item label="正文">
+                  <div class="rich-editor-wrap">
+                    <div class="rich-toolbar">
+                      <el-button-group>
+                        <el-button size="small" @click="execCmd('bold')" title="加粗"><b>B</b></el-button>
+                        <el-button size="small" @click="execCmd('italic')" title="斜体"><i>I</i></el-button>
+                        <el-button size="small" @click="execCmd('underline')" title="下划线"><u>U</u></el-button>
+                        <el-button size="small" @click="execCmd('strikeThrough')" title="删除线"><s>S</s></el-button>
+                      </el-button-group>
+                      <el-button-group>
+                        <el-button size="small" @click="execCmd('formatBlock', 'H1')" title="标题1">H1</el-button>
+                        <el-button size="small" @click="execCmd('formatBlock', 'H2')" title="标题2">H2</el-button>
+                        <el-button size="small" @click="execCmd('formatBlock', 'H3')" title="标题3">H3</el-button>
+                      </el-button-group>
+                      <el-button-group>
+                        <el-button size="small" @click="execCmd('insertOrderedList')" title="有序列表">📊</el-button>
+                        <el-button size="small" @click="execCmd('insertUnorderedList')" title="无序列表">📝</el-button>
+                      </el-button-group>
+                      <el-button-group>
+                        <el-button size="small" @click="execCmd('formatBlock', 'BLOCKQUOTE')" title="引用">❝</el-button>
+                        <el-button size="small" @click="insertLink" title="链接">🔗</el-button>
+                        <el-button size="small" @click="insertImage" title="图片">🖼️</el-button>
+                        <el-button size="small" @click="execCmd('insertHorizontalRule')" title="分割线">―</el-button>
+                        <el-button size="small" @click="insertCodeBlock" title="代码块">&lt;/&gt;</el-button>
+                      </el-button-group>
+                    </div>
+                    <div ref="articleEditorRef" class="rich-editor" contenteditable="true"></div>
                   </div>
-                </div>
-                <p class="base-desc">{{ base.description || '暂无描述' }}</p>
-                <div class="base-tags" v-if="base.tags">
-                  <el-tag v-for="tag in normalizeTags(base.tags)" :key="tag" size="small" effect="plain" style="margin-right:4px">{{ tag }}</el-tag>
-                </div>
-                <div class="base-stats">
-                  <span>📄 {{ base.article_count || 0 }} 文章</span>
-                  <span>📂 {{ base.node_count || 0 }} 节点</span>
-                </div>
-                <div class="base-card-actions">
-                  <el-button size="small" type="primary" plain @click="openTree(base)">编辑结构</el-button>
-                  <el-button size="small" @click="openBaseDialog(base)">编辑</el-button>
-                  <el-button size="small" type="danger" plain @click="deleteBase(base)">删除</el-button>
-                </div>
-              </div>
-              <el-empty v-if="!baseLoading && bases.length === 0" description="暂无知识库" />
+                </el-form-item>
+                <el-row :gutter="16">
+                  <el-col :span="12">
+                    <el-form-item label="视频URL">
+                      <el-input v-model="articleForm.video_url" placeholder="视频链接" />
+                    </el-form-item>
+                  </el-col>
+                  <el-col :span="12">
+                    <el-form-item label="标签">
+                      <el-input v-model="articleForm.tags" placeholder="多个标签用逗号分隔" />
+                    </el-form-item>
+                  </el-col>
+                </el-row>
+                <el-form-item label="状态">
+                  <el-radio-group v-model="articleForm.status">
+                    <el-radio value="draft">草稿</el-radio>
+                    <el-radio value="published">已发布</el-radio>
+                    <el-radio value="pending">待审</el-radio>
+                  </el-radio-group>
+                </el-form-item>
+              </el-form>
             </div>
-          </el-tab-pane>
+          </div>
+        </template>
 
-          <!-- Tab 2: 文章管理 -->
-          <el-tab-pane label="文章管理" name="articles">
-            <div class="tab-toolbar">
-              <div class="toolbar-left">
-                <el-button type="primary" @click="openArticleDialog()">
-                  <el-icon><Plus /></el-icon> 新建文章
-                </el-button>
-              </div>
-              <div class="toolbar-right">
-                <el-input v-model="articleSearch" placeholder="搜索文章..." clearable style="width:200px" @clear="loadArticles" @keyup.enter="loadArticles">
-                  <template #prefix><el-icon><Search /></el-icon></template>
-                </el-input>
-                <el-select v-model="articleStatusFilter" placeholder="状态" clearable style="width:110px" @change="loadArticles">
-                  <el-option label="草稿" value="draft" />
-                  <el-option label="已发布" value="published" />
-                  <el-option label="待审" value="pending" />
-                </el-select>
-                <el-button @click="loadArticles"><el-icon><Refresh /></el-icon></el-button>
+        <!-- ============ 预览视图 ============ -->
+        <template v-if="viewMode === 'preview'">
+          <div class="preview-view">
+            <div class="preview-header">
+              <el-button @click="backToList" :icon="ArrowLeft">返回列表</el-button>
+              <span class="preview-title">{{ previewArticleData?.title }}</span>
+              <div class="preview-header-right">
+                <el-button type="primary" plain @click="startEditArticle(previewArticleData)">编辑</el-button>
               </div>
             </div>
-
-            <el-table :data="articles" v-loading="articleLoading" stripe>
-              <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-              <el-table-column prop="node_name" label="所属节点" width="150" show-overflow-tooltip />
-              <el-table-column label="状态" width="90" align="center">
-                <template #default="{ row }">
-                  <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="view_count" label="浏览" width="80" align="center" />
-              <el-table-column prop="like_count" label="点赞" width="80" align="center" />
-              <el-table-column prop="updated_at" label="更新时间" width="160" />
-              <el-table-column label="操作" width="150" fixed="right">
-                <template #default="{ row }">
-                  <el-button size="small" @click="openArticleDialog(row)">编辑</el-button>
-                  <el-button size="small" type="danger" plain @click="deleteArticle(row)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-            <el-pagination
-              class="mt16"
-              background
-              layout="total, prev, pager, next"
-              :total="articleTotal"
-              :page-size="articlePageSize"
-              :current-page="articlePage"
-              @current-change="loadArticles"
-            />
-          </el-tab-pane>
-
-          <!-- Tab 3: 分类管理 -->
-          <el-tab-pane label="分类管理" name="categories">
-            <div class="tab-toolbar">
-              <div class="toolbar-left">
-                <el-button type="primary" @click="openCategoryDialog()">
-                  <el-icon><Plus /></el-icon> 新建分类
-                </el-button>
+            <div class="preview-body" v-if="previewArticleData">
+              <h1 class="preview-h1">{{ previewArticleData.title }}</h1>
+              <div class="preview-meta">
+                <el-tag :type="statusTagType(previewArticleData.status)" size="small">{{ statusLabel(previewArticleData.status) }}</el-tag>
+                <span v-if="previewArticleData.node_name">📂 {{ previewArticleData.node_name }}</span>
+                <span>👁 {{ previewArticleData.view_count || 0 }}</span>
+                <span>👍 {{ previewArticleData.like_count || 0 }}</span>
+                <span>{{ formatTime(previewArticleData.updated_at) }}</span>
               </div>
-              <div class="toolbar-right">
-                <el-button @click="loadCategories"><el-icon><Refresh /></el-icon></el-button>
-              </div>
+              <div class="preview-content" v-html="previewArticleData.content || ''"></div>
             </div>
-
-            <el-table :data="categoryTableData" v-loading="categoryLoading" row-key="id" border default-expand-all
-              :tree-props="{ children: 'children' }">
-              <el-table-column prop="name" label="分类名称" min-width="200" />
-              <el-table-column prop="sort_order" label="排序" width="80" align="center" />
-              <el-table-column prop="base_count" label="知识库数" width="100" align="center" />
-              <el-table-column prop="created_at" label="创建时间" width="160" />
-              <el-table-column label="操作" width="200" fixed="right">
-                <template #default="{ row }">
-                  <el-button size="small" @click="openCategoryDialog(row)">编辑</el-button>
-                  <el-button size="small" type="danger" plain @click="deleteCategory(row)">删除</el-button>
-                </template>
-              </el-table-column>
-            </el-table>
-          </el-tab-pane>
-        </el-tabs>
+          </div>
+        </template>
       </div>
     </div>
 
@@ -196,100 +297,34 @@
       </template>
     </el-dialog>
 
-    <!-- 文章编辑弹窗 -->
-    <el-dialog v-model="articleDialogVisible" :title="editingArticle ? '编辑文章' : '新建文章'" width="900px"
-      :fullscreen="articleFullscreen" @opened="initRichEditor">
-      <el-form :model="articleForm" label-width="90px">
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="知识库" required>
-              <el-select v-model="articleForm.base_id" placeholder="选择知识库" style="width:100%" @change="onArticleBaseChange">
-                <el-option v-for="base in allBases" :key="base.id" :label="base.name" :value="base.id" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="节点" required>
-              <el-cascader
-                v-model="articleForm.nodePath"
-                :options="articleNodeOptions"
-                :props="{ value: 'id', label: 'node_name', children: 'children', checkStrictly: true, emitPath: false }"
-                placeholder="选择节点"
-                style="width:100%"
-                clearable
-              />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="标题" required>
-          <el-input v-model="articleForm.title" placeholder="文章标题" maxlength="200" />
-        </el-form-item>
-        <el-form-item label="摘要">
-          <el-input v-model="articleForm.summary" type="textarea" :rows="2" placeholder="文章摘要" maxlength="500" />
-        </el-form-item>
-        <el-form-item label="封面图">
-          <el-input v-model="articleForm.cover_image" placeholder="封面图URL" />
-        </el-form-item>
-        <el-form-item label="正文">
-          <div class="rich-editor-wrap">
-            <div class="rich-toolbar">
-              <el-button-group>
-                <el-button size="small" @click="execCmd('bold')" title="加粗"><b>B</b></el-button>
-                <el-button size="small" @click="execCmd('italic')" title="斜体"><i>I</i></el-button>
-                <el-button size="small" @click="execCmd('underline')" title="下划线"><u>U</u></el-button>
-                <el-button size="small" @click="execCmd('strikeThrough')" title="删除线"><s>S</s></el-button>
-              </el-button-group>
-              <el-button-group>
-                <el-button size="small" @click="execCmd('formatBlock', 'H1')" title="标题1">H1</el-button>
-                <el-button size="small" @click="execCmd('formatBlock', 'H2')" title="标题2">H2</el-button>
-                <el-button size="small" @click="execCmd('formatBlock', 'H3')" title="标题3">H3</el-button>
-              </el-button-group>
-              <el-button-group>
-                <el-button size="small" @click="execCmd('insertOrderedList')" title="有序列表">📊</el-button>
-                <el-button size="small" @click="execCmd('insertUnorderedList')" title="无序列表">📝</el-button>
-              </el-button-group>
-              <el-button-group>
-                <el-button size="small" @click="execCmd('formatBlock', 'BLOCKQUOTE')" title="引用">❝</el-button>
-                <el-button size="small" @click="insertLink" title="链接">🔗</el-button>
-                <el-button size="small" @click="insertImage" title="图片">🖼️</el-button>
-                <el-button size="small" @click="execCmd('insertHorizontalRule')" title="分割线">―</el-button>
-                <el-button size="small" @click="insertCodeBlock" title="代码块">&lt;/&gt;</el-button>
-              </el-button-group>
-              <el-button size="small" @click="articleFullscreen = !articleFullscreen" title="全屏">
-                {{ articleFullscreen ? '退出全屏' : '全屏' }}
-              </el-button>
-            </div>
-            <div ref="articleEditorRef" class="rich-editor" contenteditable="true"></div>
-          </div>
-        </el-form-item>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="视频URL">
-              <el-input v-model="articleForm.video_url" placeholder="视频链接" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="标签">
-              <el-input v-model="articleForm.tags" placeholder="多个标签用逗号分隔" />
-            </el-form-item>
-          </el-col>
-        </el-row>
-        <el-form-item label="状态">
-          <el-radio-group v-model="articleForm.status">
-            <el-radio value="draft">草稿</el-radio>
-            <el-radio value="published">已发布</el-radio>
-            <el-radio value="pending">待审</el-radio>
-          </el-radio-group>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="articleDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveArticle">保存</el-button>
-      </template>
+    <!-- 分类管理弹窗 -->
+    <el-dialog v-model="categoryMgrVisible" title="分类管理" width="720px">
+      <div class="tab-toolbar">
+        <div class="toolbar-left">
+          <el-button type="primary" @click="openCategoryDialog()">
+            <el-icon><Plus /></el-icon> 新建分类
+          </el-button>
+        </div>
+        <div class="toolbar-right">
+          <el-button @click="loadCategories"><el-icon><Refresh /></el-icon></el-button>
+        </div>
+      </div>
+      <el-table :data="categoryTableData" v-loading="categoryLoading" row-key="id" border default-expand-all
+        :tree-props="{ children: 'children' }" max-height="500">
+        <el-table-column prop="name" label="分类名称" min-width="200" />
+        <el-table-column prop="sort_order" label="排序" width="80" align="center" />
+        <el-table-column prop="base_count" label="知识库数" width="100" align="center" />
+        <el-table-column label="操作" width="200" fixed="right">
+          <template #default="{ row }">
+            <el-button size="small" @click="openCategoryDialog(row)">编辑</el-button>
+            <el-button size="small" type="danger" plain @click="deleteCategory(row)">删除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
     </el-dialog>
 
     <!-- 分类编辑弹窗 -->
-    <el-dialog v-model="categoryDialogVisible" :title="editingCategory ? '编辑分类' : '新建分类'" width="460px">
+    <el-dialog v-model="categoryDialogVisible" :title="editingCategory ? '编辑分类' : '新建分类'" width="460px" append-to-body>
       <el-form :model="categoryForm" label-width="90px">
         <el-form-item label="分类名称" required>
           <el-input v-model="categoryForm.name" placeholder="如：前端营销" maxlength="50" />
@@ -429,18 +464,47 @@
         <el-button type="primary" :loading="saving" @click="saveContent">保存文案</el-button>
       </template>
     </el-dialog>
+
+    <!-- 知识库卡片弹窗（用于在侧栏点击编辑结构等） -->
+    <el-dialog v-model="baseCardDialogVisible" :title="currentBase?.name || '知识库'" width="480px">
+      <div v-if="currentBase" class="base-quick-actions">
+        <div class="base-info-block">
+          <span class="base-icon">{{ currentBase.icon || '📚' }}</span>
+          <div>
+            <h3>{{ currentBase.name }}</h3>
+            <p>{{ currentBase.description || '暂无描述' }}</p>
+          </div>
+        </div>
+        <div class="base-stats-row">
+          <span>📄 {{ currentBase.article_count || 0 }} 文章</span>
+          <span>📂 {{ currentBase.node_count || 0 }} 节点</span>
+        </div>
+        <div class="base-action-buttons">
+          <el-button type="primary" @click="openTree(currentBase)">编辑结构</el-button>
+          <el-button @click="openBaseDialog(currentBase); baseCardDialogVisible = false">编辑信息</el-button>
+          <el-button type="danger" plain @click="deleteBase(currentBase); baseCardDialogVisible = false">删除</el-button>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Refresh, Edit, Delete, Document, Search } from '@element-plus/icons-vue'
+import { Plus, Refresh, Edit, Delete, Document, Search, Setting, ArrowLeft } from '@element-plus/icons-vue'
 import request from '@/utils/request'
 
-// ==================== 布局 ====================
-const activeTab = ref('bases')
-const selectedCategory = ref(null)
+// ==================== 视图模式 ====================
+const viewMode = ref('list') // 'list' | 'edit' | 'preview'
+
+// ==================== 选中的导航状态 ====================
+const selectedCategoryId = ref(null)
+const selectedCategoryName = ref('')
+const selectedBaseId = ref(null)
+const selectedBaseName = ref('')
+const selectedNodeId = ref(null)
+const selectedNodeName = ref('')
 
 // ==================== 分类 ====================
 const categoryTreeData = ref([])
@@ -448,12 +512,14 @@ const categoryTableData = ref([])
 const flatCategories = ref([])
 const categoryLoading = ref(false)
 const categoryTreeRef = ref(null)
+const defaultExpandedKeys = ref([])  // 默认展开的节点ID列表（一级+二级）
+const categoryMgrVisible = ref(false)
 
 const categoryDialogVisible = ref(false)
 const editingCategory = ref(null)
 const categoryForm = reactive({
   name: '',
-  parent_id: null,
+  parent_id: 0,
   sort_order: 0,
 })
 
@@ -461,8 +527,8 @@ const categoryForm = reactive({
 const bases = ref([])
 const allBases = ref([])
 const baseLoading = ref(false)
-const baseSearch = ref('')
 const baseDialogVisible = ref(false)
+const baseCardDialogVisible = ref(false)
 const editingBase = ref(null)
 const baseForm = reactive({
   name: '',
@@ -486,9 +552,7 @@ const articlePage = ref(1)
 const articlePageSize = ref(20)
 const articleSearch = ref('')
 const articleStatusFilter = ref('')
-const articleDialogVisible = ref(false)
 const editingArticle = ref(null)
-const articleFullscreen = ref(false)
 const articleEditorRef = ref(null)
 const articleNodeOptions = ref([])
 const articleForm = reactive({
@@ -503,6 +567,12 @@ const articleForm = reactive({
   tags: '',
   status: 'draft',
 })
+
+// 预览
+const previewArticleData = ref(null)
+
+// ==================== 子节点 ====================
+const childNodes = ref([])
 
 // ==================== 树状结构 ====================
 const treeVisible = ref(false)
@@ -534,7 +604,6 @@ const saving = ref(false)
 // ==================== 初始化 ====================
 onMounted(() => {
   loadCategories()
-  loadBases()
   loadAllBases()
 })
 
@@ -546,6 +615,19 @@ function loadCategories() {
       categoryTreeData.value = res || []
       categoryTableData.value = res || []
       flattenCategories(res || [])
+      // 计算默认展开的节点（一级+二级，不展开三级）
+      const expandKeys = []
+      for (const l1 of (res || [])) {
+        expandKeys.push(l1.id)
+        if (l1.children) {
+          for (const l2 of l1.children) {
+            expandKeys.push(l2.id)
+          }
+        }
+      }
+      defaultExpandedKeys.value = expandKeys
+      // 为每个分类节点加载文章计数
+      updateCategoryArticleCounts()
     }
   }).finally(() => { categoryLoading.value = false })
 }
@@ -562,9 +644,73 @@ function flattenCategories(list) {
   flatCategories.value = result
 }
 
+function updateCategoryArticleCounts() {
+  // 从 allBases 中统计每个分类的文章数
+  // 如果 base 有 article_count，累加到分类
+  const countMap = {}
+  for (const base of allBases.value) {
+    const catId = base.category_id
+    if (catId) {
+      countMap[catId] = (countMap[catId] || 0) + (base.article_count || 0)
+    }
+  }
+  function walkTree(nodes) {
+    for (const node of nodes) {
+      node.article_count = countMap[node.id] || 0
+      if (node.children && node.children.length) {
+        let childSum = 0
+        walkTree(node.children)
+        for (const child of node.children) {
+          childSum += (child.article_count || 0)
+        }
+        node.article_count = (countMap[node.id] || 0) + childSum
+      }
+    }
+  }
+  walkTree(categoryTreeData.value)
+}
+
 function onCategoryClick(data) {
-  selectedCategory.value = data.id
+  selectedCategoryId.value = data.id
+  selectedCategoryName.value = data.name
+  selectedBaseId.value = null
+  selectedBaseName.value = ''
+  selectedNodeId.value = null
+  selectedNodeName.value = ''
+  viewMode.value = 'list'
   loadBases()
+  loadArticles()
+}
+
+function onBaseClick(base) {
+  selectedBaseId.value = base.id
+  selectedBaseName.value = base.name
+  selectedNodeId.value = null
+  selectedNodeName.value = ''
+  viewMode.value = 'list'
+  // 加载该知识库的节点树，用于显示子节点
+  loadChildNodes(base.id)
+  loadArticles()
+}
+
+function onNodeClick(node) {
+  selectedNodeId.value = node.id
+  selectedNodeName.value = node.node_name
+  viewMode.value = 'list'
+  loadArticles(node.id)
+}
+
+async function loadChildNodes(baseId) {
+  try {
+    const res = await request.get(`/knowledge/bases/${baseId}/tree`)
+    if (res && Array.isArray(res)) {
+      childNodes.value = res
+    } else {
+      childNodes.value = []
+    }
+  } catch {
+    childNodes.value = []
+  }
 }
 
 function openCategoryDialog(cat = null) {
@@ -572,11 +718,11 @@ function openCategoryDialog(cat = null) {
   if (cat) {
     Object.assign(categoryForm, {
       name: cat.name,
-      parent_id: cat.parent_id || null,
+      parent_id: cat.parent_id || 0,
       sort_order: cat.sort_order || 0,
     })
   } else {
-    Object.assign(categoryForm, { name: '', parent_id: null, sort_order: 0 })
+    Object.assign(categoryForm, { name: '', parent_id: 0, sort_order: 0 })
   }
   categoryDialogVisible.value = true
 }
@@ -622,8 +768,7 @@ function normalizeTags(tags) {
 function loadBases() {
   baseLoading.value = true
   const params = {}
-  if (selectedCategory.value) params.category = selectedCategory.value
-  if (baseSearch.value) params.search = baseSearch.value
+  if (selectedCategoryId.value) params.category = selectedCategoryId.value
   request.get('/knowledge/bases', { params }).then(res => {
     if (res && res.items) {
       bases.value = res.items
@@ -640,6 +785,8 @@ function loadAllBases() {
     if (res && res.items) allBases.value = res.items
     else if (Array.isArray(res)) allBases.value = res
     else allBases.value = []
+    // 更新分类文章计数
+    updateCategoryArticleCounts()
   })
 }
 
@@ -659,7 +806,7 @@ function openBaseDialog(base = null) {
     })
   } else {
     Object.assign(baseForm, {
-      name: '', description: '', category_id: selectedCategory.value || null,
+      name: '', description: '', category_id: selectedCategoryId.value || null,
       icon: '📚', theme_color: '#409EFF', tags: '', related_module: '', sort_order: 0, status: 1
     })
   }
@@ -707,12 +854,38 @@ function deleteBase(base) {
 }
 
 // ==================== 文章管理 ====================
-function loadArticles(p = 1) {
-  articlePage.value = p
+function loadArticles(p = 1, nodeId = null) {
+  // p can be either page number (number) or node id (string/object from pagination)
+  if (typeof p === 'number') {
+    articlePage.value = p
+  } else if (p && p.target) {
+    // pagination current-change event
+  } else {
+    articlePage.value = 1
+  }
+
+  // If called from pagination, p is the page number
+  if (typeof p === 'object' && p !== null) {
+    articlePage.value = 1
+  }
+
   articleLoading.value = true
-  const params = { page: p, pageSize: articlePageSize.value }
+  const params = { page: articlePage.value, pageSize: articlePageSize.value }
   if (articleSearch.value) params.search = articleSearch.value
   if (articleStatusFilter.value) params.status = articleStatusFilter.value
+
+  // 优先使用 nodeId 参数，其次使用 selectedNodeId，最后使用 selectedCategoryId
+  const effectiveNodeId = (typeof p === 'number' && nodeId) ? nodeId : null
+  if (effectiveNodeId) {
+    params.node_id = effectiveNodeId
+  } else if (selectedNodeId.value) {
+    params.node_id = selectedNodeId.value
+  } else if (selectedBaseId.value) {
+    params.base_id = selectedBaseId.value
+  } else if (selectedCategoryId.value) {
+    params.category = selectedCategoryId.value
+  }
+
   request.get('/knowledge/articles', { params }).then(res => {
     if (res && res.items) {
       articles.value = res.items
@@ -737,6 +910,11 @@ function statusTagType(status) {
   return map[status] || 'info'
 }
 
+function formatTime(t) {
+  if (!t) return ''
+  return t.replace('T', ' ').substring(0, 16)
+}
+
 async function onArticleBaseChange(baseId) {
   articleForm.node_id = null
   articleForm.nodePath = null
@@ -752,31 +930,72 @@ async function onArticleBaseChange(baseId) {
   }
 }
 
-function openArticleDialog(article = null) {
-  editingArticle.value = article
-  if (article) {
-    Object.assign(articleForm, {
-      base_id: article.base_id || null,
-      node_id: article.node_id || null,
-      nodePath: article.node_id || null,
-      title: article.title || '',
-      summary: article.summary || '',
-      cover_image: article.cover_image || '',
-      content: article.content || '',
-      video_url: article.video_url || '',
-      tags: Array.isArray(article.tags) ? article.tags.join(',') : (article.tags || ''),
-      status: article.status || 'draft',
-    })
-    if (article.base_id) onArticleBaseChange(article.base_id)
+// ==================== 编辑视图（内联） ====================
+function startNewArticle() {
+  editingArticle.value = null
+  Object.assign(articleForm, {
+    base_id: selectedBaseId.value || null,
+    node_id: selectedNodeId.value || null,
+    nodePath: selectedNodeId.value || null,
+    title: '',
+    summary: '',
+    cover_image: '',
+    content: '',
+    video_url: '',
+    tags: '',
+    status: 'draft',
+  })
+
+  // 如果已选中知识库，加载节点树
+  if (articleForm.base_id) {
+    onArticleBaseChange(articleForm.base_id)
   } else {
-    Object.assign(articleForm, {
-      base_id: null, node_id: null, nodePath: null,
-      title: '', summary: '', cover_image: '', content: '',
-      video_url: '', tags: '', status: 'draft',
-    })
     articleNodeOptions.value = []
   }
-  articleDialogVisible.value = true
+
+  viewMode.value = 'edit'
+  nextTick(() => {
+    if (articleEditorRef.value) {
+      articleEditorRef.value.innerHTML = ''
+    }
+  })
+}
+
+function startEditArticle(article) {
+  editingArticle.value = article
+  Object.assign(articleForm, {
+    base_id: article.base_id || null,
+    node_id: article.node_id || null,
+    nodePath: article.node_id || null,
+    title: article.title || '',
+    summary: article.summary || '',
+    cover_image: article.cover_image || '',
+    content: article.content || '',
+    video_url: article.video_url || '',
+    tags: Array.isArray(article.tags) ? article.tags.join(',') : (article.tags || ''),
+    status: article.status || 'draft',
+  })
+  if (article.base_id) onArticleBaseChange(article.base_id)
+
+  viewMode.value = 'edit'
+  nextTick(() => {
+    if (articleEditorRef.value) {
+      articleEditorRef.value.innerHTML = articleForm.content || ''
+    }
+  })
+}
+
+function previewArticle(article) {
+  previewArticleData.value = article
+  viewMode.value = 'preview'
+}
+
+function backToList() {
+  viewMode.value = 'list'
+  previewArticleData.value = null
+  editingArticle.value = null
+  // 刷新列表
+  loadArticles()
 }
 
 function initRichEditor() {
@@ -822,7 +1041,7 @@ function insertCodeBlock() {
   if (articleEditorRef.value) articleForm.content = articleEditorRef.value.innerHTML
 }
 
-function saveArticle() {
+function saveArticleInline() {
   if (!articleForm.title.trim()) {
     ElMessage.warning('标题不能为空')
     return
@@ -850,8 +1069,7 @@ function saveArticle() {
   req.then(res => {
     if (res && res.id) {
       ElMessage.success('保存成功')
-      articleDialogVisible.value = false
-      loadArticles(articlePage.value)
+      backToList()
     } else {
       ElMessage.error('保存失败')
     }
@@ -864,7 +1082,7 @@ function deleteArticle(article) {
   }).then(() => {
     request.delete(`/knowledge/articles/${article.id}`).then(() => {
       ElMessage.success('已删除')
-      loadArticles(articlePage.value)
+      loadArticles()
     })
   }).catch(() => {})
 }
@@ -874,6 +1092,7 @@ function openTree(base) {
   currentBase.value = base
   treeVisible.value = true
   loadTree(base.id)
+  baseCardDialogVisible.value = false
 }
 
 function loadTree(baseId) {
@@ -1002,11 +1221,9 @@ function saveContent() {
   }).finally(() => { saving.value = false })
 }
 
-// Watch tab change to load data
-import { watch } from 'vue'
-watch(activeTab, (newTab) => {
-  if (newTab === 'articles' && articles.value.length === 0) loadArticles()
-  if (newTab === 'categories') loadCategories()
+// Watch: 当分类管理弹窗打开时刷新数据
+watch(categoryMgrVisible, (val) => {
+  if (val) loadCategories()
 })
 </script>
 
@@ -1029,8 +1246,13 @@ watch(activeTab, (newTab) => {
   padding: 12px;
   overflow-y: auto;
   border: 1px solid #ebeef5;
+  display: flex;
+  flex-direction: column;
 }
 .sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #f0f0f0;
@@ -1040,12 +1262,57 @@ watch(activeTab, (newTab) => {
   font-weight: 600;
   color: #303133;
 }
+.sidebar-bases {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #f0f0f0;
+}
+.sidebar-subtitle {
+  font-size: 12px;
+  font-weight: 600;
+  color: #909399;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.sidebar-base-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #606266;
+  transition: all 0.2s;
+}
+.sidebar-base-item:hover {
+  background: #f5f7fa;
+}
+.sidebar-base-item.is-active {
+  background: #ecf5ff;
+  color: #409EFF;
+  font-weight: 500;
+}
+.base-emoji {
+  font-size: 16px;
+}
+.base-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .cat-tree-node {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   padding-right: 8px;
+}
+.cat-tree-node.is-active .cat-name {
+  color: #409EFF;
+  font-weight: 500;
 }
 .cat-name {
   font-size: 13px;
@@ -1063,8 +1330,211 @@ watch(activeTab, (newTab) => {
   padding: 16px;
   border: 1px solid #ebeef5;
 }
-.km-tabs {
+
+/* 面包屑工具栏 */
+.km-breadcrumb-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.km-toolbar {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* 子节点快捷入口 */
+.child-nodes-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+.child-nodes-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #606266;
+}
+.child-node-tag {
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.child-node-tag:hover {
+  background: #409EFF !important;
+  color: #fff !important;
+  border-color: #409EFF !important;
+}
+.node-count {
+  margin-left: 2px;
+  opacity: 0.8;
+}
+
+/* 文章卡片列表 */
+.article-card-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.article-card {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid #ebeef5;
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.3s;
+}
+.article-card:hover {
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  border-color: #c6e2ff;
+}
+.article-card-main {
+  flex: 1;
+  padding: 16px;
+  cursor: pointer;
+}
+.article-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.article-title {
+  margin: 0;
+  font-size: 15px;
+  color: #303133;
+  font-weight: 600;
+}
+.article-summary {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #909399;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.article-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #c0c4cc;
+}
+.meta-item {
+  white-space: nowrap;
+}
+.article-tags {
+  margin-top: 8px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.article-card-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  padding: 16px;
+  border-left: 1px solid #f0f0f0;
+  background: #fafafa;
+}
+
+/* 编辑视图 */
+.edit-view {
+  display: flex;
+  flex-direction: column;
   height: 100%;
+}
+.edit-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.edit-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+}
+.edit-form-area {
+  flex: 1;
+  overflow-y: auto;
+  padding-right: 8px;
+}
+
+/* 预览视图 */
+.preview-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.preview-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #303133;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preview-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px;
+}
+.preview-h1 {
+  font-size: 24px;
+  color: #303133;
+  margin: 0 0 12px;
+}
+.preview-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 13px;
+  color: #909399;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.preview-content {
+  line-height: 1.8;
+  font-size: 14px;
+  color: #303133;
+}
+.preview-content :deep(img) {
+  max-width: 100%;
+  border-radius: 4px;
+}
+.preview-content :deep(pre) {
+  background: #f5f5f5;
+  padding: 12px;
+  border-radius: 4px;
+  overflow-x: auto;
+}
+.preview-content :deep(blockquote) {
+  border-left: 4px solid #dcdfe6;
+  padding-left: 16px;
+  margin: 8px 0;
+  color: #606266;
+}
+.preview-content :deep(a) {
+  color: #409EFF;
 }
 
 /* 工具栏 */
@@ -1081,68 +1551,6 @@ watch(activeTab, (newTab) => {
 }
 .mt16 {
   margin-top: 16px;
-}
-
-/* 知识库卡片 */
-.base-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 16px;
-}
-.base-card {
-  background: #fff;
-  border: 1px solid #ebeef5;
-  border-top: 3px solid #409EFF;
-  border-radius: 8px;
-  padding: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  transition: all 0.3s;
-}
-.base-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  transform: translateY(-2px);
-}
-.base-card-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-.base-icon {
-  font-size: 32px;
-}
-.base-card-info h3 {
-  margin: 0 0 4px;
-  font-size: 16px;
-  color: #303133;
-}
-.base-desc {
-  margin: 0;
-  font-size: 13px;
-  color: #909399;
-  line-height: 1.5;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-.base-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 4px;
-}
-.base-stats {
-  display: flex;
-  gap: 16px;
-  font-size: 12px;
-  color: #909399;
-  padding: 8px 0;
-  border-top: 1px solid #f5f5f5;
-}
-.base-card-actions {
-  display: flex;
-  gap: 4px;
 }
 
 /* 富文本编辑器 */
@@ -1262,6 +1670,43 @@ watch(activeTab, (newTab) => {
   align-items: center;
 }
 
+/* 知识库快捷操作弹窗 */
+.base-quick-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.base-info-block {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.base-info-block .base-icon {
+  font-size: 36px;
+}
+.base-info-block h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+}
+.base-info-block p {
+  margin: 0;
+  font-size: 13px;
+  color: #909399;
+}
+.base-stats-row {
+  display: flex;
+  gap: 24px;
+  font-size: 14px;
+  color: #606266;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+  border-bottom: 1px solid #f0f0f0;
+}
+.base-action-buttons {
+  display: flex;
+  gap: 8px;
+}
+
 /* 响应式 */
 @media (max-width: 768px) {
   .km-layout {
@@ -1273,6 +1718,18 @@ watch(activeTab, (newTab) => {
   }
   .km-content {
     overflow-y: visible;
+  }
+  .km-breadcrumb-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .article-card {
+    flex-direction: column;
+  }
+  .article-card-actions {
+    flex-direction: row;
+    border-left: none;
+    border-top: 1px solid #f0f0f0;
   }
 }
 </style>

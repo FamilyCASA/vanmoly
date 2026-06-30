@@ -617,6 +617,119 @@ def assign_node(current_user, record_id):
     })
 
 
+@service_workflow_bp.route('/records/<int:record_id>/submit-review', methods=['POST'])
+@jwt_required_v2
+def submit_node_review(current_user, record_id):
+    """提交节点资料验收"""
+    record = WorkflowNodeRecord.query.get_or_404(record_id)
+    data = request.get_json() or {}
+
+    record.status = 'submitted'
+    record.executed_by = current_user.get('id')
+    record.content = data.get('content', record.content)
+    record.attachments = data.get('attachments', record.attachments or [])
+    related_data = record.related_data or {}
+    related_data['review'] = {
+        'status': 'submitted',
+        'submitted_by': current_user.get('id'),
+        'submitted_at': datetime.utcnow().isoformat(),
+        'note': data.get('note', '')
+    }
+    record.related_data = related_data
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '节点资料已提交验收',
+        'data': record.to_dict()
+    })
+
+
+@service_workflow_bp.route('/review-records', methods=['GET'])
+@jwt_required_v2
+def get_review_records(current_user):
+    """获取待验收的服务流程节点资料"""
+    status = request.args.get('status', 'submitted')
+    query = WorkflowNodeRecord.query
+    if status != 'all':
+        query = query.filter_by(status=status)
+    records = query.order_by(WorkflowNodeRecord.updated_at.desc()).all()
+
+    return jsonify({
+        'code': 200,
+        'data': [r.to_dict() for r in records]
+    })
+
+
+@service_workflow_bp.route('/records/<int:record_id>/approve', methods=['POST'])
+@jwt_required_v2
+def approve_node_record(current_user, record_id):
+    """验收通过服务流程节点资料"""
+    record = WorkflowNodeRecord.query.get_or_404(record_id)
+    data = request.get_json() or {}
+    was_completed = record.status == 'completed'
+
+    record.status = 'completed'
+    record.completed_at = datetime.utcnow()
+    related_data = record.related_data or {}
+    related_data['review'] = {
+        **(related_data.get('review') or {}),
+        'status': 'approved',
+        'reviewed_by': current_user.get('id'),
+        'reviewed_at': datetime.utcnow().isoformat(),
+        'note': data.get('note', '')
+    }
+    record.related_data = related_data
+
+    workflow = CustomerWorkflow.query.get(record.workflow_id)
+    if workflow and not was_completed:
+        completed_count = WorkflowNodeRecord.query.filter_by(
+            workflow_id=workflow.id,
+            status='completed'
+        ).count()
+        workflow.completed_nodes = completed_count
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '节点资料验收通过',
+        'data': record.to_dict()
+    })
+
+
+@service_workflow_bp.route('/records/<int:record_id>/reject', methods=['POST'])
+@jwt_required_v2
+def reject_node_record(current_user, record_id):
+    """退回服务流程节点资料重做"""
+    record = WorkflowNodeRecord.query.get_or_404(record_id)
+    data = request.get_json() or {}
+    reason = data.get('reason', '')
+    if not reason:
+        return jsonify({'code': 400, 'message': '请填写退回原因', 'data': None}), 400
+
+    record.status = 'processing'
+    related_data = record.related_data or {}
+    related_data['review'] = {
+        **(related_data.get('review') or {}),
+        'status': 'rejected',
+        'reviewed_by': current_user.get('id'),
+        'reviewed_at': datetime.utcnow().isoformat(),
+        'reason': reason
+    }
+    record.related_data = related_data
+    record.remark = reason
+
+    db.session.commit()
+
+    return jsonify({
+        'code': 200,
+        'message': '节点资料已退回重做',
+        'data': record.to_dict()
+    })
+
+
 # ========== 我的工作台 ==========
 
 @service_workflow_bp.route('/my-tasks', methods=['GET'])

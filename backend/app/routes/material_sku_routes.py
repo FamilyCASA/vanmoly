@@ -873,12 +873,17 @@ def get_brands(current_user):
 
 
 @material_sku_bp.route('/filter-options', methods=['GET'])
-@jwt_required_v2
-def get_filter_options(current_user):
+def get_filter_options():
     """获取筛选栏所有下拉选项（从数据库真实数据动态提取）"""
-    from sqlalchemy import distinct, func
-    
-    base = MaterialSKU.query.filter(MaterialSKU.is_deleted == False)
+    from sqlalchemy import distinct
+
+    # 品牌
+    brands_raw = db.session.query(distinct(MaterialSKU.brand)).filter(
+        MaterialSKU.brand.isnot(None),
+        MaterialSKU.brand != '',
+        MaterialSKU.is_deleted == False
+    ).order_by(MaterialSKU.brand).all()
+    brands = [b[0] for b in brands_raw if b[0]]
     
     # 单位
     units_raw = db.session.query(distinct(MaterialSKU.unit)).filter(
@@ -919,6 +924,7 @@ def get_filter_options(current_user):
     return jsonify({
         'code': 200,
         'data': {
+            'brands': brands,
             'units': units,
             'supply_chains': supply_chains,
             'env_levels': env_levels,
@@ -1491,4 +1497,3 @@ def batch_import_materials():
         'message': f'批量导入完成: 创建{results["created"]}条, 跳过{results["skipped"]}条, 新分类{len(results["new_categories"])}个',
         'data': results
     })
-

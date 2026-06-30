@@ -435,7 +435,7 @@ const handleLogin = async () => {
         showChangePasswordDialog.value = true
       } else {
         ElMessage.success('登录成功')
-        router.push('/admin/dashboard')
+        router.push({ path: '/admin/my-workspace', query: { openMine: '1' } })
       }
     } else {
       ElMessage.error(res.message || '登录失败')
@@ -459,7 +459,7 @@ const mockWechatLogin = async () => {
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
       ElMessage.success('微信登录成功')
-      router.push('/admin/dashboard')
+      router.push({ path: '/admin/my-workspace', query: { openMine: '1' } })
     } else if (res.data.code === 404 && res.data.need_bind) {
       ElMessage.warning('该微信未绑定账号，请先使用账号密码登录后绑定')
       loginMethod.value = 'password'
@@ -481,7 +481,7 @@ const mockQQLogin = async () => {
       localStorage.setItem('token', token)
       localStorage.setItem('user', JSON.stringify(user))
       ElMessage.success('QQ登录成功')
-      router.push('/admin/dashboard')
+      router.push({ path: '/admin/my-workspace', query: { openMine: '1' } })
     } else if (res.data.code === 404 && res.data.need_bind) {
       ElMessage.warning('该QQ未绑定账号，请先使用账号密码登录后绑定')
       loginMethod.value = 'password'
@@ -584,7 +584,7 @@ onMounted(() => {
   // 检查是否已登录
   const token = localStorage.getItem('token')
   if (token) {
-    router.push('/admin/dashboard')
+    router.push({ path: '/admin/my-workspace', query: { openMine: '1' } })
   }
 })
 </script>

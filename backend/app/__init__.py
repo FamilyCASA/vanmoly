@@ -62,6 +62,8 @@ def create_app(config_class=Config):
     from app.routes.building_survey_routes import survey_bp
     from app.routes.craft_routes import craft_bp
     from app.routes.finance_routes import finance_bp
+    from app.routes.project_team_routes import project_team_bp
+    from app.routes.permission_routes import permission_bp
 
     app.register_blueprint(case_bp, url_prefix='/api/v3')
     app.register_blueprint(lead_bp, url_prefix='/api/v3')
@@ -90,6 +92,8 @@ def create_app(config_class=Config):
     app.register_blueprint(craft_bp)  # 特殊工艺数据库路由
     app.register_blueprint(survey_bp)  # 楼盘调查路由
     app.register_blueprint(finance_bp)  # 财务管理路由
+    app.register_blueprint(project_team_bp)  # 项目组织协同路由
+    app.register_blueprint(permission_bp)  # 细粒度权限管理路由
 
     # 上传文件静态服务 - 必须在蓝图外注册，确保 /upload/ 路径可访问
     @app.route('/upload/<path:filename>')

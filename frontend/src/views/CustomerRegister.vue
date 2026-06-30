@@ -262,8 +262,8 @@ const handleRegister = async () => {
 
     const res = await request.post('/customer/register', registerData)
     
-    if (res.data.code === 200) {
-      const { token, user } = res.data.data
+    if (res?.token) {
+      const { token, user } = res
       
       // 保存登录状态
       localStorage.setItem('customer_token', token)
@@ -280,7 +280,7 @@ const handleRegister = async () => {
       
       ElMessage.success('注册成功！')
     } else {
-      ElMessage.error(res.data.message || '注册失败')
+      ElMessage.error('注册失败')
     }
   } catch (error) {
     const msg = error.response?.data?.message || '注册失败，请稍后重试'

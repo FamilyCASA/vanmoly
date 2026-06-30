@@ -93,6 +93,7 @@ def jwt_required_v2(f):
             'tenant_id': getattr(user, 'tenant_id', '0'),
             'store_id': getattr(user, 'store_id', None),
             'department_id': getattr(user, 'department_id', None),
+            'employee_id': getattr(user, 'employee_id', None),
             'phone': getattr(user, 'phone', None),
             'email': getattr(user, 'email', None),
             'status': user.status,
@@ -803,10 +804,13 @@ def create_store(current_user):
 @jwt_required_v2
 def get_current_user(current_user):
     """获取当前登录用户信息"""
+    from app.services.permission_service import visible_modules
     user = request.current_user
+    user_copy = dict(user)
+    user_copy['modules'] = visible_modules(user)
     return jsonify({
         'code': 200,
-        'data': user,
+        'data': user_copy,
         'message': 'success'
     })
 

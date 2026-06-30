@@ -50,14 +50,11 @@ class Customer(db.Model):
     level = db.Column(db.String(10), default='B', comment='S/A/B/C/D')
     
     # 状态
-    status = db.Column(db.String(20), default='active', comment='
-        active-活跃
-        quoted-已报价
-        contracted-已签约
-        completed-已完成
-        lost-流失
-        inactive- inactive
-    ')
+    status = db.Column(
+        db.String(20),
+        default='active',
+        comment='active-活跃/quoted-已报价/contracted-已签约/completed-已完成/lost-流失/inactive-停用'
+    )
     
     # 交易统计
     total_contracts = db.Column(db.Integer, default=0, comment='合同数')

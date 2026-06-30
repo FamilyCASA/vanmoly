@@ -39,3 +39,8 @@ export function getLeadStats() {
 export function getDashboardOverview() {
   return request.get('/dashboard/overview')
 }
+
+// 个人数据驾驶舱
+export function getMyOverview() {
+  return request.get('/dashboard/my-overview')
+}

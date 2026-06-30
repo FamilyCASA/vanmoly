@@ -21,9 +21,14 @@ from app.models.building import Building
 from app.models.hr import Employee
 from app.models.service_workflow import CustomerWorkflow, WorkflowNode
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 from flask import request as flask_request
 
 case_bp = Blueprint('case', __name__)
+
+
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
 
 
 def api_response(code=200, message='success', data=None):
@@ -108,6 +113,7 @@ def warm_to_cool_sort_key(hex_val):
 
 @case_bp.route('/cases', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_cases(current_user):
     """获取案例列表"""
     try:
@@ -253,6 +259,7 @@ def get_cases(current_user):
 
 @case_bp.route('/cases/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_case(current_user, id):
     """获取案例详情"""
     try:
@@ -267,6 +274,7 @@ def get_case(current_user, id):
 
 @case_bp.route('/cases', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.create', _store_scope)
 def create_case(current_user):
     """创建案例"""
     try:
@@ -374,6 +382,7 @@ def create_case(current_user):
 
 @case_bp.route('/cases/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def update_case(current_user, id):
     """更新案例"""
     try:
@@ -483,6 +492,7 @@ def update_case(current_user, id):
 
 @case_bp.route('/cases/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('case.delete', _store_scope)
 def delete_case(current_user, id):
     """删除案例（软删除）"""
     try:
@@ -504,6 +514,7 @@ def delete_case(current_user, id):
 
 @case_bp.route('/cases/batch', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def batch_operation(current_user):
     """批量操作"""
     try:
@@ -548,6 +559,7 @@ def batch_operation(current_user):
 
 @case_bp.route('/cases/<int:id>/publish', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.publish', _store_scope)
 def publish_case(current_user, id):
     """立即发布"""
     try:
@@ -569,6 +581,7 @@ def publish_case(current_user, id):
 
 @case_bp.route('/cases/<int:id>/schedule', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.publish', _store_scope)
 def schedule_case(current_user, id):
     """定时发布"""
     try:
@@ -592,6 +605,7 @@ def schedule_case(current_user, id):
 
 @case_bp.route('/cases/<int:id>/unpublish', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.publish', _store_scope)
 def unpublish_case(current_user, id):
     """下架"""
     try:
@@ -612,6 +626,7 @@ def unpublish_case(current_user, id):
 
 @case_bp.route('/cases/<int:id>/feature', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.publish', _store_scope)
 def toggle_feature_case(current_user, id):
     """设置/取消置顶"""
     try:
@@ -638,6 +653,7 @@ def toggle_feature_case(current_user, id):
 
 @case_bp.route('/cases/<int:id>/timeline', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_timeline(current_user, id):
     """获取案例时间轴"""
     try:
@@ -653,6 +669,7 @@ def get_timeline(current_user, id):
 
 @case_bp.route('/cases/<int:id>/timeline', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def add_timeline_node(current_user, id):
     """添加时间节点"""
     try:
@@ -690,6 +707,7 @@ def add_timeline_node(current_user, id):
 
 @case_bp.route('/timeline/<int:node_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def update_timeline_node(current_user, node_id):
     """鏇存柊鏃堕棿鑺傜偣"""
     try:
@@ -725,6 +743,7 @@ def update_timeline_node(current_user, node_id):
 
 @case_bp.route('/timeline/<int:node_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def delete_timeline_node(current_user, node_id):
     """删除鏃堕棿鑺傜偣"""
     try:
@@ -745,6 +764,7 @@ def delete_timeline_node(current_user, node_id):
 
 @case_bp.route('/cases/<int:id>/files', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_files(current_user, id):
     """获取妗堜緥鏂囦欢"""
     try:
@@ -756,6 +776,7 @@ def get_files(current_user, id):
 
 @case_bp.route('/cases/<int:id>/files', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def add_file(current_user, id):
     """添加鏂囦欢"""
     try:
@@ -780,6 +801,7 @@ def add_file(current_user, id):
 
 @case_bp.route('/files/<int:file_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('case.update', _store_scope)
 def delete_file(current_user, file_id):
     """删除鏂囦欢"""
     try:
@@ -798,6 +820,7 @@ def delete_file(current_user, file_id):
 
 @case_bp.route('/files/<int:file_id>/download', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def download_file(current_user, file_id):
     """涓嬭浇鏂囦欢"""
     try:
@@ -931,6 +954,7 @@ def mark_lead_converted(current_user, lead_id):
 
 @case_bp.route('/case-templates', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_templates(current_user):
     """获取模板列表"""
     try:
@@ -942,6 +966,7 @@ def get_templates(current_user):
 
 @case_bp.route('/case-templates', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.template.manage', _store_scope)
 def create_template(current_user):
     """创建模板"""
     try:
@@ -968,6 +993,7 @@ def create_template(current_user):
 
 @case_bp.route('/case-templates/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_template(current_user, id):
     """获取模板详情"""
     try:
@@ -982,6 +1008,7 @@ def get_template(current_user, id):
 
 @case_bp.route('/case-templates/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('case.template.manage', _store_scope)
 def update_template(current_user, id):
     """更新模板"""
     try:
@@ -1008,6 +1035,7 @@ def update_template(current_user, id):
 
 @case_bp.route('/case-templates/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('case.template.manage', _store_scope)
 def delete_template(current_user, id):
     """删除模板"""
     try:
@@ -1026,6 +1054,7 @@ def delete_template(current_user, id):
 
 @case_bp.route('/case-templates/<int:id>/use', methods=['POST'])
 @jwt_required_v2
+@require_permission('case.create', _store_scope)
 def use_template(current_user, id):
     """浣跨敤模板创建妗堜緥"""
     try:
@@ -1102,6 +1131,7 @@ def get_case_stats(current_user, id):
 
 @case_bp.route('/cases/stats/overview', methods=['GET'])
 @jwt_required_v2
+@require_permission('case.view', _store_scope)
 def get_stats_overview(current_user):
     """获取鍏眬妗堜緥缁熻"""
     try:

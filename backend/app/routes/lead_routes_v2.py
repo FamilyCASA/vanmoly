@@ -11,6 +11,7 @@ from datetime import datetime, timedelta, date
 from app import db
 from app.models.lead_v2 import Lead, LeadFollow, LeadPoint, LeadDistribution, LeadChannelStat
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 
 lead_v2_bp = Blueprint('lead_v2', __name__, url_prefix='/api/v3')
 
@@ -25,10 +26,15 @@ def api_response(code=200, message='success', data=None):
     }), code
 
 
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
+
+
 # ========== 线索基础接口 ==========
 
 @lead_v2_bp.route('/leads', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.create', _store_scope)
 def create_lead(current_user, ):
     """
     创建线索（带积分）
@@ -123,6 +129,7 @@ def create_lead(current_user, ):
 
 @lead_v2_bp.route('/leads', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.view', _store_scope)
 def get_leads(current_user, ):
     """
     获取线索列表（支持高级筛选）
@@ -231,6 +238,7 @@ def get_leads(current_user, ):
 
 @lead_v2_bp.route('/leads/<int:lead_id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.view', _store_scope)
 def get_lead_detail(current_user, lead_id):
     """获取线索详情"""
     try:
@@ -251,6 +259,7 @@ def get_lead_detail(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('lead.update', _store_scope)
 def update_lead(current_user, lead_id):
     """更新线索信息"""
     try:
@@ -295,6 +304,7 @@ def update_lead(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('lead.delete', _store_scope)
 def delete_lead(current_user, lead_id):
     """删除线索"""
     try:
@@ -315,6 +325,7 @@ def delete_lead(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/follow', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.follow', _store_scope)
 def add_follow(current_user, lead_id):
     """
     快速跟进（带积分）
@@ -444,6 +455,7 @@ def add_follow(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/visit', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.follow', _store_scope)
 def mark_visited(current_user, lead_id):
     """
     标记实际到店（+2分）
@@ -491,6 +503,7 @@ def mark_visited(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/deposit', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.follow', _store_scope)
 def mark_deposit(current_user, lead_id):
     """
     标记交定金（+10分）
@@ -540,6 +553,7 @@ def mark_deposit(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/contract', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.follow', _store_scope)
 def mark_contract(current_user, lead_id):
     """
     标记签约（根据类型加不同积分）
@@ -598,6 +612,7 @@ def mark_contract(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/sea', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.view', _store_scope)
 def get_sea_leads(current_user, ):
     """获取公海线索列表"""
     try:
@@ -634,6 +649,7 @@ def get_sea_leads(current_user, ):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/retrieve', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.assign', _store_scope)
 def retrieve_from_sea(current_user, lead_id):
     """从公海领取线索"""
     try:
@@ -682,6 +698,7 @@ def retrieve_from_sea(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/<int:lead_id>/assign', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.assign', _store_scope)
 def assign_lead(current_user, lead_id):
     """
     分配线索给员工
@@ -732,6 +749,7 @@ def assign_lead(current_user, lead_id):
 
 @lead_v2_bp.route('/leads/batch/assign', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.assign', _store_scope)
 def batch_assign(current_user, ):
     """批量分配线索"""
     try:
@@ -776,6 +794,7 @@ def batch_assign(current_user, ):
 
 @lead_v2_bp.route('/leads/batch/invalid', methods=['POST'])
 @jwt_required_v2
+@require_permission('lead.update', _store_scope)
 def batch_mark_invalid(current_user, ):
     """批量标记无效"""
     try:
@@ -928,6 +947,7 @@ def get_my_points(current_user, ):
 
 @lead_v2_bp.route('/stats/overview', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.stats.view', _store_scope)
 def get_stats_overview(current_user):
     """获取线索总览统计"""
     try:
@@ -981,6 +1001,7 @@ def get_stats_overview(current_user):
 
 @lead_v2_bp.route('/stats/funnel', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.stats.view', _store_scope)
 def get_conversion_funnel(current_user, ):
     """获取转化漏斗"""
     try:
@@ -1028,6 +1049,7 @@ def get_conversion_funnel(current_user, ):
 
 @lead_v2_bp.route('/stats/channels', methods=['GET'])
 @jwt_required_v2
+@require_permission('lead.stats.view', _store_scope)
 def get_channel_stats(current_user, ):
     """获取渠道统计"""
     try:

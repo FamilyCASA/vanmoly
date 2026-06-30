@@ -485,8 +485,14 @@
               :key="phase.code"
 
               class="holo-sphere-wrap"
+              :class="{ active: expandedPhase === phase.code }"
 
               @click="togglePhase(phase.code)"
+              @keydown.enter.prevent="togglePhase(phase.code)"
+              @keydown.space.prevent="togglePhase(phase.code)"
+              role="button"
+              tabindex="0"
+              :aria-expanded="expandedPhase === phase.code"
 
             >
 
@@ -515,35 +521,35 @@
                 </svg>
               </div>
 
-              <!-- Expanded nodes panel -->
+            </div>
 
-              <div v-if="expandedPhase === phase.code" class="phase-nodes-panel">
+          </div>
 
-                <div class="nodes-panel-header" :style="{ borderColor: phase.color || '#8B7355' }">
+          <transition name="phase-panel">
+            <div v-if="selectedWorkflowPhase" class="phase-nodes-panel">
 
-                  <span class="nodes-phase-title">{{ phase.name }}</span>
+              <div class="nodes-panel-header" :style="{ borderColor: selectedWorkflowPhase.color || '#8B7355' }">
 
-                  <span class="nodes-count">{{ phase.nodes?.length || 0 }}个节点</span>
+                <span class="nodes-phase-title">{{ selectedWorkflowPhase.name }}</span>
 
-                </div>
+                <span class="nodes-count">{{ selectedWorkflowPhase.nodes?.length || 0 }}个节点</span>
 
-                <div class="nodes-list">
+              </div>
 
-                  <div v-for="(node, ni) in phase.nodes" :key="ni" class="node-item">
+              <div class="nodes-list">
 
-                    <span class="node-code">{{ node.code }}</span>
+                <div v-for="(node, ni) in selectedWorkflowPhase.nodes" :key="getNodeCode(node) || ni" class="node-item">
 
-                    <span class="node-name">{{ node.name }}</span>
+                  <span v-if="getNodeCode(node)" class="node-code">{{ getNodeCode(node) }}</span>
 
-                  </div>
+                  <span class="node-name">{{ getNodeName(node) }}</span>
 
                 </div>
 
               </div>
 
             </div>
-
-          </div>
+          </transition>
 
         </div>
 
@@ -1742,7 +1748,7 @@ const startHeroSlider = () => {
   heroInterval = setInterval(() => {
     const nextIndex = (currentHeroIndex.value + 1) % heroSlides.value.length
     showHeroImage(nextIndex)
-  }, 5000)
+  }, 10000)
 }
 
 
@@ -1922,6 +1928,20 @@ const workflowLoading = ref(true)
 const expandedPhase = ref(null)
 
 
+const selectedWorkflowPhase = computed(() => {
+  return workflowPhases.value.find(phase => phase.code === expandedPhase.value) || null
+})
+
+
+const getNodeCode = (node) => {
+  return node?.node_code || node?.code || ''
+}
+
+const getNodeName = (node) => {
+  return node?.node_name || node?.name || node?.title || node?.label || '未命名节点'
+}
+
+
 
 const DEFAULT_WORKFLOW_PHASES = [
   { code: "phase1", name: "需求沟通", color: "#8B7355", nodes: [
@@ -1964,11 +1984,7 @@ const fetchWorkflowPhases = async () => {
 
     const res = await request.get('/workflows/public/phases')
 
-    if (res && res.phases && res.phases.length > 0) {
-
-      workflowPhases.value = res.phases
-
-    }
+    workflowPhases.value = res?.phases?.length ? res.phases : DEFAULT_WORKFLOW_PHASES
 
   } catch (e) {
 
@@ -3378,41 +3394,19 @@ onUnmounted(() => {
 
 
 .hero-overlay {
-
-
-
   position: absolute;
-
-
-
   inset: 0;
-
-
-
-  background: linear-gradient(
-
-
-
-    135deg,
-
-
-
-    rgba(44, 36, 32, 0.5) 0%,
-
-
-
-    rgba(44, 36, 32, 0.3) 50%,
-
-
-
-    rgba(44, 36, 32, 0.1) 100%
-
-
-
+  background: radial-gradient(
+    ellipse at center,
+    rgba(0, 0, 0, 0.55) 0%,
+    rgba(0, 0, 0, 0.25) 50%,
+    rgba(0, 0, 0, 0.05) 80%,
+    transparent 100%
   );
-
-
-
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-mask: radial-gradient(ellipse at center, black 40%, transparent 85%);
+  mask: radial-gradient(ellipse at center, black 40%, transparent 85%);
 }
 
 
@@ -3537,7 +3531,7 @@ onUnmounted(() => {
 
 
 
-  padding: 180px 40px 0;
+  padding: 180px 40px 80px;
 
 
 
@@ -7822,7 +7816,19 @@ onUnmounted(() => {
   cursor: pointer;
 
   overflow: visible;
+  border-radius: 50%;
+  outline: none;
 
+}
+
+.holo-sphere-wrap.active .holo-sphere,
+.holo-sphere-wrap:focus-visible .holo-sphere {
+  transform: scale(1.08);
+}
+
+.holo-sphere-wrap.active .sphere-ring {
+  opacity: 0.95;
+  box-shadow: 0 0 28px var(--phase-color);
 }
 
 .holo-sphere {
@@ -7932,25 +7938,17 @@ onUnmounted(() => {
 
 .phase-nodes-panel {
 
-  position: absolute;
+  width: min(980px, calc(100% - 40px));
 
-  top: calc(100% + 16px);
+  margin: 26px auto 0;
 
-  left: 50%;
-
-  transform: translateX(-50%);
-
-  background: rgba(10, 10, 30, 0.95);
+  background: rgba(10, 10, 30, 0.82);
 
   border: 1px solid rgba(139,115,85,0.3);
 
   border-radius: 12px;
 
-  padding: 16px;
-
-  min-width: 240px;
-
-  max-width: 320px;
+  padding: 18px;
 
   z-index: 100;
 
@@ -7958,6 +7956,17 @@ onUnmounted(() => {
 
   box-shadow: 0 8px 32px rgba(0,0,0,0.5);
 
+}
+
+.phase-panel-enter-active,
+.phase-panel-leave-active {
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.phase-panel-enter-from,
+.phase-panel-leave-to {
+  opacity: 0;
+  transform: translateY(-8px);
 }
 
 .nodes-panel-header {
@@ -7998,15 +8007,15 @@ onUnmounted(() => {
 
 .nodes-list {
 
-  max-height: 260px;
+  max-height: 320px;
 
   overflow-y: auto;
 
-  display: flex;
+  display: grid;
 
-  flex-direction: column;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 
-  gap: 6px;
+  gap: 8px;
 
 }
 
@@ -8018,17 +8027,19 @@ onUnmounted(() => {
 
   gap: 8px;
 
-  padding: 6px 8px;
+  min-height: 36px;
+
+  padding: 8px 10px;
 
   border-radius: 6px;
 
-  background: rgba(255,255,255,0.04);
+  background: rgba(255,255,255,0.08);
 
   transition: background 0.2s;
 
 }
 
-.node-item:hover { background: rgba(255,255,255,0.08); }
+.node-item:hover { background: rgba(255,255,255,0.13); }
 
 .node-code {
 
@@ -8038,15 +8049,18 @@ onUnmounted(() => {
 
   font-family: monospace;
 
-  min-width: 30px;
+  min-width: 38px;
+  flex-shrink: 0;
 
 }
 
 .node-name {
 
-  color: rgba(255,255,255,0.85);
+  color: #fff;
 
-  font-size: 13px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
 
 }
 
@@ -8076,7 +8090,22 @@ onUnmounted(() => {
     height: 20px;
   }
 
-  .phase-nodes-panel { min-width: 200px; }
+  .phase-nodes-panel {
+    width: calc(100% - 28px);
+    margin-top: 18px;
+    padding: 14px;
+  }
+
+  .nodes-panel-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .nodes-list {
+    grid-template-columns: 1fr;
+    max-height: 360px;
+  }
 
 }
 

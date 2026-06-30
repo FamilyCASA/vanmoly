@@ -14,6 +14,7 @@ from app.models.building import (
 )
 from app.models.customer import Customer
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 from app.utils.ai_utils import ai_summarize_building, ai_extract_customers, ai_analyze_excel_row
 from datetime import datetime, date
 
@@ -22,10 +23,15 @@ logger = logging.getLogger(__name__)
 building_bp = Blueprint('building', __name__, url_prefix='/api/v3/buildings')
 
 
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
+
+
 # ========== 楼盘管理 ==========
 
 @building_bp.route('', methods=['GET'])
 @jwt_required_v2
+@require_permission('building.view', _store_scope)
 def get_buildings(current_user):
     """获取楼盘列表"""
     page = request.args.get('page', 1, type=int)
@@ -72,6 +78,7 @@ def get_buildings(current_user):
 
 @building_bp.route('/<int:id>', methods=['GET'])
 @jwt_required_v2
+@require_permission('building.view', _store_scope)
 def get_building(current_user, id):
     """获取楼盘详情"""
     building = Building.query.get_or_404(id)
@@ -109,6 +116,7 @@ def get_building(current_user, id):
 
 @building_bp.route('', methods=['POST'])
 @jwt_required_v2
+@require_permission('building.create', _store_scope)
 def create_building(current_user):
     """创建楼盘"""
     data = request.get_json()
@@ -151,6 +159,7 @@ def create_building(current_user):
 
 @building_bp.route('/<int:id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('building.update', _store_scope)
 def update_building(current_user, id):
     """更新楼盘"""
     building = Building.query.get_or_404(id)
@@ -181,6 +190,7 @@ def update_building(current_user, id):
 
 @building_bp.route('/<int:id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('building.delete', _store_scope)
 def delete_building(current_user, id):
     """删除楼盘"""
     building = Building.query.get_or_404(id)
@@ -197,6 +207,7 @@ def delete_building(current_user, id):
 
 @building_bp.route('/<int:building_id>/follows', methods=['GET'])
 @jwt_required_v2
+@require_permission('building.view', _store_scope)
 def get_follows(current_user, building_id):
     """获取楼盘跟进记录"""
     follows = BuildingFollow.query.filter_by(
@@ -211,6 +222,7 @@ def get_follows(current_user, building_id):
 
 @building_bp.route('/<int:building_id>/follows', methods=['POST'])
 @jwt_required_v2
+@require_permission('building.follow', _store_scope)
 def add_follow(current_user, building_id):
     """添加跟进记录"""
     data = request.get_json()

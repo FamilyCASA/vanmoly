@@ -13,76 +13,9 @@
         active-text-color="#409EFF"
         :collapse="isCollapse"
       >
-        <!-- 1. 数据看板 -->
-        <el-menu-item index="/admin/dashboard">
-          <el-icon><DataLine /></el-icon>
-          <span>数据看板</span>
-        </el-menu-item>
-
-        <!-- 2. 楼盘管理 -->
-        <el-menu-item index="/admin/buildings">
-          <el-icon><OfficeBuilding /></el-icon>
-          <span>楼盘管理</span>
-        </el-menu-item>
-
-        <!-- 3. 线索管理 -->
-        <el-menu-item index="/admin/leads">
-          <el-icon><User /></el-icon>
-          <span>线索管理</span>
-        </el-menu-item>
-
-        <!-- 4. 客户管理 -->
-        <el-menu-item index="/admin/customers">
-          <el-icon><UserFilled /></el-icon>
-          <span>客户管理</span>
-        </el-menu-item>
-
-        <!-- 5. 案例管理 -->
-        <el-menu-item index="/admin/cases">
-          <el-icon><Picture /></el-icon>
-          <span>案例管理</span>
-        </el-menu-item>
-
-        <!-- 6. 选品管理 -->
-        <el-menu-item index="/admin/schemes">
-          <el-icon><Document /></el-icon>
-          <span>选品管理</span>
-        </el-menu-item>
-
-        <!-- 7. 报价管理 -->
-        <el-menu-item index="/admin/quotes">
-          <el-icon><Money /></el-icon>
-          <span>报价管理</span>
-        </el-menu-item>
-
-        <!-- 8. 合同管理 -->
-        <el-menu-item index="/admin/contracts">
-          <el-icon><Document /></el-icon>
-          <span>合同管理</span>
-        </el-menu-item>
-
-        <!-- 9. 服务流程 -->
-        <el-menu-item index="/admin/workflow">
-          <el-icon><Connection /></el-icon>
-          <span>服务流程</span>
-        </el-menu-item>
-
-        <!-- 辅助功能 -->
-        <el-menu-item index="/admin/appointments">
-          <el-icon><Calendar /></el-icon>
-          <span>预约管理</span>
-        </el-menu-item>
-
-        <!-- 财务管理 -->
-        <el-menu-item index="/admin/finance">
-          <el-icon><Wallet /></el-icon>
-          <span>财务管理</span>
-        </el-menu-item>
-
-        <!-- 系统设置（集成员工/分店/物料/文件/前端配置/流程模板/分类管理） -->
-        <el-menu-item index="/admin/settings">
-          <el-icon><Tools /></el-icon>
-          <span>系统设置</span>
+        <el-menu-item v-for="item in visibleMenuItems" :key="item.path" :index="item.path">
+          <el-icon><component :is="item.icon" /></el-icon>
+          <span>{{ item.label }}</span>
         </el-menu-item>
       </el-menu>
     </el-aside>
@@ -96,7 +29,7 @@
           <span class="breadcrumb clickable" @click="router.push('/admin/dashboard')">管理后台</span>
         </div>
         <div class="header-right">
-          <div class="my-btn" @click="$router.push('/admin/my-workspace')">
+          <div class="my-btn" @click="mineDrawerVisible = true">
             <el-icon><UserFilled /></el-icon>
             <span>我的</span>
           </div>
@@ -106,24 +39,151 @@
         <router-view />
       </el-main>
     </el-container>
+
+    <el-drawer v-model="mineDrawerVisible" title="我的快捷入口" size="380px" class="mine-drawer">
+      <div class="mine-profile">
+        <div class="mine-avatar">
+          <el-icon><UserFilled /></el-icon>
+        </div>
+        <div>
+          <h3>我的工作台</h3>
+          <p>任务、客户、流程和个人权限入口</p>
+        </div>
+      </div>
+
+      <el-button type="primary" class="mine-main-btn" @click="goMyWorkspace">
+        进入我的界面
+      </el-button>
+
+      <div v-if="canOpenAdmin" class="drawer-section">
+        <div class="drawer-title">管理入口</div>
+        <button class="quick-card admin-card" @click="goAdminDashboard">
+          <span class="quick-icon"><el-icon><DataLine /></el-icon></span>
+          <span>
+            <strong>管理后台</strong>
+            <small>进入数据看板与管理模块</small>
+          </span>
+          <el-icon><ArrowRight /></el-icon>
+        </button>
+      </div>
+
+      <div class="drawer-section">
+        <div class="drawer-title">我的权限入口</div>
+        <div class="quick-grid">
+          <button
+            v-for="item in drawerMenuItems"
+            :key="item.path"
+            class="quick-card compact"
+            @click="goQuickPath(item.path)"
+          >
+            <span class="quick-icon"><el-icon><component :is="item.icon" /></el-icon></span>
+            <strong>{{ item.label }}</strong>
+          </button>
+        </div>
+      </div>
+
+      <div class="drawer-footer">
+        <el-button text @click="router.push('/')">
+          <el-icon><House /></el-icon>
+          返回前台
+        </el-button>
+      </div>
+    </el-drawer>
   </el-container>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
   DataLine, Picture, User, Calendar, Fold, Expand,
   UserFilled, Connection, Document, OfficeBuilding,
-  Money, Tools, Wallet, Box
+  Money, Tools, Wallet, ArrowRight, House
 } from '@element-plus/icons-vue'
+import request from '@/utils/request'
 
 const router = useRouter()
 const route = useRoute()
 const isCollapse = ref(false)
+const visibleModuleKeys = ref([])
+const permissionLoaded = ref(false)
+const mineDrawerVisible = ref(false)
 const isFullPage = computed(() =>
   route.path.startsWith('/admin/settings') || route.path.startsWith('/admin/my-workspace')
 )
+
+const menuItems = [
+  { key: 'dashboard', path: '/admin/dashboard', label: '数据看板', icon: DataLine },
+  { key: 'buildings', path: '/admin/buildings', label: '楼盘管理', icon: OfficeBuilding },
+  { key: 'leads', path: '/admin/leads', label: '线索管理', icon: User },
+  { key: 'customers', path: '/admin/customers', label: '客户管理', icon: UserFilled },
+  { key: 'cases', path: '/admin/cases', label: '案例管理', icon: Picture },
+  { key: 'schemes', path: '/admin/schemes', label: '选品管理', icon: Document },
+  { key: 'quotes', path: '/admin/quotes', label: '报价管理', icon: Money },
+  { key: 'contracts', path: '/admin/contracts', label: '合同管理', icon: Document },
+  { key: 'workflow', path: '/admin/workflow', label: '服务流程', icon: Connection },
+  { key: 'appointments', path: '/admin/appointments', label: '预约管理', icon: Calendar },
+  { key: 'finance', path: '/admin/finance', label: '财务管理', icon: Wallet },
+  { key: 'settings', path: '/admin/settings', label: '系统设置', icon: Tools }
+]
+
+const visibleMenuItems = computed(() => {
+  if (!permissionLoaded.value) return menuItems
+  return menuItems.filter(item => visibleModuleKeys.value.includes(item.key))
+})
+
+const drawerMenuItems = computed(() =>
+  visibleMenuItems.value.filter(item => !['dashboard', 'settings'].includes(item.key))
+)
+
+const canOpenAdmin = computed(() =>
+  visibleMenuItems.value.some(item => item.key === 'dashboard')
+)
+
+const loadMyPermissions = async () => {
+  try {
+    const res = await request.get('/permissions/me')
+    visibleModuleKeys.value = (res.visible_modules || []).map(item => item.key)
+  } catch (error) {
+    visibleModuleKeys.value = menuItems.map(item => item.key)
+  } finally {
+    permissionLoaded.value = true
+  }
+}
+
+const goMyWorkspace = () => {
+  mineDrawerVisible.value = false
+  router.push('/admin/my-workspace')
+}
+
+const goAdminDashboard = () => {
+  mineDrawerVisible.value = false
+  router.push('/admin/dashboard')
+}
+
+const goQuickPath = (path) => {
+  mineDrawerVisible.value = false
+  router.push(path)
+}
+
+onMounted(async () => {
+  await loadMyPermissions()
+  if (route.query.openMine === '1') {
+    mineDrawerVisible.value = true
+  }
+})
+
+watch(() => route.query.openMine, (value) => {
+  if (value === '1') {
+    mineDrawerVisible.value = true
+  }
+})
+
+watch([permissionLoaded, visibleMenuItems, () => route.path], () => {
+  if (!permissionLoaded.value || isFullPage.value) return
+  const allowed = visibleMenuItems.value.some(item => route.path.startsWith(item.path))
+  if (!allowed) router.replace('/admin/my-workspace')
+})
 </script>
 
 <style scoped>
@@ -226,5 +286,126 @@ const isFullPage = computed(() =>
   background: var(--bg-base, #f5f7fa);
   padding: 20px;
   color: var(--text-primary, #333);
+}
+
+.mine-profile {
+  display: flex;
+  gap: 14px;
+  align-items: center;
+  padding: 18px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #eef6ff 0%, #f7fbff 100%);
+  border: 1px solid #dcecff;
+}
+
+.mine-avatar {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: #409eff;
+  font-size: 24px;
+}
+
+.mine-profile h3 {
+  margin: 0 0 6px;
+  font-size: 18px;
+  color: #1f2937;
+}
+
+.mine-profile p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.mine-main-btn {
+  width: 100%;
+  margin: 18px 0 10px;
+  min-height: 42px;
+}
+
+.drawer-section {
+  margin-top: 22px;
+}
+
+.drawer-title {
+  margin-bottom: 10px;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.quick-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.quick-card {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  color: #1f2937;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  font-family: inherit;
+}
+
+.quick-card:hover {
+  border-color: #409eff;
+  box-shadow: 0 8px 24px rgba(64, 158, 255, 0.13);
+  transform: translateY(-1px);
+}
+
+.quick-card.admin-card {
+  display: grid;
+  grid-template-columns: 38px 1fr 18px;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  text-align: left;
+}
+
+.quick-card.compact {
+  min-height: 84px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px;
+}
+
+.quick-icon {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: #eef6ff;
+  color: #409eff;
+}
+
+.quick-card strong {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.quick-card small {
+  display: block;
+  margin-top: 4px;
+  color: #6b7280;
+  font-size: 12px;
+}
+
+.drawer-footer {
+  margin-top: 26px;
+  padding-top: 14px;
+  border-top: 1px solid #eef0f3;
 }
 </style>

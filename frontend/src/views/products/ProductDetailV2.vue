@@ -231,7 +231,7 @@ const loadProduct = async () => {
   loading.value = true
   try {
     const res = await request.get(`/materials/${route.params.id}`)
-    product.value = res.data || {}
+    product.value = res || {}
     selectedImage.value = product.value.main_image
     
     // 默认选中第一个启用的变体

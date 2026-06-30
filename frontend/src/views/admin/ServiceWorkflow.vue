@@ -262,9 +262,20 @@
               <div class="record-item">
                 <div class="record-header">
                   <span>{{ record.node_name }}</span>
-                  <el-tag :type="recordStatusType(record.status)" size="small">
-                    {{ recordStatusLabel(record.status) }}
-                  </el-tag>
+                  <div class="record-actions">
+                    <el-tag :type="recordStatusType(record.status)" size="small">
+                      {{ recordStatusLabel(record.status) }}
+                    </el-tag>
+                    <el-button
+                      v-if="['pending', 'processing'].includes(record.status)"
+                      link
+                      type="primary"
+                      size="small"
+                      @click="submitNodeReview(record)"
+                    >
+                      提交验收
+                    </el-button>
+                  </div>
                 </div>
                 <div v-if="record.assigned_name">负责人: {{ record.assigned_name }}</div>
                 <div v-if="record.content" class="record-content">{{ record.content }}</div>
@@ -434,6 +445,29 @@ const viewWorkflow = async (row) => {
   }
 }
 
+const submitNodeReview = async (record) => {
+  try {
+    const { value } = await ElMessageBox.prompt('请填写节点资料/任务完成说明', '提交节点验收', {
+      confirmButtonText: '提交验收',
+      cancelButtonText: '取消',
+      inputType: 'textarea',
+      inputValue: record.content || '',
+      inputPattern: /\S+/,
+      inputErrorMessage: '请填写提交说明'
+    })
+    await request.post(`/workflows/records/${record.id}/submit-review`, {
+      content: value,
+      attachments: record.attachments || []
+    })
+    ElMessage.success('已提交节点资料验收')
+    if (detailDrawer.workflow) {
+      await viewWorkflow({ id: detailDrawer.workflow.id })
+    }
+  } catch (e) {
+    if (e !== 'cancel') ElMessage.error('提交验收失败')
+  }
+}
+
 const advanceWorkflow = async (row) => {
   try {
     await ElMessageBox.confirm('确定要推进到下一节点吗？', '提示', { type: 'warning' })
@@ -491,11 +525,11 @@ const workflowStatusLabel = (s) => {
 }
 
 const recordStatusType = (s) => {
-  return { pending: 'info', processing: 'warning', completed: 'success', skipped: 'info' }[s] || 'info'
+  return { pending: 'info', processing: 'warning', submitted: 'warning', completed: 'success', skipped: 'info' }[s] || 'info'
 }
 
 const recordStatusLabel = (s) => {
-  return { pending: '待处理', processing: '进行中', completed: '已完成', skipped: '已跳过' }[s] || s
+  return { pending: '待处理', processing: '进行中', submitted: '待验收', completed: '已完成', skipped: '已跳过' }[s] || s
 }
 
 const progressStatus = (p) => {
@@ -576,6 +610,7 @@ onMounted(() => {
 .records-section h4 { margin-bottom: 16px; color: #262626; }
 .record-item { padding: 8px; }
 .record-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.record-actions { display: inline-flex; align-items: center; gap: 8px; }
 .record-header .node-name { font-weight: 500; }
 .record-content { font-size: 13px; color: #595959; background: #f5f5f5; padding: 8px; border-radius: 4px; margin-top: 8px; }
 </style>

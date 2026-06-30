@@ -537,7 +537,11 @@ onMounted(() => {
 .hero-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.6) 100%);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.45) 30%, rgba(0,0,0,0.75) 100%);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-mask: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 15%, black 50%, black 100%);
+  mask: linear-gradient(to bottom, transparent 0%, rgba(0,0,0,0.2) 15%, black 50%, black 100%);
 }
 
 .hero-content {

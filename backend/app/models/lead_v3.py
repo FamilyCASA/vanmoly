@@ -28,20 +28,11 @@ class Lead(db.Model):
     style_preference = db.Column(db.String(100), comment='风格偏好')
     
     # 线索状态
-    status = db.Column(db.String(20), default='new', comment='
-        new-新线索
-        assigned-已分配
-        contacted-已联系
-        followed-跟进中
-        appointment_booked-预约到店
-        appointment_actual-已到店
-        demand_confirmed-需求确认
-        quoted-已报价
-        deposit_paid-已交定金
-        converted-已转化(成交)
-        invalid-无效
-        public-公海
-    ')
+    status = db.Column(
+        db.String(20),
+        default='new',
+        comment='new-新线索/assigned-已分配/contacted-已联系/followed-跟进中/appointment_booked-预约到店/appointment_actual-已到店/demand_confirmed-需求确认/quoted-已报价/deposit_paid-已交定金/converted-已转化/invalid-无效/public-公海'
+    )
     
     # 来源渠道
     source_channel = db.Column(db.String(50), comment='来源渠道')

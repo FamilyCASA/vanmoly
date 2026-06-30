@@ -468,7 +468,7 @@ const fetchCategories = async () => {
 const fetchFilterOptions = async () => {
   try {
     const res = await request.get('/materials/filter-options')
-    filterOptions.value = res?.data || { brands: [], units: [], env_levels: [] }
+    filterOptions.value = res || { brands: [], units: [], env_levels: [] }
   } catch (e) { console.error('获取筛选选项失败', e) }
 }
 

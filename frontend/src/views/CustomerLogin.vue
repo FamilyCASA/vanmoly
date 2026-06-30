@@ -115,8 +115,8 @@ const handleLogin = async () => {
       password: loginForm.password
     })
 
-    if (res.data.code === 200) {
-      const { token, user } = res.data.data
+    if (res?.token) {
+      const { token, user } = res
       localStorage.setItem('customer_token', token)
       localStorage.setItem('customer_user', JSON.stringify(user))
       
@@ -126,7 +126,7 @@ const handleLogin = async () => {
       const redirect = route.query.redirect || '/selection-center'
       router.push(redirect)
     } else {
-      ElMessage.error(res.data.message)
+      ElMessage.error('登录失败')
     }
   } catch (error) {
     ElMessage.error('登录失败')

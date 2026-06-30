@@ -25,6 +25,9 @@
         <router-link to="/cases" class="nav-link" :class="{ active: $route.path.startsWith('/cases') }">案例中心</router-link>
         <router-link to="/proposals" class="nav-link" :class="{ active: $route.path.startsWith('/proposals') || $route.path.startsWith('/slides') }">提案中心</router-link>
         <router-link to="/products" class="nav-link" :class="{ active: $route.path.startsWith('/products') }">产品中心</router-link>
+        <button class="nav-link nav-link-button" :class="{ active: $route.path === '/user-center' }" @click="goToUserCenter">
+          用户中心
+        </button>
       </div>
       
       <!-- 移动端菜单按钮 -->
@@ -46,6 +49,7 @@
       <router-link to="/cases" @click="mobileMenuOpen = false">案例中心</router-link>
       <router-link to="/proposals" @click="mobileMenuOpen = false">提案中心</router-link>
       <router-link to="/products" @click="mobileMenuOpen = false">产品中心</router-link>
+      <button class="mobile-link-button" @click="goToUserCenter">用户中心</button>
     </div>
   </nav>
 </template>
@@ -53,8 +57,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowRight } from '@element-plus/icons-vue'
-import SelectionButton from '@/components/SelectionButton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -78,6 +80,15 @@ const handleScroll = () => {
 
 const goHome = () => {
   router.push('/')
+}
+
+const goToUserCenter = () => {
+  mobileMenuOpen.value = false
+  if (localStorage.getItem('token')) {
+    router.push({ path: '/admin/my-workspace', query: { openMine: '1' } })
+    return
+  }
+  router.push('/user-center')
 }
 
 // 跳转到选品中心（检查登录状态，已注册可直达，未注册引导注册）
@@ -214,6 +225,25 @@ onUnmounted(() => {
   text-decoration: none;
   transition: color 0.3s;
   position: relative;
+}
+
+.nav-link-button {
+  border: 1px solid rgba(64, 158, 255, 0.35);
+  background: rgba(64, 158, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  padding: 8px 14px;
+  font-family: inherit;
+}
+
+.nav-link-button::after {
+  display: none;
+}
+
+.nav-link-button:hover,
+.nav-link-button.active {
+  color: #fff;
+  background: rgba(64, 158, 255, 0.28);
 }
 
 .nav-link:hover,
@@ -366,6 +396,19 @@ onUnmounted(() => {
   text-decoration: none;
   padding: 12px 0;
   border-bottom: 1px solid var(--border, #2a2a3e);
+}
+
+.mobile-link-button {
+  width: 100%;
+  text-align: left;
+  border: 0;
+  border-bottom: 1px solid var(--border, #2a2a3e);
+  background: transparent;
+  color: var(--text-primary, #E8E8E8);
+  font: inherit;
+  font-size: 16px;
+  padding: 12px 0;
+  cursor: pointer;
 }
 
 .mobile-menu .btn-primary {

@@ -1589,7 +1589,7 @@ const startCarousel = () => {
 
     nextSlide()
 
-  }, 3000)
+  }, 10000)
 
 }
 
@@ -2415,13 +2415,13 @@ onUnmounted(() => {
 
 
 .hero-overlay {
-
   position: absolute;
-
   inset: 0;
-
-  background: linear-gradient(to right, rgba(0,0,0,0.75) 0%, rgba(0,0,0,0.35) 40%, rgba(0,0,0,0.15) 70%, transparent 100%);
-
+  background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.55) 30%, rgba(0,0,0,0.25) 60%, rgba(0,0,0,0.08) 85%, transparent 100%);
+  backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-backdrop-filter: blur(24px) saturate(1.8);
+  -webkit-mask: radial-gradient(ellipse at center, transparent 10%, rgba(0,0,0,0.3) 25%, black 75%);
+  mask: radial-gradient(ellipse at center, transparent 10%, rgba(0,0,0,0.3) 25%, black 75%);
 }
 
 
@@ -2813,10 +2813,6 @@ onUnmounted(() => {
   max-width: 600px;
 
   margin-left: auto;
-
-  background: rgba(30, 30, 30, 0.65);
-
-  backdrop-filter: blur(8px);
 
   border-radius: 8px;
 

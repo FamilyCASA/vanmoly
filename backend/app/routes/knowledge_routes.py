@@ -13,8 +13,13 @@ from app.models.knowledge import (
     KnowledgeShare, FrontUser
 )
 from app.routes.auth_routes_v2 import jwt_required_v2
+from app.services.permission_service import require_permission
 
 knowledge_bp = Blueprint('knowledge', __name__, url_prefix='/api/v3/knowledge')
+
+
+def _store_scope(current_user, *args, **kwargs):
+    return 'store', current_user.get('store_id')
 
 
 # ============================================================================
@@ -74,6 +79,7 @@ def get_bases():
 
 @knowledge_bp.route('/bases', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.create', _store_scope)
 def create_base(current_user):
     """创建知识库"""
     data = request.get_json() or {}
@@ -111,6 +117,7 @@ def get_base(base_id):
 
 @knowledge_bp.route('/bases/<int:base_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('knowledge.update', _store_scope)
 def update_base(current_user, base_id):
     """更新知识库"""
     base = KnowledgeBase.query.get_or_404(base_id)
@@ -129,6 +136,7 @@ def update_base(current_user, base_id):
 
 @knowledge_bp.route('/bases/<int:base_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('knowledge.delete', _store_scope)
 def delete_base(current_user, base_id):
     """删除知识库（连带节点和文章）"""
     base = KnowledgeBase.query.get_or_404(base_id)
@@ -162,6 +170,7 @@ def get_categories():
 
 @knowledge_bp.route('/categories', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.create', _store_scope)
 def create_category(current_user):
     """创建分类"""
     data = request.get_json() or {}
@@ -169,7 +178,7 @@ def create_category(current_user):
     if not name:
         return jsonify({'code': 400, 'message': '分类名称不能为空'}), 400
 
-    parent_id = data.get('parent_id', 0)
+    parent_id = data.get('parent_id') or 0
     level = 1
     if parent_id > 0:
         parent = KnowledgeCategory.query.get(parent_id)
@@ -193,6 +202,7 @@ def create_category(current_user):
 
 @knowledge_bp.route('/categories/<int:cat_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('knowledge.update', _store_scope)
 def update_category(current_user, cat_id):
     """更新分类"""
     cat = KnowledgeCategory.query.get_or_404(cat_id)
@@ -206,6 +216,7 @@ def update_category(current_user, cat_id):
 
 @knowledge_bp.route('/categories/<int:cat_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('knowledge.delete', _store_scope)
 def delete_category(current_user, cat_id):
     """删除分类（连同子分类）"""
     def delete_cascade(cat_id):
@@ -226,6 +237,7 @@ def delete_category(current_user, cat_id):
 
 @knowledge_bp.route('/nodes', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.create', _store_scope)
 def create_node(current_user):
     """新增节点"""
     data = request.get_json() or {}
@@ -274,6 +286,7 @@ def create_node(current_user):
 
 @knowledge_bp.route('/nodes/<int:node_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('knowledge.update', _store_scope)
 def update_node(current_user, node_id):
     """更新节点（支持新字段）"""
     node = KnowledgeNode.query.get_or_404(node_id)
@@ -297,6 +310,7 @@ def update_node(current_user, node_id):
 
 @knowledge_bp.route('/nodes/<int:node_id>/content', methods=['PUT'])
 @jwt_required_v2
+@require_permission('knowledge.update', _store_scope)
 def update_node_content(current_user, node_id):
     """更新节点文案内容"""
     node = KnowledgeNode.query.get_or_404(node_id)
@@ -315,6 +329,7 @@ def update_node_content(current_user, node_id):
 
 @knowledge_bp.route('/nodes/<int:node_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('knowledge.delete', _store_scope)
 def delete_node(current_user, node_id):
     """删除节点（连带子节点和文章）"""
     def delete_cascade(node_id):
@@ -376,12 +391,23 @@ def list_articles():
     page = request.args.get('page', 1, type=int)
     page_size = request.args.get('pageSize', 20, type=int)
     node_id = request.args.get('node_id', type=int)
+    category_id = request.args.get('category', type=int)
     status = request.args.get('status', type=int)
     keyword = request.args.get('keyword', '').strip()
 
     q = KnowledgeArticle.query
     if node_id:
         q = q.filter_by(node_id=node_id)
+    elif category_id:
+        # 通过 category_id 找到对应的 node_id
+        from app.models.knowledge import KnowledgeCategory
+        cat = KnowledgeCategory.query.get(category_id)
+        if cat:
+            # 查找同名的 KnowledgeNode
+            from app.models.knowledge import KnowledgeNode
+            node = KnowledgeNode.query.filter_by(node_name=cat.name).first()
+            if node:
+                q = q.filter_by(node_id=node.id)
     if status is not None:
         q = q.filter_by(status=status)
     if keyword:
@@ -405,6 +431,7 @@ def list_articles():
 
 @knowledge_bp.route('/articles', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.create', _store_scope)
 def create_article(current_user):
     """创建文章"""
     data = request.get_json() or {}
@@ -455,6 +482,7 @@ def get_article(article_id):
 
 @knowledge_bp.route('/articles/<int:article_id>', methods=['PUT'])
 @jwt_required_v2
+@require_permission('knowledge.update', _store_scope)
 def update_article(current_user, article_id):
     """更新文章"""
     article = KnowledgeArticle.query.get_or_404(article_id)
@@ -477,6 +505,7 @@ def update_article(current_user, article_id):
 
 @knowledge_bp.route('/articles/<int:article_id>', methods=['DELETE'])
 @jwt_required_v2
+@require_permission('knowledge.delete', _store_scope)
 def delete_article(current_user, article_id):
     """删除文章"""
     article = KnowledgeArticle.query.get_or_404(article_id)
@@ -643,6 +672,7 @@ def public_article(article_id):
 
 @knowledge_bp.route('/share', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.share', _store_scope)
 def create_share(current_user):
     """生成分享链接"""
     data = request.get_json() or {}
@@ -686,6 +716,7 @@ def get_share(token):
 
 @knowledge_bp.route('/shares', methods=['GET'])
 @jwt_required_v2
+@require_permission('knowledge.share', _store_scope)
 def list_shares(current_user):
     """我的分享记录"""
     shares = KnowledgeShare.query.filter_by(employee_id=current_user['id']).order_by(
@@ -700,6 +731,7 @@ def list_shares(current_user):
 
 @knowledge_bp.route('/init/preset', methods=['POST'])
 @jwt_required_v2
+@require_permission('knowledge.create', _store_scope)
 def init_preset(current_user):
     """初始化预设知识库和分类数据"""
     # 检查是否已初始化（已有非通用分类的知识库）

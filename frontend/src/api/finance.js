@@ -379,6 +379,15 @@ const financeAPI = {
     return request({ url: `/finance/payables/${id}`, method: 'delete' })
   },
 
+  /** 确认付款并自动登账 */
+  confirmPayment(id, data) {
+    return request({
+      url: `/finance/payables/${id}/confirm-payment`,
+      method: 'put',
+      data
+    })
+  },
+
   // ========== 付款计划 ==========
 
   /** 获取付款计划 */

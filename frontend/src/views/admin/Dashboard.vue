@@ -1,169 +1,170 @@
 <template>
   <div class="dashboard-container">
-    <!-- 页面标题栏 -->
-    <div class="page-header">
-      <div class="header-left">
+    <section class="dashboard-hero">
+      <div class="hero-content">
+        <div class="hero-kicker">运营总览</div>
         <h1 class="page-title">数据驾驶舱</h1>
-        <div class="current-time">{{ currentTime }}</div>
+        <p class="hero-desc">聚合线索、客户、报价、合同与财务数据，快速掌握今日经营状态。</p>
+        <div class="hero-meta">
+          <span>{{ currentTime }}</span>
+          <span>数据实时同步</span>
+        </div>
       </div>
-      <div class="header-right">
-        <el-button type="primary" :icon="Refresh" @click="handleRefresh" :loading="refreshing">
+      <div class="hero-actions">
+        <el-button class="refresh-btn" :icon="Refresh" @click="handleRefresh" :loading="refreshing">
           刷新数据
         </el-button>
       </div>
-    </div>
+    </section>
 
-    <!-- 快捷入口卡片（第一位） -->
-    <el-card shadow="hover" class="quick-entry-card">
-      <template #header>
-        <div class="card-header">
-          <span class="card-title">快捷入口</span>
-          <span class="card-subtitle">常用操作一键直达</span>
-        </div>
-      </template>
-      <div class="quick-entry-grid">
-        <div
-          v-for="item in quickEntries"
-          :key="item.label"
-          class="quick-entry-item"
-          :style="{ '--entry-color': item.color }"
-          @click="handleQuickEntry(item)"
-        >
-          <div class="entry-icon" :style="{ background: item.bgColor, color: item.color }">
+    <section class="kpi-grid">
+      <div
+        v-for="item in kpiCards"
+        :key="item.label"
+        class="kpi-card"
+        :style="{ '--kpi-color': item.color, '--kpi-bg': item.bgColor }"
+      >
+        <div class="kpi-topline">
+          <div class="kpi-icon">
             <el-icon :size="22"><component :is="item.icon" /></el-icon>
           </div>
-          <div class="entry-label">{{ item.label }}</div>
+          <span class="kpi-chip">{{ item.chip }}</span>
+        </div>
+        <div class="kpi-value">{{ item.value }}</div>
+        <div class="kpi-label">{{ item.label }}</div>
+        <div class="kpi-sub">
+          <span>{{ item.subLabel }}</span>
+          <strong>{{ item.subValue }}</strong>
         </div>
       </div>
-    </el-card>
+    </section>
 
-    <!-- 核心KPI指标行 -->
-    <el-row :gutter="16" class="kpi-row">
-      <el-col :span="6">
-        <div class="kpi-card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-          <div class="kpi-icon">
-            <el-icon :size="32"><User /></el-icon>
+    <section class="top-workbench">
+      <el-card shadow="never" class="panel-card quick-entry-card">
+        <template #header>
+          <div class="card-header">
+            <div>
+              <span class="card-title">快捷入口</span>
+              <span class="card-subtitle">常用操作一键直达</span>
+            </div>
           </div>
-          <div class="kpi-content">
-            <div class="kpi-value">{{ formatNumber(overview.core?.total_customers) }}</div>
-            <div class="kpi-label">总客户数</div>
-            <div class="kpi-sub">今日新增 <span class="kpi-sub-value">{{ overview.today?.new_customers || 0 }}</span></div>
-          </div>
+        </template>
+        <div class="quick-entry-grid">
+          <button
+            v-for="item in quickEntries"
+            :key="item.label"
+            class="quick-entry-item"
+            :style="{ '--entry-color': item.color, '--entry-bg': item.bgColor }"
+            @click="handleQuickEntry(item)"
+          >
+            <span class="entry-icon">
+              <el-icon :size="20"><component :is="item.icon" /></el-icon>
+            </span>
+            <span class="entry-label">{{ item.label }}</span>
+          </button>
         </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="kpi-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
-          <div class="kpi-icon">
-            <el-icon :size="32"><TrendCharts /></el-icon>
-          </div>
-          <div class="kpi-content">
-            <div class="kpi-value">{{ formatNumber(overview.core?.total_leads) }}</div>
-            <div class="kpi-label">总线索数</div>
-            <div class="kpi-sub">今日新增 <span class="kpi-sub-value">{{ overview.today?.new_leads || 0 }}</span></div>
-          </div>
-        </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="kpi-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
-          <div class="kpi-icon">
-            <el-icon :size="32"><Money /></el-icon>
-          </div>
-          <div class="kpi-content">
-            <div class="kpi-value">{{ formatAmount(overview.finance?.total_quote_amount) }}</div>
-            <div class="kpi-label">总报价金额</div>
-            <div class="kpi-sub">共 <span class="kpi-sub-value">{{ overview.core?.total_quotes || 0 }}</span> 单</div>
-          </div>
-        </div>
-      </el-col>
-      <el-col :span="6">
-        <div class="kpi-card" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%);">
-          <div class="kpi-icon">
-            <el-icon :size="32"><DocumentChecked /></el-icon>
-          </div>
-          <div class="kpi-content">
-            <div class="kpi-value">{{ formatAmount(overview.finance?.total_contract_amount) }}</div>
-            <div class="kpi-label">总合同金额</div>
-            <div class="kpi-sub">本月新增 <span class="kpi-sub-value">{{ overview.month?.new_contracts || 0 }}</span></div>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+      </el-card>
 
-    <!-- 财务数据行 -->
-    <el-row :gutter="16" class="finance-row">
-      <el-col :span="4" v-for="(item, index) in financeCards" :key="index">
-        <div class="finance-card" :style="{ borderLeftColor: item.color }">
-          <div class="finance-label">{{ item.label }}</div>
-          <div class="finance-value" :style="{ color: item.color }">{{ formatAmount(item.value) }}</div>
+      <el-card shadow="never" class="panel-card todo-panel">
+        <template #header>
+          <div class="card-header">
+            <div>
+              <span class="card-title">待办提醒</span>
+              <span class="card-subtitle">需要优先处理的事项</span>
+            </div>
+          </div>
+        </template>
+        <div class="todo-list">
+          <button
+            v-for="item in todoCards"
+            :key="item.label"
+            class="todo-card"
+            :style="{ '--todo-bg': item.bgColor }"
+            @click="handleTodoClick(item)"
+          >
+            <span class="todo-icon">
+              <el-icon :size="20"><component :is="item.icon" /></el-icon>
+            </span>
+            <span class="todo-copy">
+              <strong>{{ item.value }}</strong>
+              <span>{{ item.label }}</span>
+            </span>
+          </button>
         </div>
-      </el-col>
-    </el-row>
+      </el-card>
+    </section>
 
-    <!-- 图表行第一排 -->
-    <el-row :gutter="16" class="chart-row">
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <div class="card-header">
+    <section class="finance-strip">
+      <div class="section-heading">
+        <div>
+          <h2>财务快照</h2>
+          <p>收入、支出、利润与应收应付概览</p>
+        </div>
+      </div>
+      <div class="finance-grid">
+        <div
+          v-for="(item, index) in financeCards"
+          :key="index"
+          class="finance-card"
+          :style="{ '--finance-color': item.color }"
+        >
+          <span class="finance-label">{{ item.label }}</span>
+          <strong class="finance-value">{{ formatAmount(item.value) }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="chart-grid">
+      <el-card shadow="never" class="panel-card chart-card chart-card-wide">
+        <template #header>
+          <div class="card-header">
+            <div>
               <span class="card-title">月度收支趋势</span>
+              <span class="card-subtitle">最近月份收入与支出对比</span>
             </div>
-          </template>
-          <div ref="trendChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <div class="card-header">
+          </div>
+        </template>
+        <div ref="trendChartRef" class="chart-container"></div>
+      </el-card>
+
+      <el-card shadow="never" class="panel-card chart-card">
+        <template #header>
+          <div class="card-header">
+            <div>
               <span class="card-title">客户来源分布</span>
+              <span class="card-subtitle">识别高质量获客渠道</span>
             </div>
-          </template>
-          <div ref="sourceChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+          </div>
+        </template>
+        <div ref="sourceChartRef" class="chart-container"></div>
+      </el-card>
 
-    <!-- 图表行第二排 -->
-    <el-row :gutter="16" class="chart-row">
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <div class="card-header">
+      <el-card shadow="never" class="panel-card chart-card">
+        <template #header>
+          <div class="card-header">
+            <div>
               <span class="card-title">报价状态分布</span>
+              <span class="card-subtitle">跟踪报价推进状态</span>
             </div>
-          </template>
-          <div ref="quoteChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-      <el-col :span="12">
-        <el-card shadow="hover" class="chart-card">
-          <template #header>
-            <div class="card-header">
-              <span class="card-title">客户状态分布</span>
-            </div>
-          </template>
-          <div ref="customerChartRef" class="chart-container"></div>
-        </el-card>
-      </el-col>
-    </el-row>
+          </div>
+        </template>
+        <div ref="quoteChartRef" class="chart-container"></div>
+      </el-card>
 
-    <!-- 待办事项行 -->
-    <el-row :gutter="16" class="todo-row">
-      <el-col :span="6" v-for="(item, index) in todoCards" :key="index">
-        <div class="todo-card" :style="{ background: item.bgColor }" @click="handleTodoClick(item)">
-          <div class="todo-icon">
-            <el-icon :size="24"><component :is="item.icon" /></el-icon>
+      <el-card shadow="never" class="panel-card chart-card chart-card-wide">
+        <template #header>
+          <div class="card-header">
+            <div>
+              <span class="card-title">客户状态分布</span>
+              <span class="card-subtitle">查看客户生命周期结构</span>
+            </div>
           </div>
-          <div class="todo-content">
-            <div class="todo-value">{{ item.value }}</div>
-            <div class="todo-label">{{ item.label }}</div>
-          </div>
-        </div>
-      </el-col>
-    </el-row>
+        </template>
+        <div ref="customerChartRef" class="chart-container"></div>
+      </el-card>
+    </section>
   </div>
 </template>
-
 <script setup>
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter } from 'vue-router'
@@ -212,6 +213,49 @@ const trendChartRef = ref(null)
 const sourceChartRef = ref(null)
 const quoteChartRef = ref(null)
 const customerChartRef = ref(null)
+
+const kpiCards = computed(() => [
+  {
+    label: '总客户数',
+    value: formatNumber(overview.value.core?.total_customers),
+    subLabel: '今日新增',
+    subValue: overview.value.today?.new_customers || 0,
+    chip: '客户',
+    icon: User,
+    color: '#2563EB',
+    bgColor: '#EFF6FF'
+  },
+  {
+    label: '总线索数',
+    value: formatNumber(overview.value.core?.total_leads),
+    subLabel: '今日新增',
+    subValue: overview.value.today?.new_leads || 0,
+    chip: '线索',
+    icon: TrendCharts,
+    color: '#059669',
+    bgColor: '#ECFDF5'
+  },
+  {
+    label: '总报价金额',
+    value: formatAmount(overview.value.finance?.total_quote_amount),
+    subLabel: '报价单数',
+    subValue: overview.value.core?.total_quotes || 0,
+    chip: '报价',
+    icon: Money,
+    color: '#D97706',
+    bgColor: '#FFFBEB'
+  },
+  {
+    label: '总合同金额',
+    value: formatAmount(overview.value.finance?.total_contract_amount),
+    subLabel: '本月新增合同',
+    subValue: overview.value.month?.new_contracts || 0,
+    chip: '合同',
+    icon: DocumentChecked,
+    color: '#7C3AED',
+    bgColor: '#F5F3FF'
+  }
+])
 
 // 快捷入口配置
 const quickEntries = [
@@ -313,6 +357,11 @@ const updateTime = () => {
 // 初始化图表
 const initCharts = async () => {
   await nextTick()
+
+  trendChartInstance?.dispose()
+  sourceChartInstance?.dispose()
+  quoteChartInstance?.dispose()
+  customerChartInstance?.dispose()
   
   // 月度收支趋势图
   if (trendChartRef.value) {
@@ -449,201 +498,215 @@ onUnmounted(() => {
 
 <style scoped>
 .dashboard-container {
-  padding: 20px;
-  background: #f5f7fa;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 12% 0%, rgba(64, 158, 255, 0.10), transparent 28%),
+    linear-gradient(180deg, #F6F8FB 0%, #EEF2F7 100%);
   min-height: calc(100vh - 60px);
+  color: #1F2937;
 }
 
-/* 页面标题栏 */
-.page-header {
+.dashboard-hero {
+  position: relative;
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  margin-bottom: 20px;
-  background: #fff;
-  padding: 16px 24px;
+  align-items: flex-start;
+  gap: 24px;
+  padding: 26px 28px;
+  margin-bottom: 18px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #FFFFFF 0%, #F8FBFF 58%, #EEF6FF 100%);
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
 }
 
-.header-left {
-  display: flex;
-  align-items: baseline;
-  gap: 16px;
+.dashboard-hero::after {
+  content: '';
+  position: absolute;
+  right: -80px;
+  top: -100px;
+  width: 260px;
+  height: 260px;
+  background: radial-gradient(circle, rgba(37, 99, 235, 0.12), transparent 70%);
+  pointer-events: none;
+}
+
+.hero-content,
+.hero-actions {
+  position: relative;
+  z-index: 1;
+}
+
+.hero-kicker {
+  margin-bottom: 8px;
+  color: #2563EB;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }
 
 .page-title {
   margin: 0;
-  font-size: 24px;
-  font-weight: 600;
-  color: #303133;
-}
-
-.current-time {
-  font-size: 14px;
-  color: #909399;
-}
-
-/* 快捷入口卡片 */
-.quick-entry-card {
-  margin-bottom: 20px;
-  border-radius: 8px;
-}
-
-.quick-entry-card .card-header {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-}
-
-.card-subtitle {
-  font-size: 13px;
-  color: #909399;
-}
-
-.quick-entry-grid {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 12px;
-}
-
-.quick-entry-item {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 16px 8px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.25s;
-  border: 1px solid transparent;
-}
-
-.quick-entry-item:hover {
-  background: var(--entry-color, #409EFF);
-  border-color: var(--entry-color, #409EFF);
-}
-
-.quick-entry-item:hover .entry-icon {
-  background: rgba(255, 255, 255, 0.9) !important;
-}
-
-.quick-entry-item:hover .entry-label {
-  color: #fff;
-}
-
-.entry-icon {
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.25s;
-}
-
-.entry-label {
-  font-size: 13px;
-  color: #606266;
-  text-align: center;
-  white-space: nowrap;
-  transition: color 0.25s;
-}
-
-/* KPI 卡片 */
-.kpi-row {
-  margin-bottom: 20px;
-}
-
-.kpi-card {
-  border-radius: 12px;
-  padding: 24px;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-  transition: transform 0.3s, box-shadow 0.3s;
-}
-
-.kpi-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15);
-}
-
-.kpi-icon {
-  width: 64px;
-  height: 64px;
-  background: rgba(255, 255, 255, 0.2);
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-right: 16px;
-}
-
-.kpi-content {
-  flex: 1;
-}
-
-.kpi-value {
-  font-size: 32px;
-  font-weight: 700;
+  color: #0F172A;
+  font-size: 30px;
+  font-weight: 750;
   line-height: 1.2;
 }
 
-.kpi-label {
+.hero-desc {
+  max-width: 620px;
+  margin: 10px 0 16px;
+  color: #64748B;
   font-size: 14px;
-  opacity: 0.9;
-  margin-top: 4px;
+  line-height: 1.7;
+}
+
+.hero-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.hero-meta span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #475569;
+  font-size: 12px;
+}
+
+.refresh-btn {
+  height: 36px;
+  border: 0;
+  color: #fff;
+  background: #2563EB;
+  box-shadow: 0 10px 20px rgba(37, 99, 235, 0.24);
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.kpi-card {
+  position: relative;
+  min-height: 158px;
+  padding: 18px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.06);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.kpi-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, var(--kpi-bg), transparent 58%);
+  opacity: 0.82;
+  pointer-events: none;
+}
+
+.kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(15, 23, 42, 0.10);
+}
+
+.kpi-topline,
+.kpi-value,
+.kpi-label,
+.kpi-sub {
+  position: relative;
+  z-index: 1;
+}
+
+.kpi-topline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+}
+
+.kpi-icon {
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: var(--kpi-color);
+  background: rgba(255, 255, 255, 0.78);
+}
+
+.kpi-chip {
+  padding: 4px 8px;
+  border-radius: 6px;
+  color: var(--kpi-color);
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.kpi-value {
+  color: #0F172A;
+  font-size: 30px;
+  font-weight: 780;
+  line-height: 1.1;
+}
+
+.kpi-label {
+  margin-top: 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 650;
 }
 
 .kpi-sub {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(148, 163, 184, 0.22);
+  color: #64748B;
   font-size: 12px;
-  opacity: 0.75;
-  margin-top: 8px;
 }
 
-.kpi-sub-value {
-  font-weight: 600;
-  color: #fff;
+.kpi-sub strong {
+  color: var(--kpi-color);
+  font-size: 14px;
 }
 
-/* 财务卡片 */
-.finance-row {
-  margin-bottom: 20px;
+.top-workbench {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(340px, 0.85fr);
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.finance-card {
-  background: #fff;
+.panel-card {
+  border: 1px solid rgba(148, 163, 184, 0.22);
   border-radius: 8px;
-  padding: 20px 16px;
-  border-left: 4px solid;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
-  transition: transform 0.2s;
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
 }
 
-.finance-card:hover {
-  transform: translateY(-2px);
+.panel-card :deep(.el-card__header) {
+  padding: 16px 18px 12px;
+  border-bottom: 1px solid #EEF2F7;
 }
 
-.finance-label {
-  font-size: 13px;
-  color: #909399;
-  margin-bottom: 8px;
-}
-
-.finance-value {
-  font-size: 22px;
-  font-weight: 600;
-}
-
-/* 图表卡片 */
-.chart-row {
-  margin-bottom: 20px;
-}
-
-.chart-card {
-  border-radius: 8px;
+.panel-card :deep(.el-card__body) {
+  padding: 16px 18px 18px;
 }
 
 .card-header {
@@ -653,75 +716,252 @@ onUnmounted(() => {
 }
 
 .card-title {
+  display: block;
+  color: #0F172A;
   font-size: 15px;
-  font-weight: 600;
-  color: #303133;
+  font-weight: 720;
 }
 
-.chart-container {
-  height: 320px;
-  width: 100%;
+.card-subtitle {
+  display: block;
+  margin-top: 4px;
+  font-size: 13px;
+  color: #94A3B8;
 }
 
-/* 待办卡片 */
-.todo-row {
-  margin-bottom: 20px;
+.quick-entry-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 10px;
 }
 
-.todo-card {
-  border-radius: 12px;
-  padding: 20px;
+.quick-entry-item {
+  appearance: none;
+  border: 1px solid transparent;
+  background: #F8FAFC;
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  gap: 8px;
+  min-height: 74px;
+  padding: 12px 8px;
+  border-radius: 8px;
   cursor: pointer;
-  transition: transform 0.2s, box-shadow 0.2s;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  color: #334155;
+  transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease;
 }
 
-.todo-card:hover {
+.quick-entry-item:hover {
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-color: var(--entry-color);
+  background: var(--entry-bg);
 }
 
-.todo-icon {
-  width: 48px;
-  height: 48px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.6);
+.entry-icon {
+  width: 34px;
+  height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-right: 16px;
-  color: #606266;
+  border-radius: 8px;
+  color: var(--entry-color);
+  background: #fff;
 }
 
-.todo-content {
-  flex: 1;
+.entry-label {
+  max-width: 100%;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 620;
+  text-align: center;
+  line-height: 1.25;
+  white-space: normal;
 }
 
-.todo-value {
-  font-size: 28px;
-  font-weight: 700;
-  color: #303133;
-  line-height: 1.2;
+.todo-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
 
-.todo-label {
+.todo-card {
+  appearance: none;
+  width: 100%;
+  min-height: 62px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: var(--todo-bg);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 0.18s ease, border-color 0.18s ease;
+}
+
+.todo-card:hover {
+  transform: translateX(2px);
+  border-color: rgba(37, 99, 235, 0.18);
+}
+
+.todo-icon {
+  width: 38px;
+  height: 38px;
+  flex: 0 0 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #334155;
+}
+
+.todo-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.todo-copy strong {
+  color: #0F172A;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.todo-copy span {
+  color: #64748B;
   font-size: 13px;
-  color: #909399;
-  margin-top: 4px;
 }
 
-/* 响应式 */
+.finance-strip {
+  margin-bottom: 16px;
+  padding: 18px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.05);
+}
+
+.section-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: #0F172A;
+  font-size: 16px;
+  font-weight: 720;
+}
+
+.section-heading p {
+  margin: 4px 0 0;
+  color: #94A3B8;
+  font-size: 13px;
+}
+
+.finance-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.finance-card {
+  background: #fff;
+  border: 1px solid #EEF2F7;
+  border-radius: 8px;
+  padding: 14px;
+  border-left: 3px solid var(--finance-color);
+}
+
+.finance-label {
+  display: block;
+  color: #64748B;
+  font-size: 13px;
+}
+
+.finance-value {
+  display: block;
+  margin-top: 8px;
+  color: var(--finance-color);
+  font-size: 21px;
+  font-weight: 760;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.chart-card {
+  min-width: 0;
+}
+
+.chart-container {
+  height: 300px;
+  width: 100%;
+}
+
 @media (max-width: 1400px) {
   .quick-entry-grid {
     grid-template-columns: repeat(6, 1fr);
   }
 }
 
+@media (max-width: 1200px) {
+  .kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .top-workbench {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 @media (max-width: 1024px) {
   .quick-entry-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .chart-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 16px;
+  }
+
+  .dashboard-hero {
+    flex-direction: column;
+    padding: 20px;
+  }
+
+  .hero-actions,
+  .refresh-btn {
+    width: 100%;
+  }
+
+  .kpi-grid,
+  .finance-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .page-title {
+    font-size: 26px;
   }
 }
 </style>
