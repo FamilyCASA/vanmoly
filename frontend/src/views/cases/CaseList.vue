@@ -367,10 +367,10 @@
           <span v-if="currentCaseDetail.atmosphere" class="tag tag-atmosphere">{{ getAtmosphereLabel(currentCaseDetail.atmosphere) }}</span>
           <span v-if="currentCaseDetail.package_type" class="tag tag-product">{{ currentCaseDetail.package_type }}</span>
         </div>
-        <!-- 描述文案 -->
-        <div class="detail-description" v-if="currentCaseDetail?.description">
+        <!-- 描述文案：从首阶段取 -->
+        <div class="detail-description" v-if="getFirstPhaseDescription(currentCaseDetail)">
           <h4>设计解说</h4>
-          <p>{{ currentCaseDetail.description }}</p>
+          <p>{{ getFirstPhaseDescription(currentCaseDetail) }}</p>
         </div>
         <!-- 其他信息 -->
         <div class="detail-meta" v-if="currentCaseDetail">
@@ -453,8 +453,6 @@ const atmospheres = reactive([
 // 状态
 
 const loading = ref(false)
-
-const loadingMore = ref(false)
 
 const cases = ref([])
 
@@ -911,7 +909,6 @@ const selectColor = (hex) => {
 
   pagination.page = 1
 
-  hasMore.value = true
 
   fetchCases()
 
@@ -927,7 +924,6 @@ const clearColorFilter = () => {
 
   pagination.page = 1
 
-  hasMore.value = true
 
   fetchCases()
 
@@ -1022,12 +1018,6 @@ const pagination = reactive({
   page_size: 12
 
 })
-
-
-
-// 是否还有更多
-
-const hasMore = ref(true)
 
 
 
@@ -1357,19 +1347,7 @@ const handleImageError = (event, atmosphere) => {
 
 // 获取案例列表
 
-const fetchCases = async (isLoadMore = false) => {
-
-  if (isLoadMore) {
-
-    loadingMore.value = true
-
-  } else {
-
-    loading.value = true
-
-  }
-
-
+const fetchCases = async () => {
 
   try {
 
@@ -1534,7 +1512,7 @@ const openCaseDetail = async (caseItem) => {
 // 分页切换
 const handlePageChange = (page) => {
   pagination.page = page
-  fetchCases(false)
+  fetchCases()
   // 滚动到案例区域顶部
   const gridEl = document.querySelector('.case-grid')
   if (gridEl) {
@@ -1546,7 +1524,7 @@ const handlePageChange = (page) => {
 const handleSizeChange = (size) => {
   pagination.page_size = size
   pagination.page = 1
-  fetchCases(false)
+  fetchCases()
 }
 
 // 格式化价格
@@ -1563,6 +1541,19 @@ const formatPrice = (price) => {
   }
 
   return num.toLocaleString()
+
+}
+
+
+// 获取案例首阶段描述（用于详情弹窗文案）
+
+const getFirstPhaseDescription = (caseDetail) => {
+
+  if (!caseDetail?.phases) return ''
+
+  const phase1 = caseDetail.phases['1']
+
+  return phase1?.description || ''
 
 }
 
