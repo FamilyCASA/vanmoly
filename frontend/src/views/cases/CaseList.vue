@@ -245,94 +245,51 @@
 
 
 
-        <!-- 案例瀑布流(杂志封面风格) -->
-
-    <div class="case-waterfall">
-
+        <!-- 案例网格布局 -->
+    <div class="case-grid" v-if="!loading && cases.length > 0">
       <div
-
-        v-for="caseItem in cases"
-
+        v-for="(caseItem, index) in cases"
         :key="caseItem.id"
-
-        class="waterfall-card"
-
-        @click="goToDetail(caseItem.id)"
-
+        class="grid-card"
+        :class="{ 'fade-in': true }"
+        :style="{ animationDelay: `${index * 50}ms` }"
+        @click="openCaseDetail(caseItem)"
       >
-
-        <!-- 图片全图展示 -->
-
-        <div class="wf-image-wrap">
-
+        <!-- 图片容器 4:3 比例 -->
+        <div class="grid-image-wrap">
           <img
-
             v-if="hasValidCoverImage(caseItem)"
-
             :src="getCoverImage(caseItem)"
-
             :alt="caseItem.title"
-
             loading="lazy"
-
             @error="e => handleImageError(e, caseItem.atmosphere)"
-
           >
-
-          <div v-else class="wf-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
-
+          <div v-else class="grid-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
             <span>{{ caseItem.title }}</span>
-
           </div>
-
-
-
-          <!-- 杂志封面文字覆盖层(始终可见) -->
-
-          <div class="wf-overlay">
-
-            <!-- 顶部:氛围标签 -->
-
-            <div class="wf-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</div>
-
-            <!-- 底部:案例名称 + 参数 -->
-
-            <div class="wf-bottom">
-
-              <div class="wf-title">{{ caseItem.title }}</div>
-
-              <div class="wf-meta">
-
-                <span v-if="caseItem.house_type">{{ caseItem.house_type }}</span>
-
-                <span v-if="caseItem.area">{{ caseItem.area }}m2</span>
-
-                <span v-if="caseItem.city">{{ caseItem.city }}</span>
-
-              </div>
-
-            </div>
-
-          </div>
-
         </div>
-
+        <!-- 底部三元标签 -->
+        <div class="grid-tags">
+          <span v-if="caseItem.space_type" class="tag tag-space">{{ caseItem.space_type }}</span>
+          <span v-if="caseItem.atmosphere" class="tag tag-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</span>
+          <span v-if="caseItem.package_type" class="tag tag-product">{{ caseItem.package_type }}</span>
+        </div>
       </div>
-
     </div>
 
-
-
-    <!-- 加载更多 -->
-
-    <div class="load-more" v-if="!loading && cases.length > 0 && hasMore">
-
-      <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
-
-        {{ loadingMore ? '加载中...' : '查看更多方案' }}
-
-      </button>
-
+    <!-- 分页组件 -->
+    <div class="pagination-wrap" v-if="!loading && cases.length > 0 && totalPages > 1">
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.page_size"
+        :total="total"
+        :page-sizes="[12, 24, 36]"
+        layout="total, prev, pager, next, jumper"
+        :background="true"
+        class="custom-pagination"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
     </div>
 
 
@@ -381,6 +338,64 @@
 
       </template>
 
+    </el-dialog>
+
+    <!-- 案例详情弹窗 -->
+    <el-dialog
+      v-model="detailDialogVisible"
+      :title="currentCaseDetail?.title || '案例详情'"
+      width="900px"
+      class="case-detail-dialog"
+      destroy-on-close
+    >
+      <div v-loading="detailLoading" class="detail-content">
+        <!-- 高清大图 -->
+        <div class="detail-image-wrap">
+          <img
+            v-if="hasValidCoverImage(currentCaseDetail)"
+            :src="getCoverImage(currentCaseDetail)"
+            :alt="currentCaseDetail?.title"
+            class="detail-image"
+          >
+          <div v-else class="detail-no-image" :style="{ background: getAtmosphereGradient(currentCaseDetail?.atmosphere) }">
+            <span>{{ currentCaseDetail?.title }}</span>
+          </div>
+        </div>
+        <!-- 三元标签 -->
+        <div class="detail-tags" v-if="currentCaseDetail">
+          <span v-if="currentCaseDetail.space_type" class="tag tag-space">{{ currentCaseDetail.space_type }}</span>
+          <span v-if="currentCaseDetail.atmosphere" class="tag tag-atmosphere">{{ getAtmosphereLabel(currentCaseDetail.atmosphere) }}</span>
+          <span v-if="currentCaseDetail.package_type" class="tag tag-product">{{ currentCaseDetail.package_type }}</span>
+        </div>
+        <!-- 描述文案 -->
+        <div class="detail-description" v-if="currentCaseDetail?.description">
+          <h4>设计解说</h4>
+          <p>{{ currentCaseDetail.description }}</p>
+        </div>
+        <!-- 其他信息 -->
+        <div class="detail-meta" v-if="currentCaseDetail">
+          <div class="meta-item" v-if="currentCaseDetail.house_type">
+            <span class="meta-label">户型</span>
+            <span class="meta-value">{{ currentCaseDetail.house_type }}</span>
+          </div>
+          <div class="meta-item" v-if="currentCaseDetail.area">
+            <span class="meta-label">面积</span>
+            <span class="meta-value">{{ currentCaseDetail.area }}m²</span>
+          </div>
+          <div class="meta-item" v-if="currentCaseDetail.city">
+            <span class="meta-label">城市</span>
+            <span class="meta-value">{{ currentCaseDetail.city }}</span>
+          </div>
+          <div class="meta-item" v-if="currentCaseDetail.total_price">
+            <span class="meta-label">总价</span>
+            <span class="meta-value">¥{{ formatPrice(currentCaseDetail.total_price) }}万</span>
+          </div>
+        </div>
+      </div>
+      <template #footer>
+        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button type="primary" @click="router.push(`/cases/${currentCaseDetail?.id}`)">查看完整详情</el-button>
+      </template>
     </el-dialog>
 
   </div>
@@ -447,7 +462,13 @@ const featuredCase = ref(null)
 
 const total = ref(0)
 
+// 总页数
+const totalPages = computed(() => Math.ceil(total.value / pagination.page_size))
 
+// 详情弹窗
+const detailDialogVisible = ref(false)
+const currentCaseDetail = ref(null)
+const detailLoading = ref(false)
 
 // Hero 轮播相关
 
@@ -1386,68 +1407,22 @@ const fetchCases = async (isLoadMore = false) => {
 
     const items = res?.items || []
 
-
-
-    if (isLoadMore) {
-
-      cases.value = [...cases.value, ...items]
-
-    } else {
-
-      cases.value = items
-
-      // 设置精选案例(第一个案例)
-
-      if (items.length > 0 && !featuredCase.value) {
-
-        featuredCase.value = items[0]
-
-        updateHeroImages(items[0])
-
-      }
-
-    }
-
-
-
+    cases.value = items
     total.value = res?.total || 0
 
-    hasMore.value = cases.value.length < total.value
+    // 设置精选案例(第一个案例)
+    if (items.length > 0 && !featuredCase.value) {
+      featuredCase.value = items[0]
+      updateHeroImages(items[0])
+    }
 
     // 根据当前案例数据动态构建颜色色卡
-
     buildColorPaletteFromCases()
-
   } catch (error) {
-
     console.error('获取案例列表失败:', error)
-
   } finally {
-
     loading.value = false
-
-    loadingMore.value = false
-
   }
-
-}
-
-const loadMore = () => {
-
-  pagination.page++
-
-  fetchCases(true)
-
-}
-
-
-
-// 跳转到详情
-
-const goToDetail = (id) => {
-
-  router.push(`/cases/${id}`)
-
 }
 
 
@@ -1538,8 +1513,43 @@ const submitSubscribe = async () => {
 
 
 
-// 格式化价格
+// 打开案例详情弹窗
+const openCaseDetail = async (caseItem) => {
+  currentCaseDetail.value = caseItem
+  detailDialogVisible.value = true
+  detailLoading.value = true
+  try {
+    const { getPublicCase } = await import('@/api/case')
+    const res = await getPublicCase(caseItem.id)
+    if (res?.code === 200 && res.data) {
+      currentCaseDetail.value = { ...caseItem, ...res.data }
+    }
+  } catch (error) {
+    console.error('获取案例详情失败:', error)
+  } finally {
+    detailLoading.value = false
+  }
+}
 
+// 分页切换
+const handlePageChange = (page) => {
+  pagination.page = page
+  fetchCases(false)
+  // 滚动到案例区域顶部
+  const gridEl = document.querySelector('.case-grid')
+  if (gridEl) {
+    gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+// 每页条数变化
+const handleSizeChange = (size) => {
+  pagination.page_size = size
+  pagination.page = 1
+  fetchCases(false)
+}
+
+// 格式化价格
 const formatPrice = (price) => {
 
   if (!price) return '0'
@@ -3287,34 +3297,293 @@ onUnmounted(() => {
 
 
 
-/* 案例网格(蔚来卡片风格) */
-
-/* ── 瀑布流网格(杂志封面风格)── */
-
-.case-waterfall {
-
-  columns: 3;
-
-  column-gap: 6px;
-
-  padding: 0 60px 80px;
-
+/* 案例网格布局 - 4:3 标准网格 */
+.case-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding: 0 60px 40px;
   background: #0a0a1a;
-
 }
 
-
-
+/* 平板端 2列 */
 @media (max-width: 1200px) {
-
-  .case-waterfall { columns: 2; padding: 0 24px 60px; }
-
+  .case-grid { grid-template-columns: repeat(2, 1fr); padding: 0 24px 40px; }
 }
 
-@media (max-width: 640px) {
+/* 移动端 1列 */
+@media (max-width: 768px) {
+  .case-grid { grid-template-columns: 1fr; padding: 0 16px 40px; }
+}
 
-  .case-waterfall { columns: 1; padding: 0 12px 40px; }
+/* 网格卡片 */
+.grid-card {
+  background: #141428;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grid-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* 图片容器 4:3 比例 */
+.grid-image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.grid-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.5s ease;
+}
+
+.grid-card:hover .grid-image-wrap img {
+  transform: scale(1.05);
+}
+
+/* 无图占位 */
+.grid-no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+/* 底部标签 */
+.grid-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  background: #141428;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-space {
+  background: rgba(140, 125, 107, 0.2);
+  color: #8C7D6B;
+  border: 1px solid rgba(140, 125, 107, 0.3);
+}
+
+.tag-atmosphere {
+  background: rgba(212, 165, 116, 0.2);
+  color: #d4a574;
+  border: 1px solid rgba(212, 165, 116, 0.3);
+}
+
+.tag-product {
+  background: rgba(125, 156, 90, 0.2);
+  color: #7d9c5a;
+  border: 1px solid rgba(125, 156, 90, 0.3);
+}
+
+/* 分页组件 */
+.pagination-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px 60px 60px;
+  background: #0a0a1a;
+}
+
+:deep(.custom-pagination) {
+  --el-pagination-button-bg-color: rgba(255, 255, 255, 0.08);
+  --el-pagination-hover-color: #8C7D6B;
+  --el-pagination-button-color: rgba(255, 255, 255, 0.7);
+}
+
+:deep(.custom-pagination .el-pager li) {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  margin: 0 4px;
+  min-width: 36px;
+  height: 36px;
+  line-height: 36px;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s;
+}
+
+:deep(.custom-pagination .el-pager li.is-active) {
+  background: #8C7D6B;
+  color: #fff;
+}
+
+:deep(.custom-pagination .el-pager li:hover:not(.is-active)) {
+  background: rgba(140, 125, 107, 0.3);
+  color: #fff;
+}
+
+:deep(.custom-pagination .btn-prev),
+:deep(.custom-pagination .btn-next) {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  min-width: 36px;
+  height: 36px;
+}
+
+:deep(.custom-pagination .el-pagination__total) {
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 16px;
+}
+
+:deep(.custom-pagination .el-pagination__jump) {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:deep(.custom-pagination .el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 详情弹窗 */
+.case-detail-dialog :deep(.el-dialog) {
+  background: #141428;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.case-detail-dialog :deep(.el-dialog__header) {
+  background: #1a1a2e;
+  padding: 20px 24px;
+  margin: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.case-detail-dialog :deep(.el-dialog__title) {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.case-detail-dialog :deep(.el-dialog__body) {
+  padding: 0;
+  background: #141428;
+}
+
+.case-detail-dialog :deep(.el-dialog__footer) {
+  background: #1a1a2e;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.detail-content {
+  padding: 24px;
+}
+
+.detail-image-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a2e;
+  margin-bottom: 20px;
+}
+
+.detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.detail-no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.detail-description {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.detail-description h4 {
+  color: #8C7D6B;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.detail-description p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.detail-meta .meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-meta .meta-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.detail-meta .meta-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 旧瀑布流样式保留但不再使用 */
+/* ── 瀑布流网格(杂志封面风格)── */
+.case-waterfall {
+  display: none;
 }
 
 
