@@ -1479,20 +1479,6 @@ const formatPrice = (price) => {
 }
 
 
-// 获取案例首阶段描述（用于详情弹窗文案）
-
-const getFirstPhaseDescription = (caseDetail) => {
-
-  if (!caseDetail?.phases) return ''
-
-  const phase1 = caseDetail.phases['1']
-
-  return phase1?.description || ''
-
-}
-
-
-
 // Hero 轮播方法
 
 const startCarousel = () => {
