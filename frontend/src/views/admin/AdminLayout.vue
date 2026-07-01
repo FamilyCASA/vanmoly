@@ -31,7 +31,7 @@
         <div class="header-right">
           <div class="my-btn" @click="mineDrawerVisible = true">
             <el-icon><UserFilled /></el-icon>
-            <span>我的</span>
+            <span>{{ currentUserName || '我的' }}</span>
           </div>
         </div>
       </el-header>
@@ -108,6 +108,7 @@ const isCollapse = ref(false)
 const visibleModuleKeys = ref([])
 const permissionLoaded = ref(false)
 const mineDrawerVisible = ref(false)
+const currentUserName = ref('')
 const isFullPage = computed(() =>
   route.path.startsWith('/admin/settings') || route.path.startsWith('/admin/my-workspace')
 )
@@ -153,6 +154,17 @@ const loadMyPermissions = async () => {
   }
 }
 
+const loadCurrentUser = async () => {
+  try {
+    const res = await request.get('/auth/me')
+    currentUserName.value = res.nickname || res.employee?.name || res.user?.name || res.name || ''
+  } catch (e) {
+    // fallback to localStorage
+    const local = JSON.parse(localStorage.getItem('user') || '{}')
+    currentUserName.value = local.name || local.employee_name || ''
+  }
+}
+
 const goMyWorkspace = () => {
   mineDrawerVisible.value = false
   router.push('/admin/my-workspace')
@@ -170,6 +182,7 @@ const goQuickPath = (path) => {
 
 onMounted(async () => {
   await loadMyPermissions()
+  await loadCurrentUser()
   if (route.query.openMine === '1') {
     mineDrawerVisible.value = true
   }

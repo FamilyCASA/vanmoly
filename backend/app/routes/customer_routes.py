@@ -58,10 +58,185 @@ def get_customers(current_user):
     query = query.order_by(Customer.created_at.desc())
     pagination = query.paginate(page=page, per_page=page_size, error_out=False)
 
+    # 批量加载关联数据：workflow进度、报价、合同、案例、方案、财务、项目组
+    from app.models.service_workflow import CustomerWorkflow
+    from app.models.quote import Quote
+    from app.models.contract import Contract
+    from app.models.hr import Employee
+    from app.models.case import CaseStudy
+    from app.models.scheme import CustomerScheme
+    from app.models.finance import FinanceTransaction, FinanceReceivable
+    from app.models.project_team import ProjectTeam
+
+    customer_ids = [c.id for c in pagination.items]
+    customer_phones = [c.phone for c in pagination.items if c.phone]
+
+    # 1. workflow 进度
+    workflows = CustomerWorkflow.query.filter(
+        CustomerWorkflow.customer_id.in_(customer_ids),
+        CustomerWorkflow.is_deleted == False
+    ).all()
+    workflow_map = {}
+    for w in workflows:
+        existing = workflow_map.get(w.customer_id)
+        if not existing or (w.status == 'active' and existing.status != 'active'):
+            workflow_map[w.customer_id] = w
+        elif w.status == 'active' and existing.status == 'active':
+            if w.updated_at and existing.updated_at and w.updated_at > existing.updated_at:
+                workflow_map[w.customer_id] = w
+
+    # 2. 报价统计
+    quotes = Quote.query.filter(Quote.customer_id.in_(customer_ids)).all()
+    quote_count_map = {}
+    quote_amount_map = {}
+    latest_quote_map = {}
+    for q in quotes:
+        quote_count_map[q.customer_id] = quote_count_map.get(q.customer_id, 0) + 1
+        if q.status in ('approved', 'signed'):
+            quote_amount_map[q.customer_id] = quote_amount_map.get(q.customer_id, 0) + (q.total_amount or 0)
+        if q.customer_id not in latest_quote_map or (q.created_at and latest_quote_map[q.customer_id].created_at and q.created_at > latest_quote_map[q.customer_id].created_at):
+            latest_quote_map[q.customer_id] = q
+
+    # 3. 合同统计
+    contracts = Contract.query.filter(Contract.customer_id.in_(customer_ids)).all()
+    contract_count_map = {}
+    contract_amount_map = {}
+    latest_contract_map = {}
+    for ct in contracts:
+        contract_count_map[ct.customer_id] = contract_count_map.get(ct.customer_id, 0) + 1
+        contract_amount_map[ct.customer_id] = contract_amount_map.get(ct.customer_id, 0) + (ct.total_amount or 0)
+        if ct.customer_id not in latest_contract_map or (ct.signed_date and latest_contract_map[ct.customer_id].signed_date and ct.signed_date > latest_contract_map[ct.customer_id].signed_date):
+            latest_contract_map[ct.customer_id] = ct
+
+    # 4. 案例统计
+    cases = CaseStudy.query.filter(CaseStudy.customer_id.in_(customer_ids)).all()
+    case_count_map = {}
+    latest_case_map = {}
+    for cs in cases:
+        case_count_map[cs.customer_id] = case_count_map.get(cs.customer_id, 0) + 1
+        if cs.customer_id not in latest_case_map or (cs.created_at and latest_case_map[cs.customer_id].created_at and cs.created_at > latest_case_map[cs.customer_id].created_at):
+            latest_case_map[cs.customer_id] = cs
+
+    # 5. 方案统计
+    schemes = CustomerScheme.query.filter(CustomerScheme.customer_id.in_(customer_ids)).all()
+    scheme_count_map = {}
+    scheme_amount_map = {}
+    latest_scheme_map = {}
+    for s in schemes:
+        scheme_count_map[s.customer_id] = scheme_count_map.get(s.customer_id, 0) + 1
+        scheme_amount_map[s.customer_id] = scheme_amount_map.get(s.customer_id, 0) + (s.total_amount or 0)
+        if s.customer_id not in latest_scheme_map or (s.created_at and latest_scheme_map[s.customer_id].created_at and s.created_at > latest_scheme_map[s.customer_id].created_at):
+            latest_scheme_map[s.customer_id] = s
+
+    # 6. 财务流水统计（收款/付款）
+    transactions = FinanceTransaction.query.filter(
+        FinanceTransaction.customer_id.in_(customer_ids)
+    ).all()
+    income_map = {}
+    expense_map = {}
+    for t in transactions:
+        if t.trans_type == 'income':
+            income_map[t.customer_id] = income_map.get(t.customer_id, 0) + (t.amount or 0)
+        elif t.trans_type == 'expense':
+            expense_map[t.customer_id] = expense_map.get(t.customer_id, 0) + (t.amount or 0)
+
+    # 7. 应收款统计
+    receivables = FinanceReceivable.query.filter(
+        FinanceReceivable.customer_id.in_(customer_ids)
+    ).all()
+    receivable_total_map = {}
+    received_total_map = {}
+    remaining_total_map = {}
+    for r in receivables:
+        receivable_total_map[r.customer_id] = receivable_total_map.get(r.customer_id, 0) + (r.amount or 0)
+        received_total_map[r.customer_id] = received_total_map.get(r.customer_id, 0) + (r.received_amount or 0)
+        remaining_total_map[r.customer_id] = remaining_total_map.get(r.customer_id, 0) + (r.remaining_amount or 0)
+
+    # 8. 项目组统计
+    projects = ProjectTeam.query.filter(
+        ProjectTeam.related_customer_id.in_(customer_ids),
+        ProjectTeam.is_deleted == False
+    ).all()
+    project_count_map = {}
+    active_project_map = {}
+    for p in projects:
+        project_count_map[p.related_customer_id] = project_count_map.get(p.related_customer_id, 0) + 1
+        if p.status not in ('completed', 'cancelled', 'closed'):
+            active_project_map[p.related_customer_id] = active_project_map.get(p.related_customer_id, 0) + 1
+
+    # 9. 预约统计（通过手机号关联）
+    from app.models.appointment import Appointment
+    appointments = Appointment.query.filter(Appointment.phone.in_(customer_phones)).all() if customer_phones else []
+    appt_count_map = {}
+    latest_appt_map = {}
+    # 建立 phone -> customer_id 映射
+    phone_to_cid = {c.phone: c.id for c in pagination.items if c.phone}
+    for a in appointments:
+        cid = phone_to_cid.get(a.phone)
+        if not cid:
+            continue
+        appt_count_map[cid] = appt_count_map.get(cid, 0) + 1
+        if cid not in latest_appt_map or (a.created_at and latest_appt_map[cid].created_at and a.created_at > latest_appt_map[cid].created_at):
+            latest_appt_map[cid] = a
+
+    # 10. owner_name
+    owner_ids = list(set(c.owner_id for c in pagination.items if c.owner_id))
+    owner_map = {}
+    if owner_ids:
+        employees = Employee.query.filter(Employee.id.in_(owner_ids)).all()
+        owner_map = {e.id: e.name for e in employees}
+
+    # 组装数据
+    items = []
+    for c in pagination.items:
+        item = c.to_dict()
+        wf = workflow_map.get(c.id)
+        if wf:
+            item['workflow'] = {
+                'status': wf.status,
+                'current_node_name': wf.current_node.node_name if wf.current_node else None,
+                'current_phase': wf.current_phase,
+                'progress_pct': round(wf.completed_nodes / wf.total_nodes * 100, 1) if wf.total_nodes else 0,
+                'completed_nodes': wf.completed_nodes,
+                'total_nodes': wf.total_nodes,
+            }
+        else:
+            item['workflow'] = None
+        item['quote_count'] = quote_count_map.get(c.id, 0)
+        item['quote_total_amount'] = round(quote_amount_map.get(c.id, 0), 2)
+        item['latest_quote_no'] = latest_quote_map[c.id].quote_no if c.id in latest_quote_map else None
+        item['contract_count'] = contract_count_map.get(c.id, 0)
+        item['contract_total_amount'] = round(contract_amount_map.get(c.id, 0), 2)
+        item['latest_contract_no'] = latest_contract_map[c.id].contract_no if c.id in latest_contract_map else None
+        item['latest_contract_date'] = latest_contract_map[c.id].signed_date.isoformat() if c.id in latest_contract_map and latest_contract_map[c.id].signed_date else None
+        item['case_count'] = case_count_map.get(c.id, 0)
+        item['latest_case_title'] = latest_case_map[c.id].title if c.id in latest_case_map else None
+        item['latest_case_type'] = latest_case_map[c.id].type if c.id in latest_case_map else None
+        item['scheme_count'] = scheme_count_map.get(c.id, 0)
+        item['scheme_total_amount'] = round(scheme_amount_map.get(c.id, 0), 2)
+        item['latest_scheme_no'] = latest_scheme_map[c.id].scheme_no if c.id in latest_scheme_map else None
+        item['income_total'] = round(income_map.get(c.id, 0), 2)
+        item['expense_total'] = round(expense_map.get(c.id, 0), 2)
+        item['receivable_total'] = round(receivable_total_map.get(c.id, 0), 2)
+        item['received_total'] = round(received_total_map.get(c.id, 0), 2)
+        item['remaining_receivable'] = round(remaining_total_map.get(c.id, 0), 2)
+        item['project_count'] = project_count_map.get(c.id, 0)
+        item['active_project_count'] = active_project_map.get(c.id, 0)
+        item['appointment_count'] = appt_count_map.get(c.id, 0)
+        latest_appt = latest_appt_map.get(c.id)
+        if latest_appt:
+            item['latest_appointment_date'] = latest_appt.appointment_date.isoformat() if latest_appt.appointment_date else None
+            item['latest_appointment_status'] = latest_appt.status
+        else:
+            item['latest_appointment_date'] = None
+            item['latest_appointment_status'] = None
+        item['owner_name'] = owner_map.get(c.owner_id, None)
+        items.append(item)
+
     return jsonify({
         'code': 200,
         'data': {
-            'items': [c.to_dict() for c in pagination.items],
+            'items': items,
             'total': pagination.total,
             'page': page,
             'page_size': page_size

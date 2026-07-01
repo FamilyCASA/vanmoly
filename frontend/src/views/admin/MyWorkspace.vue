@@ -215,20 +215,174 @@
           <!-- 我的客户 -->
           <div v-if="activeKey === 'customers'" v-loading="customersLoading" class="tab-panel">
             <div class="search-bar">
-              <el-input v-model="custSearch" placeholder="搜索客户名称" clearable style="width: 260px" />
-              <el-button type="primary" @click="loadCustomers">查询</el-button>
+              <el-input v-model="custSearch" placeholder="搜索客户名称/电话/楼盘" clearable style="width: 260px" @keyup.enter="loadCustomers(1)" />
+              <el-select v-model="custStatusFilter" placeholder="状态筛选" clearable style="width: 120px" @change="loadCustomers(1)">
+                <el-option label="待跟进" value="待跟进" />
+                <el-option label="跟进中" value="跟进中" />
+                <el-option label="已成交" value="已成交" />
+                <el-option label="已失效" value="已失效" />
+              </el-select>
+              <el-select v-model="custPriorityFilter" placeholder="优先级" clearable style="width: 100px" @change="loadCustomers(1)">
+                <el-option label="紧急" value="紧急" />
+                <el-option label="重要" value="重要" />
+                <el-option label="普通" value="普通" />
+              </el-select>
+              <el-button type="primary" @click="loadCustomers(1)">查询</el-button>
             </div>
-            <el-table :data="pagedCustomers" stripe size="small" border>
-              <el-table-column prop="name" label="客户名称" min-width="160" show-overflow-tooltip />
-              <el-table-column prop="phone" label="电话" width="130" />
-              <el-table-column prop="source" label="来源" width="120" />
-              <el-table-column label="状态" width="100">
+            <el-table :data="customers" stripe size="small" border row-key="id" :expand-row-keys="custExpandedKeys" @expand-change="onCustExpand">
+              <el-table-column type="expand">
+                <template #default="{ row }">
+                  <div class="cust-detail-panel">
+                    <!-- 基本信息 -->
+                    <div class="cust-section">
+                      <div class="cust-section-title">📋 基本信息</div>
+                      <div class="cust-field-grid">
+                        <div class="cust-field"><span class="lbl">楼盘</span><span class="val">{{ row.building_name || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">户型</span><span class="val">{{ row.house_type || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">面积</span><span class="val">{{ row.house_area ? row.house_area + '㎡' : '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">预算</span><span class="val">{{ row.budget || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">来源</span><span class="val">{{ row.source || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">风格偏好</span><span class="val">{{ row.style_preference || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">微信</span><span class="val">{{ row.wechat || '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">邮箱</span><span class="val">{{ row.email || '-' }}</span></div>
+                      </div>
+                    </div>
+                    <!-- 业务关联 -->
+                    <div class="cust-section">
+                      <div class="cust-section-title">📊 业务关联</div>
+                      <div class="cust-stat-row">
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-primary">{{ row.quote_count || 0 }}</div>
+                          <div class="cust-stat-label">报价数</div>
+                          <div class="cust-stat-sub" v-if="row.quote_total_amount > 0">¥{{ formatNum(row.quote_total_amount) }}</div>
+                        </div>
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-success">{{ row.contract_count || 0 }}</div>
+                          <div class="cust-stat-label">合同数</div>
+                          <div class="cust-stat-sub" v-if="row.contract_total_amount > 0">¥{{ formatNum(row.contract_total_amount) }}</div>
+                        </div>
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-info">{{ row.case_count || 0 }}</div>
+                          <div class="cust-stat-label">案例数</div>
+                          <div class="cust-stat-sub" v-if="row.latest_case_title">{{ row.latest_case_title }}</div>
+                        </div>
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-warning">{{ row.scheme_count || 0 }}</div>
+                          <div class="cust-stat-label">方案数</div>
+                          <div class="cust-stat-sub" v-if="row.scheme_total_amount > 0">¥{{ formatNum(row.scheme_total_amount) }}</div>
+                        </div>
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-primary">{{ row.appointment_count || 0 }}</div>
+                          <div class="cust-stat-label">预约数</div>
+                          <div class="cust-stat-sub" v-if="row.latest_appointment_date">{{ row.latest_appointment_date }}</div>
+                        </div>
+                        <div class="cust-stat">
+                          <div class="cust-stat-num text-info">{{ row.project_count || 0 }}</div>
+                          <div class="cust-stat-label">项目组</div>
+                          <div class="cust-stat-sub" v-if="row.active_project_count > 0">进行中 {{ row.active_project_count }}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 财务信息 -->
+                    <div class="cust-section">
+                      <div class="cust-section-title">💰 财务信息</div>
+                      <div class="cust-finance-row">
+                        <div class="cust-fin-item income">
+                          <span class="lbl">已收款</span>
+                          <span class="val">¥{{ formatNum(row.income_total) }}</span>
+                        </div>
+                        <div class="cust-fin-item expense">
+                          <span class="lbl">已支出</span>
+                          <span class="val">¥{{ formatNum(row.expense_total) }}</span>
+                        </div>
+                        <div class="cust-fin-item receivable">
+                          <span class="lbl">应收总额</span>
+                          <span class="val">¥{{ formatNum(row.receivable_total) }}</span>
+                        </div>
+                        <div class="cust-fin-item received">
+                          <span class="lbl">已收金额</span>
+                          <span class="val">¥{{ formatNum(row.received_total) }}</span>
+                        </div>
+                        <div class="cust-fin-item remaining" :class="{'overdue': row.remaining_receivable > 0}">
+                          <span class="lbl">待收余额</span>
+                          <span class="val">¥{{ formatNum(row.remaining_receivable) }}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- 跟进信息 -->
+                    <div class="cust-section">
+                      <div class="cust-section-title">📝 跟进信息</div>
+                      <div class="cust-field-grid">
+                        <div class="cust-field"><span class="lbl">跟进次数</span><span class="val">{{ row.follow_count || 0 }} 次</span></div>
+                        <div class="cust-field"><span class="lbl">最近跟进</span><span class="val">{{ row.last_follow ? row.last_follow.slice(0, 10) : '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">下次跟进</span><span class="val">{{ row.next_follow ? row.next_follow.slice(0, 10) : '-' }}</span></div>
+                        <div class="cust-field"><span class="lbl">客户类型</span><span class="val">{{ row.customer_type || '-' }}</span></div>
+                      </div>
+                      <div v-if="row.remark" class="cust-remark">
+                        <span class="lbl">备注：</span>{{ row.remark }}
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column prop="name" label="客户名称" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">
+                  <span style="font-weight: 600">{{ row.name }}</span>
+                  <el-tag v-if="row.priority === '紧急'" type="danger" size="small" style="margin-left: 4px">紧急</el-tag>
+                  <el-tag v-else-if="row.priority === '重要'" type="warning" size="small" style="margin-left: 4px">重要</el-tag>
+                </template>
+              </el-table-column>
+              <el-table-column prop="phone" label="电话" width="120" />
+              <el-table-column label="状态" width="90">
                 <template #default="{ row }">
                   <el-tag :type="statusTagType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="创建时间" width="120">
-                <template #default="{ row }">{{ row.created_at ? row.created_at.slice(0, 10) : '-' }}</template>
+              <el-table-column label="楼盘" min-width="120" show-overflow-tooltip>
+                <template #default="{ row }">{{ row.building_name || '-' }}</template>
+              </el-table-column>
+              <el-table-column label="服务进度" min-width="150">
+                <template #default="{ row }">
+                  <div v-if="row.workflow" style="display: flex; align-items: center; gap: 6px">
+                    <el-tag size="small" type="success">{{ row.workflow.current_node_name || '-' }}</el-tag>
+                    <el-progress
+                      :percentage="row.workflow.progress_pct || 0"
+                      :stroke-width="6"
+                      style="flex: 1; min-width: 50px"
+                      :show-text="false"
+                    />
+                    <span style="font-size: 11px; color: #999">{{ row.workflow.progress_pct || 0 }}%</span>
+                  </div>
+                  <span v-else style="color: #ccc; font-size: 12px">未启动</span>
+                </template>
+              </el-table-column>
+              <el-table-column label="业务" width="120" align="center">
+                <template #default="{ row }">
+                  <div style="display: flex; gap: 4px; justify-content: center; align-items: center">
+                    <el-badge v-if="row.quote_count > 0" :value="row.quote_count" type="primary" />
+                    <el-badge v-if="row.contract_count > 0" :value="row.contract_count" type="success" />
+                    <el-badge v-if="row.case_count > 0" :value="row.case_count" type="info" />
+                    <el-badge v-if="row.scheme_count > 0" :value="row.scheme_count" type="warning" />
+                    <span v-if="!row.quote_count && !row.contract_count && !row.case_count && !row.scheme_count" style="color: #ccc; font-size: 12px">-</span>
+                  </div>
+                </template>
+              </el-table-column>
+              <el-table-column label="财务" width="110" align="center">
+                <template #default="{ row }">
+                  <div v-if="row.income_total > 0 || row.remaining_receivable > 0" style="font-size: 12px; line-height: 1.6">
+                    <div style="color: #67c23a">收 ¥{{ formatNum(row.income_total) }}</div>
+                    <div v-if="row.remaining_receivable > 0" style="color: #e6a23c">待收 ¥{{ formatNum(row.remaining_receivable) }}</div>
+                  </div>
+                  <span v-else style="color: #ccc; font-size: 12px">-</span>
+                </template>
+              </el-table-column>
+              <el-table-column prop="owner_name" label="负责人" width="80">
+                <template #default="{ row }">{{ row.owner_name || '-' }}</template>
+              </el-table-column>
+              <el-table-column label="操作" width="70" fixed="right">
+                <template #default="{ row }">
+                  <el-button size="small" text type="primary" @click="$router.push('/admin/customers/' + row.id)">详情</el-button>
+                </template>
               </el-table-column>
             </el-table>
             <el-pagination
@@ -237,6 +391,8 @@
               :total="custTotal"
               layout="total, sizes, prev, pager, next"
               :page-sizes="[10, 20, 50]"
+              @current-change="loadCustomers()"
+              @size-change="loadCustomers(1)"
             />
           </div>
 
@@ -996,23 +1152,29 @@ const updateLeadStatus = async (row, status) => {
 const customers = ref([])
 const customersLoading = ref(false)
 const custSearch = ref('')
+const custStatusFilter = ref('')
+const custPriorityFilter = ref('')
 const custPage = ref(1)
 const custPageSize = ref(10)
-const filteredCustomers = computed(() => {
-  const text = custSearch.value.trim().toLowerCase()
-  if (!text) return customers.value
-  return customers.value.filter((c) => (c.name || '').toLowerCase().includes(text))
-})
-const custTotal = computed(() => filteredCustomers.value.length)
-const pagedCustomers = computed(() => {
-  const start = (custPage.value - 1) * custPageSize.value
-  return filteredCustomers.value.slice(start, start + custPageSize.value)
-})
-const loadCustomers = async () => {
+const custTotal = ref(0)
+const custExpandedKeys = ref([])
+const onCustExpand = (row, expanded) => {
+  custExpandedKeys.value = expanded.map(r => String(r.id))
+}
+const loadCustomers = async (page) => {
+  if (page) custPage.value = page
   customersLoading.value = true
   try {
-    const res = await request.get('/customers')
+    const params = {
+      page: custPage.value,
+      page_size: custPageSize.value,
+    }
+    if (custSearch.value.trim()) params.keyword = custSearch.value.trim()
+    if (custStatusFilter.value) params.status = custStatusFilter.value
+    if (custPriorityFilter.value) params.priority = custPriorityFilter.value
+    const res = await request.get('/customers', { params })
     customers.value = normalizeList(res)
+    custTotal.value = res?.total ?? customers.value.length
   } catch (e) {
     ElMessage.error('加载客户失败')
   } finally {
@@ -1975,5 +2137,125 @@ watch([permissionLoaded, allowedFlatItems], () => {
   .employee-hero {
     align-items: flex-start;
   }
+}
+
+/* 客户展开行样式 */
+.cust-detail-panel {
+  padding: 12px 20px;
+  background: #fafafa;
+}
+.cust-section {
+  margin-bottom: 16px;
+}
+.cust-section:last-child {
+  margin-bottom: 0;
+}
+.cust-section-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #303133;
+  margin-bottom: 8px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #ebeef5;
+}
+.cust-field-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 16px;
+}
+.cust-field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+}
+.cust-field .lbl {
+  color: #909399;
+  min-width: 60px;
+}
+.cust-field .val {
+  color: #303133;
+}
+.cust-stat-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cust-stat {
+  text-align: center;
+  min-width: 80px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 6px;
+  border: 1px solid #ebeef5;
+}
+.cust-stat-num {
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+.cust-stat-label {
+  font-size: 12px;
+  color: #909399;
+  margin-top: 2px;
+}
+.cust-stat-sub {
+  font-size: 11px;
+  color: #606266;
+  margin-top: 2px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.text-primary { color: #409eff; }
+.text-success { color: #67c23a; }
+.text-info { color: #909399; }
+.text-warning { color: #e6a23c; }
+.cust-finance-row {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.cust-fin-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 16px;
+  border-radius: 6px;
+  min-width: 100px;
+}
+.cust-fin-item .lbl {
+  font-size: 12px;
+  color: #909399;
+}
+.cust-fin-item .val {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 2px;
+}
+.cust-fin-item.income { background: #f0f9eb; }
+.cust-fin-item.income .val { color: #67c23a; }
+.cust-fin-item.expense { background: #fef0f0; }
+.cust-fin-item.expense .val { color: #f56c6c; }
+.cust-fin-item.receivable { background: #fdf6ec; }
+.cust-fin-item.receivable .val { color: #e6a23c; }
+.cust-fin-item.received { background: #f0f9eb; }
+.cust-fin-item.received .val { color: #67c23a; }
+.cust-fin-item.remaining { background: #f4f4f5; }
+.cust-fin-item.remaining.overdue { background: #fef0f0; }
+.cust-fin-item.remaining.overdue .val { color: #f56c6c; }
+.cust-remark {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fff;
+  border-radius: 4px;
+  font-size: 13px;
+  color: #606266;
+  border-left: 3px solid #dcdfe6;
+}
+.cust-remark .lbl {
+  color: #909399;
+  font-weight: 600;
 }
 </style>
