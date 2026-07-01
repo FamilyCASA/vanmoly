@@ -3,8 +3,17 @@
   <div class="case-list-page">
 
     <!-- 统一导航栏 -->
-
     <Navbar />
+
+    <!-- 筛选向导 -->
+    <CaseFilterWizard
+      :stages="wizardStages"
+      :budgets="wizardBudgets"
+      :styles="wizardStyles"
+      @filter-change="onWizardFilterChange"
+      @skip="onWizardSkip"
+      @reset="onWizardReset"
+    />
 
 
 
@@ -214,218 +223,11 @@
 
 
 
-    <!-- 第二层:服务流程阶段横向筛选(横排按钮,点击展开细分节点) -->
+    <!-- [已替换为筛选向导组件] 原有的复杂筛选区域已注释，如需恢复请删除此注释标记
 
-    <div class="workflow-phase-filter-bar">
+    <div class="workflow-phase-filter-bar">...</div>
 
-      <div class="filter-row-wrapper"><span class="row-label">服务阶段</span><div class="phase-filter-row">
-
-        <button
-
-          v-for="phase in workflowPhases"
-
-          :key="phase.key"
-
-          class="phase-filter-btn"
-
-          :class="{ active: selectedWorkflowPhase === phase.key, expanded: expandedPhase === phase.key }"
-
-          @click="togglePhaseExpand(phase)"
-
-        >
-
-          <span class="phase-dot breathing-dot" v-if="phase.count > 0"></span>
-
-          <span class="phase-name">{{ phase.label }}</span>
-
-          <span class="phase-count" v-if="phase.count">({{ phase.count }})</span>
-
-          <el-icon class="phase-arrow" :class="{ rotated: expandedPhase === phase.key }"><CaretBottom /></el-icon>
-
-        </button>
-
-        <button class="phase-clear-btn" v-if="selectedWorkflowPhase" @click="clearWorkflowFilter">
-
-          <el-icon><Close /></el-icon> 清除筛选
-
-        </button>
-
-      </div>
-
-
-
-      <!-- 展开的节点列表(横向滚动) -->
-
-      <transition name="slide-down">
-
-        <div class="phase-nodes-panel" v-if="expandedPhase && phaseNodes[expandedPhase]?.length > 0">
-
-          <div class="nodes-scroll">
-
-            <button
-
-              v-for="node in phaseNodes[expandedPhase]"
-
-              :key="node.id"
-
-              class="node-chip"
-
-              :class="{ selected: selectedNodeId === node.id }"
-
-              @click="selectNode(node)"
-
-              :title="node.caseTitle + ' - ' + node.node_name"
-
-            >
-
-              <span class="node-phase-tag">{{ getPhaseShortLabel(node.phase) }}</span>
-
-              <span class="node-name">{{ node.node_name }}</span>
-
-              <span class="node-case" v-if="node.caseTitle">{{ node.caseTitle }}</span>
-
-            </button>
-
-          </div>
-
-        </div>
-
-        <div class="phase-nodes-panel phase-nodes-loading" v-else-if="expandedPhase && loadingNodes">
-
-          <span class="loading-text">加载节点中...</span>
-
-        </div>
-
-        <div class="phase-nodes-panel phase-nodes-empty" v-else-if="expandedPhase">
-
-          <span>该阶段暂无节点数据</span>
-
-        </div>
-
-      </transition>
-
-    </div></div>
-
-
-
-<!-- 第一层:氛围选择Tab(蔚来车型Tab风格) -->
-
-    <div class="filter-row-wrapper"><span class="row-label">空间氛围</span><div class="atmosphere-tabs">
-
-      <div
-
-        v-for="atm in atmospheres"
-
-        :key="atm.key"
-
-        class="tab-item"
-
-        :class="{ active: filters.atmosphere === atm.value }"
-
-        :style="{
-
-          backgroundColor: atm.color,
-
-          color: atm.textColor,
-
-          borderColor: atm.color
-
-        }"
-
-        @click="selectAtmosphere(atm.key)"
-
-      >
-
-        <span class="tab-label">{{ atm.label }}</span>
-
-        <span class="tab-count" v-if="atm.count">{{ atm.count }}</span>
-
-      </div>
-
-    </div></div>
-
-
-
-    <!-- 预算数字分段筛选 -->
-
-    <div class="filter-row-wrapper"><span class="row-label">预算筛选</span><div class="budget-seg-bar">
-
-      <div class="budget-seg-header">
-
-        <span class="budget-seg-label">预算区间</span>
-
-        <span class="budget-seg-hint" v-if="!selectedBudgetSeg">点击选择</span>
-
-        <span class="budget-seg-active" v-else>
-
-          <span class="budget-seg-chip">{{ selectedBudgetSeg.label }}</span>
-
-          <span class="budget-seg-count">约 {{ budgetTip }} 个方案</span>
-
-          <button class="budget-seg-clear" @click="clearBudgetFilter">清除</button>
-
-        </span>
-
-      </div>
-
-      <div class="budget-seg-tags">
-
-        <button v-for="seg in budgetSegments" :key="seg.key" class="seg-btn"
-
-          :class="{ active: selectedBudgetSeg?.key === seg.key }"
-
-          @click="selectSeg(seg)">{{ seg.label }}</button>
-
-      </div>
-
-
-
-      
-
-    </div></div>
-
-    <!-- 偏好色筛选(来自数据库实际配色,点击快速筛选) -->
-
-    <div class="filter-row-wrapper"><span class="row-label">颜色偏好</span><div class="preference-color-bar" v-if="colorPalette.length > 0">
-
-      <div class="pref-color-row">
-
-
-        <div class="pref-color-cards">
-
-          <div
-
-            v-for="color in colorPalette"
-
-            :key="color.hex"
-
-            class="pref-color-card"
-
-            :class="{ active: selectedColor === color.hex }"
-
-            :style="{ backgroundColor: color.hex }"
-
-            :title="color.hex + (color.count ? ' (' + color.count + '个方案)' : '')"
-
-            @click="selectColor(color.hex)"
-
-          >
-
-            <span class="pref-color-count" v-if="color.count">{{ color.count }}</span>
-
-          </div>
-
-        </div>
-
-        <button class="pref-clear-btn" v-if="selectedColor" @click="clearColorFilter">
-
-          <el-icon><Close /></el-icon>清除
-
-        </button>
-
-      </div>
-
-    </div></div>
+    -->
 
 
 
@@ -443,94 +245,51 @@
 
 
 
-        <!-- 案例瀑布流(杂志封面风格) -->
-
-    <div class="case-waterfall">
-
+        <!-- 案例网格布局 -->
+    <div class="case-grid" v-if="!loading && cases.length > 0">
       <div
-
-        v-for="caseItem in cases"
-
+        v-for="(caseItem, index) in cases"
         :key="caseItem.id"
-
-        class="waterfall-card"
-
-        @click="goToDetail(caseItem.id)"
-
+        class="grid-card"
+        :class="{ 'fade-in': true }"
+        :style="{ animationDelay: `${index * 50}ms` }"
+        @click="router.push(`/cases/${caseItem.id}`)"
       >
-
-        <!-- 图片全图展示 -->
-
-        <div class="wf-image-wrap">
-
+        <!-- 图片容器 4:3 比例 -->
+        <div class="grid-image-wrap">
           <img
-
             v-if="hasValidCoverImage(caseItem)"
-
             :src="getCoverImage(caseItem)"
-
             :alt="caseItem.title"
-
             loading="lazy"
-
             @error="e => handleImageError(e, caseItem.atmosphere)"
-
           >
-
-          <div v-else class="wf-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
-
+          <div v-else class="grid-no-image" :style="{ background: getAtmosphereGradient(caseItem.atmosphere) }">
             <span>{{ caseItem.title }}</span>
-
           </div>
-
-
-
-          <!-- 杂志封面文字覆盖层(始终可见) -->
-
-          <div class="wf-overlay">
-
-            <!-- 顶部:氛围标签 -->
-
-            <div class="wf-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</div>
-
-            <!-- 底部:案例名称 + 参数 -->
-
-            <div class="wf-bottom">
-
-              <div class="wf-title">{{ caseItem.title }}</div>
-
-              <div class="wf-meta">
-
-                <span v-if="caseItem.house_type">{{ caseItem.house_type }}</span>
-
-                <span v-if="caseItem.area">{{ caseItem.area }}m2</span>
-
-                <span v-if="caseItem.city">{{ caseItem.city }}</span>
-
-              </div>
-
-            </div>
-
-          </div>
-
         </div>
-
+        <!-- 底部三元标签 -->
+        <div class="grid-tags">
+          <span v-if="caseItem.space_type" class="tag tag-space">{{ caseItem.space_type }}</span>
+          <span v-if="caseItem.atmosphere" class="tag tag-atmosphere">{{ getAtmosphereLabel(caseItem.atmosphere) }}</span>
+          <span v-if="caseItem.package_type" class="tag tag-product">{{ caseItem.package_type }}</span>
+        </div>
       </div>
-
     </div>
 
-
-
-    <!-- 加载更多 -->
-
-    <div class="load-more" v-if="!loading && cases.length > 0 && hasMore">
-
-      <button class="load-more-btn" @click="loadMore" :disabled="loadingMore">
-
-        {{ loadingMore ? '加载中...' : '查看更多方案' }}
-
-      </button>
-
+    <!-- 分页组件 -->
+    <div class="pagination-wrap" v-if="!loading && cases.length > 0 && totalPages > 1">
+      <el-pagination
+        v-model:current-page="pagination.page"
+        v-model:page-size="pagination.page_size"
+        :total="total"
+        :page-sizes="[12, 24, 36]"
+        layout="total, prev, pager, next, jumper"
+        :background="true"
+        class="custom-pagination"
+        @current-change="handlePageChange"
+        @size-change="handleSizeChange"
+      />
     </div>
 
 
@@ -581,6 +340,8 @@
 
     </el-dialog>
 
+
+
   </div>
 
 </template>
@@ -600,8 +361,8 @@ import { Bell, Plus, Minus, CaretBottom, Close, ArrowRight } from '@element-plus
 import { getPublicCases, getCaseFilters, subscribeCase, getWorkflowTimeline } from '@/api/case'
 
 import Navbar from '@/components/Navbar.vue'
-
 import Footer from '@/components/Footer.vue'
+import CaseFilterWizard from '@/components/case/CaseFilterWizard.vue'
 
 
 
@@ -637,15 +398,16 @@ const atmospheres = reactive([
 
 const loading = ref(false)
 
-const loadingMore = ref(false)
-
 const cases = ref([])
 
 const featuredCase = ref(null)
 
 const total = ref(0)
 
+// 总页数
+const totalPages = computed(() => Math.ceil(total.value / pagination.page_size))
 
+// 详情弹窗
 
 // Hero 轮播相关
 
@@ -829,6 +591,141 @@ const clearWorkflowFilter = () => {
 
 
 
+// ==================== 筛选向导数据（从 API 动态获取）====================
+const wizardStages = ref([])
+const wizardBudgets = ref([])
+const wizardStyles = ref([])
+
+const stageIcons = { 'acquisition': '👋', 'conversion': '📝', 'preparation': '📐', 'construction': '🔨', 'soft_service': '🛋️', 'after_sales': '✅' }
+const stageDescs = { 'acquisition': '刚刚开始了解', 'conversion': '准备签约阶段', 'preparation': '设计方案阶段', 'construction': '硬装施工阶段', 'soft_service': '软装搭配阶段', 'after_sales': '售后服务阶段' }
+
+const styleGradients = {
+  '温馨': 'linear-gradient(135deg, #f5e6d3 0%, #e8d4c4 100%)',
+  '清新': 'linear-gradient(135deg, #d4e8d4 0%, #c5dcc5 100%)',
+  '简约': 'linear-gradient(135deg, #e8e8e8 0%, #d4d4d4 100%)',
+  '浪漫': 'linear-gradient(135deg, #f0d4d4 0%, #e8c4c4 100%)',
+  '雅致': 'linear-gradient(135deg, #d4d4e8 0%, #c4c4d8 100%)',
+  '沉稳': 'linear-gradient(135deg, #c8c0b0 0%, #b8b0a0 100%)',
+  '现代': 'linear-gradient(135deg, #d4d8e8 0%, #c5c9d8 100%)',
+  '轻奢': 'linear-gradient(135deg, #f0e6d2 0%, #e5d5b5 100%)'
+}
+
+
+
+// 向导筛选变化处理
+
+const onWizardFilterChange = (wizardFilters) => {
+
+  featuredCase.value = null
+
+  // 阶段筛选
+
+  if (wizardFilters.stage) {
+
+    selectedWorkflowPhase.value = wizardFilters.stage
+
+  } else {
+
+    selectedWorkflowPhase.value = ''
+
+  }
+
+
+
+  // 预算筛选
+
+  if (wizardFilters.budget) {
+
+    const budgetRange = wizardFilters.budget.split('-')
+
+    filters.price_min = budgetRange[0] ? parseInt(budgetRange[0]) : null
+
+    filters.price_max = budgetRange[1] ? parseInt(budgetRange[1]) : null
+
+  } else {
+
+    filters.price_min = undefined
+
+    filters.price_max = undefined
+
+  }
+
+
+
+  // 风格筛选
+
+  if (wizardFilters.style) {
+
+    filters.atmosphere = wizardFilters.style
+
+  } else {
+
+    filters.atmosphere = ''
+
+  }
+
+
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
+const onWizardSkip = () => {
+
+  // 跳过向导，显示全部
+
+  selectedWorkflowPhase.value = ''
+
+  filters.price_min = undefined
+
+  filters.price_max = undefined
+
+  filters.atmosphere = ''
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
+const onWizardReset = () => {
+
+  featuredCase.value = null
+
+  // 重置所有筛选
+
+  selectedWorkflowPhase.value = ''
+
+  selectedNodeId.value = null
+
+  expandedPhase.value = ''
+
+  filters.price_min = undefined
+
+  filters.price_max = undefined
+
+  filters.atmosphere = ''
+
+  pagination.page = 1
+
+  cases.value = []
+
+  fetchCases()
+
+}
+
+
+
 // 获取阶段短标签
 
 const getPhaseShortLabel = (phase) => {
@@ -957,7 +854,7 @@ const selectColor = (hex) => {
 
   pagination.page = 1
 
-  hasMore.value = true
+  featuredCase.value = null
 
   fetchCases()
 
@@ -973,7 +870,7 @@ const clearColorFilter = () => {
 
   pagination.page = 1
 
-  hasMore.value = true
+  featuredCase.value = null
 
   fetchCases()
 
@@ -1071,12 +968,6 @@ const pagination = reactive({
 
 
 
-// 是否还有更多
-
-const hasMore = ref(true)
-
-
-
 // 订阅弹窗
 
 const subscribeDialogVisible = ref(false)
@@ -1105,6 +996,10 @@ const fetchFilterOptions = async () => {
 
     const res = await getCaseFilters()
 
+
+
+    // ——— 氛围插件（旧筛选组件用） ———
+
     if (res.atmospheres) {
 
       atmospheres.forEach(atm => {
@@ -1115,23 +1010,13 @@ const fetchFilterOptions = async () => {
 
       })
 
-    // 预算统计
-
-    if (res.budget_stats) {
-
-      budgetStats.value = res.budget_stats
-
     }
 
 
 
-    }
+    // ——— 阶段计数（旧筛选组件用） ———
 
-    // 服务流程阶段计数(从后端 progress_options 映射到6个阶段)
-
-    // 后端返回: real_case, designing(acq+conv+prep), construction, soft_service, after_sales
-
-    // 前端需要拆分 designing 为 acquisition/conversion/preparation 三个独立计数
+    // 后端 progress_options 已返回独立 6 个阶段 key（无 _count 后缀）
 
     if (res.progress_options) {
 
@@ -1139,29 +1024,83 @@ const fetchFilterOptions = async () => {
 
       res.progress_options.forEach(opt => { optMap[opt.key] = opt.count || 0 })
 
-
-
-      // 直接使用后端返回的各阶段计数
-
-      // designing 是 acquisition+conversion+preparation 的合计,需按比例或查实际数据拆分
-
-      // 更好的方式:后端直接返回6个阶段的独立计数
-
       workflowPhases.value.forEach(p => {
 
-        if (p.key === 'acquisition') p.count = optMap['acquisition_count'] || 0
-
-        else if (p.key === 'conversion') p.count = optMap['conversion_count'] || 0
-
-        else if (p.key === 'preparation') p.count = optMap['preparation_count'] || 0
-
-        else if (p.key === 'construction') p.count = optMap['construction'] || 0
-
-        else if (p.key === 'soft_service') p.count = optMap['soft_service'] || 0
-
-        else if (p.key === 'after_sales') p.count = optMap['after_sales'] || 0
+        p.count = optMap[p.key] || 0
 
       })
+
+
+
+      // ——— 筛选向导 步骤1：服务阶段（从 real DB count）————
+
+      wizardStages.value = res.progress_options
+
+        .filter(stage => stage.label) // 排除空标签
+
+        .map(stage => ({
+
+          value: stage.key,
+
+          label: stage.label,
+
+          desc: stageDescs[stage.key] || stage.label,
+
+          icon: stageIcons[stage.key] || '📋',
+
+          count: stage.count || 0
+
+        }))
+
+    }
+
+
+
+    // ——— 筛选向导 步骤2：预算区间（从 real DB 价格分布）————
+
+    if (res.budget_buckets && res.budget_buckets.length > 0) {
+
+      wizardBudgets.value = [
+
+        { value: '', label: '不限预算', count: res.budget_buckets.reduce((s, b) => s + (b.count || 0), 0) },
+
+        ...res.budget_buckets.map(b => ({
+
+          value: b.min != null && b.max != null ? `${b.min}-${b.max}` : (b.min != null ? `${b.min}-` : ''),
+
+          label: b.label,
+
+          count: b.count || 0
+
+        }))
+
+      ]
+
+    }
+
+
+
+    // ——— 筛选向导 步骤3：风格偏好（从 real DB atmosphere 字段）————
+
+    if (res.atmospheres && res.atmospheres.length > 0) {
+
+      wizardStyles.value = [
+
+        { value: '', label: '不限风格', gradient: 'linear-gradient(135deg, #2a2a3e 0%, #1a1a2e 100%)', count: res.atmospheres.reduce((s, a) => s + (a.count || 0), 0) },
+
+        ...res.atmospheres.map(a => ({
+
+          value: a.key,
+
+          label: a.key,
+
+          gradient: styleGradients[a.key] || 'linear-gradient(135deg, #e0e0e0 0%, #c0c0c0 100%)',
+
+          count: a.count || 0
+
+        }))
+
+      ]
 
     }
 
@@ -1355,19 +1294,7 @@ const handleImageError = (event, atmosphere) => {
 
 // 获取案例列表
 
-const fetchCases = async (isLoadMore = false) => {
-
-  if (isLoadMore) {
-
-    loadingMore.value = true
-
-  } else {
-
-    loading.value = true
-
-  }
-
-
+const fetchCases = async () => {
 
   try {
 
@@ -1405,68 +1332,22 @@ const fetchCases = async (isLoadMore = false) => {
 
     const items = res?.items || []
 
-
-
-    if (isLoadMore) {
-
-      cases.value = [...cases.value, ...items]
-
-    } else {
-
-      cases.value = items
-
-      // 设置精选案例(第一个案例)
-
-      if (items.length > 0 && !featuredCase.value) {
-
-        featuredCase.value = items[0]
-
-        updateHeroImages(items[0])
-
-      }
-
-    }
-
-
-
+    cases.value = items
     total.value = res?.total || 0
 
-    hasMore.value = cases.value.length < total.value
+    // 设置精选案例(第一个案例)
+    if (items.length > 0 && !featuredCase.value) {
+      featuredCase.value = items[0]
+      updateHeroImages(items[0])
+    }
 
     // 根据当前案例数据动态构建颜色色卡
-
     buildColorPaletteFromCases()
-
   } catch (error) {
-
     console.error('获取案例列表失败:', error)
-
   } finally {
-
     loading.value = false
-
-    loadingMore.value = false
-
   }
-
-}
-
-const loadMore = () => {
-
-  pagination.page++
-
-  fetchCases(true)
-
-}
-
-
-
-// 跳转到详情
-
-const goToDetail = (id) => {
-
-  router.push(`/cases/${id}`)
-
 }
 
 
@@ -1557,8 +1438,30 @@ const submitSubscribe = async () => {
 
 
 
-// 格式化价格
+// 打开案例详情页（路由导航）
+const openCaseDetail = (caseItem) => {
+  router.push(`/cases/${caseItem.id}`)
+}
 
+// 分页切换
+const handlePageChange = (page) => {
+  pagination.page = page
+  fetchCases()
+  // 滚动到案例区域顶部
+  const gridEl = document.querySelector('.case-grid')
+  if (gridEl) {
+    gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
+}
+
+// 每页条数变化
+const handleSizeChange = (size) => {
+  pagination.page_size = size
+  pagination.page = 1
+  fetchCases()
+}
+
+// 格式化价格
 const formatPrice = (price) => {
 
   if (!price) return '0'
@@ -1574,7 +1477,6 @@ const formatPrice = (price) => {
   return num.toLocaleString()
 
 }
-
 
 
 // Hero 轮播方法
@@ -1686,6 +1588,38 @@ const updateHeroImages = (caseItem) => {
 }
 
 
+
+
+
+// [RESPONSIVE PAGINATION] Terminal detection & auto page-size
+const PAGE_SIZE_CONFIG = {
+  mobile: 6,    // < 768px
+  tablet: 8,    // 768px - 1200px
+  desktop: 12   // >= 1200px
+}
+const getDefaultPageSize = () => {
+  const w = window.innerWidth
+  if (w < 768) return PAGE_SIZE_CONFIG.mobile
+  if (w < 1200) return PAGE_SIZE_CONFIG.tablet
+  return PAGE_SIZE_CONFIG.desktop
+}
+// Initialize with current viewport
+pagination.page_size = getDefaultPageSize()
+
+// [HERO RESET] Reset featured case on viewport cross-threshold
+let _resizeTimer = null
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer)
+  _resizeTimer = setTimeout(() => {
+    const newSize = getDefaultPageSize()
+    if (pagination.page_size !== newSize) {
+      pagination.page_size = newSize
+      pagination.page = 1
+      featuredCase.value = null
+      fetchCases()
+    }
+  }, 200)
+})
 
 onMounted(() => {
 
@@ -3306,34 +3240,293 @@ onUnmounted(() => {
 
 
 
-/* 案例网格(蔚来卡片风格) */
-
-/* ── 瀑布流网格(杂志封面风格)── */
-
-.case-waterfall {
-
-  columns: 3;
-
-  column-gap: 6px;
-
-  padding: 0 60px 80px;
-
+/* 案例网格布局 - 4:3 标准网格 */
+.case-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  padding: 0 60px 40px;
   background: #0a0a1a;
-
 }
 
-
-
+/* 平板端 2列 */
 @media (max-width: 1200px) {
-
-  .case-waterfall { columns: 2; padding: 0 24px 60px; }
-
+  .case-grid { grid-template-columns: repeat(2, 1fr); padding: 0 24px 40px; }
 }
 
-@media (max-width: 640px) {
+/* 移动端 1列 */
+@media (max-width: 768px) {
+  .case-grid { grid-template-columns: 1fr; padding: 0 16px 40px; }
+}
 
-  .case-waterfall { columns: 1; padding: 0 12px 40px; }
+/* 网格卡片 */
+.grid-card {
+  background: #141428;
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+}
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.grid-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+/* 图片容器 4:3 比例 */
+.grid-image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #1a1a2e;
+}
+
+.grid-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.5s ease;
+}
+
+.grid-card:hover .grid-image-wrap img {
+  transform: scale(1.05);
+}
+
+/* 无图占位 */
+.grid-no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+/* 底部标签 */
+.grid-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 16px;
+  background: #141428;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.tag-space {
+  background: rgba(140, 125, 107, 0.2);
+  color: #8C7D6B;
+  border: 1px solid rgba(140, 125, 107, 0.3);
+}
+
+.tag-atmosphere {
+  background: rgba(212, 165, 116, 0.2);
+  color: #d4a574;
+  border: 1px solid rgba(212, 165, 116, 0.3);
+}
+
+.tag-product {
+  background: rgba(125, 156, 90, 0.2);
+  color: #7d9c5a;
+  border: 1px solid rgba(125, 156, 90, 0.3);
+}
+
+/* 分页组件 */
+.pagination-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px 60px 60px;
+  background: #0a0a1a;
+}
+
+:deep(.custom-pagination) {
+  --el-pagination-button-bg-color: rgba(255, 255, 255, 0.08);
+  --el-pagination-hover-color: #8C7D6B;
+  --el-pagination-button-color: rgba(255, 255, 255, 0.7);
+}
+
+:deep(.custom-pagination .el-pager li) {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  margin: 0 4px;
+  min-width: 36px;
+  height: 36px;
+  line-height: 36px;
+  color: rgba(255, 255, 255, 0.7);
+  transition: all 0.2s;
+}
+
+:deep(.custom-pagination .el-pager li.is-active) {
+  background: #8C7D6B;
+  color: #fff;
+}
+
+:deep(.custom-pagination .el-pager li:hover:not(.is-active)) {
+  background: rgba(140, 125, 107, 0.3);
+  color: #fff;
+}
+
+:deep(.custom-pagination .btn-prev),
+:deep(.custom-pagination .btn-next) {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 20px;
+  min-width: 36px;
+  height: 36px;
+}
+
+:deep(.custom-pagination .el-pagination__total) {
+  color: rgba(255, 255, 255, 0.6);
+  margin-right: 16px;
+}
+
+:deep(.custom-pagination .el-pagination__jump) {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+:deep(.custom-pagination .el-input__wrapper) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* 详情弹窗 */
+.case-detail-dialog :deep(.el-dialog) {
+  background: #141428;
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.case-detail-dialog :deep(.el-dialog__header) {
+  background: #1a1a2e;
+  padding: 20px 24px;
+  margin: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.case-detail-dialog :deep(.el-dialog__title) {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.case-detail-dialog :deep(.el-dialog__body) {
+  padding: 0;
+  background: #141428;
+}
+
+.case-detail-dialog :deep(.el-dialog__footer) {
+  background: #1a1a2e;
+  padding: 16px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.detail-content {
+  padding: 24px;
+}
+
+.detail-image-wrap {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a2e;
+  margin-bottom: 20px;
+}
+
+.detail-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.detail-no-image {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+}
+
+.detail-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.detail-description {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.detail-description h4 {
+  color: #8C7D6B;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.detail-description p {
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 15px;
+  line-height: 1.8;
+  margin: 0;
+}
+
+.detail-meta {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.detail-meta .meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.detail-meta .meta-label {
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 12px;
+}
+
+.detail-meta .meta-value {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+/* 旧瀑布流样式保留但不再使用 */
+/* ── 瀑布流网格(杂志封面风格)── */
+.case-waterfall {
+  display: none;
 }
 
 

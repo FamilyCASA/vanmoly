@@ -342,6 +342,93 @@
 
 
 
+
+    <!-- About Section -->
+
+
+
+    <!-- About Section - 动态从后台加载 -->
+
+    <section id="about" class="about">
+
+      <div class="section-container">
+
+        <div class="about-grid">
+
+          <div class="about-content">
+
+            <span class="section-label">About Us</span>
+
+            <h2 class="section-title">{{ aboutSection?.title || '关于D&B 帝标|设记家' }}</h2>
+
+            <div v-if="aboutSection?.description" class="about-text" v-html="aboutSection.description"></div>
+
+            <template v-else>
+
+              <p class="about-text">D&B 帝标|设记家成立于2014年，专注于高端全屋定制与全案设计服务。我们相信，每一个家都应该是一件艺术品，承载着居住者的生活理想与审美追求。</p>
+
+              <p class="about-text">从空间规划、硬装设计到软装搭配，我们的专业团队为您提供一站式解决方案，让装修不再是烦恼，而是一次美好的创作之旅。</p>
+
+            </template>
+
+            <div class="about-stats">
+
+              <div class="about-stat" v-for="(stat, si) in (aboutSection?.stats || defaultStats)" :key="si">
+
+                <span class="stat-value">{{ stat.value }}</span>
+
+                <span class="stat-label">{{ stat.label }}</span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+          <div class="about-image">
+
+            <div class="image-frame">
+
+              <img v-if="aboutSection?.image" :src="resolveImgUrl(aboutSection.image)" alt="品牌展示" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />
+
+              <div v-else class="image-placeholder">
+
+                <el-icon><OfficeBuilding /></el-icon>
+
+                <span>品牌展示图</span>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </div>
+
+    </section>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <!-- Services Section -->
 
 
@@ -828,80 +915,6 @@
 
 
     
-
-    <!-- About Section -->
-
-
-
-    <!-- About Section - 动态从后台加载 -->
-
-    <section id="about" class="about">
-
-      <div class="section-container">
-
-        <div class="about-grid">
-
-          <div class="about-content">
-
-            <span class="section-label">About Us</span>
-
-            <h2 class="section-title">{{ aboutSection?.title || '关于D&B 帝标|设记家' }}</h2>
-
-            <div v-if="aboutSection?.description" class="about-text" v-html="aboutSection.description"></div>
-
-            <template v-else>
-
-              <p class="about-text">D&B 帝标|设记家成立于2014年，专注于高端全屋定制与全案设计服务。我们相信，每一个家都应该是一件艺术品，承载着居住者的生活理想与审美追求。</p>
-
-              <p class="about-text">从空间规划、硬装设计到软装搭配，我们的专业团队为您提供一站式解决方案，让装修不再是烦恼，而是一次美好的创作之旅。</p>
-
-            </template>
-
-            <div class="about-stats">
-
-              <div class="about-stat" v-for="(stat, si) in (aboutSection?.stats || defaultStats)" :key="si">
-
-                <span class="stat-value">{{ stat.value }}</span>
-
-                <span class="stat-label">{{ stat.label }}</span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-          <div class="about-image">
-
-            <div class="image-frame">
-
-              <img v-if="aboutSection?.image" :src="resolveImgUrl(aboutSection.image)" alt="品牌展示" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />
-
-              <div v-else class="image-placeholder">
-
-                <el-icon><OfficeBuilding /></el-icon>
-
-                <span>品牌展示图</span>
-
-              </div>
-
-            </div>
-
-          </div>
-
-        </div>
-
-      </div>
-
-    </section>
-
-
-
-
-
-
-
-
 
     <!-- Brand Showcase 品牌背书 -->
 
